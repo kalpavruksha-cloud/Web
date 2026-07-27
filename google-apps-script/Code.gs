@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_07_27_DOCUMENTS_TRANSACTIONS_V4";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_07_27_REGISTER_ID_FIX_V5";
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -226,8 +226,6 @@ function registerClient(payload) {
   var credentialsSheet = requireSheet(spreadsheet, ["CLIENT_CREDENTIALS", "Credentials", "Users"]);
   var email = cleanString(payload.email).toLowerCase();
   var mobile = cleanString(payload.mobile);
-  var clientId = nextClientId(clientsSheet);
-
   var existingClients = readRows(clientsSheet);
   var duplicateClient = existingClients.some(function(row) {
     return normalizeText(first(row, ["Email"])) === email || normalizeText(first(row, ["Mobile"])) === normalizeText(mobile);
@@ -235,10 +233,7 @@ function registerClient(payload) {
   if (duplicateClient) throw coded("DUPLICATE_CLIENT", "A client with this email or mobile already exists");
 
   var existingCredentials = readRows(credentialsSheet);
-  var duplicateLogin = existingCredentials.some(function(row) {
-    return normalizeLogin(first(row, ["ClientId (Login ID)", "Login ID", "ClientId", "Client ID"])) === normalizeLogin(clientId);
-  });
-  if (duplicateLogin) throw coded("DUPLICATE_LOGIN", "Generated client login already exists");
+  var clientId = nextClientId([clientsSheet, credentialsSheet]);
 
   appendRecord(payload, ["CLIENTS", "Client", "Clients"], {
     ClientId: clientId,
@@ -1353,16 +1348,25 @@ function transactionAmount(row, side) {
   return ["debit", "withdrawal", "fee", "charge"].indexOf(type) >= 0 ? amount : 0;
 }
 
-function nextClientId(sheet) {
-  var rows = readRows(sheet);
-  var max = rows.reduce(function(current, row) {
-    var id = cleanString(first(row, ["ClientId", "Client ID", "CLIENT_ID"]));
-    var match = id.match(/KWM?(\d+)/i);
-    if (!match) return current;
-    return Math.max(current, Number(match[1]));
-  }, 0);
-  var next = leftPad(String(max + 1), 4, "0");
-  return "KWM" + next;
+function nextClientId(sheets) {
+  var used = {};
+  var max = 0;
+  var headers = ["ClientId (Login ID)", "Login ID", "LoginId", "User ID", "UserId", "ClientId", "Client ID", "CLIENT_ID", "clientId", "ID"];
+  sheets.forEach(function(sheet) {
+    if (!sheet) return;
+    readRows(sheet).forEach(function(row) {
+      var id = cleanString(first(row, headers));
+      if (!id) return;
+      used[normalizeLogin(id)] = true;
+      var match = id.match(/KWM?(\d+)/i);
+      if (match) max = Math.max(max, Number(match[1]));
+    });
+  });
+  do {
+    max += 1;
+    var next = "KWM" + leftPad(String(max), 4, "0");
+  } while (used[normalizeLogin(next)]);
+  return next;
 }
 
 function leftPad(value, length, char) {

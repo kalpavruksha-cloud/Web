@@ -25,7 +25,7 @@ import type { AccountOverview, Agreement, BankDetails, ClientDashboardData, Clie
 import { exportCsv, maskLastFour, profileCompletion, statusText } from "../clientUtils";
 import { fallbackFaqs } from "../config/faqs";
 
-const chartColors = ["#14583f", "#1e7b54", "#d7ab3d", "#6b8f71", "#a97a16"];
+const chartColors = ["#08152f", "#153bb7", "#d7ab3d", "#2563eb", "#1e7b54"];
 const documentCategories = ["Aadhaar Card", "PAN Card", "Agreement", "Cancelled Cheque", "Address Proof", "Bank Proof", "Investment Receipt", "Tax Document", "Nominee Proof", "Other"];
 
 export function ClientDashboardPage() {
@@ -43,7 +43,7 @@ export function ClientDashboardPage() {
 
   return (
     <ClientPage title={`Welcome, ${client?.fullName || user?.name || "Investor"}`} eyebrow={client?.clientId || user?.clientId}>
-      <ClientCard className="mb-6 overflow-hidden bg-[linear-gradient(135deg,#0b2f25,#14583f_55%,#1e7b54)] text-white">
+      <ClientCard className="mb-6 overflow-hidden border-white/10 bg-[radial-gradient(circle_at_88%_0%,rgba(215,171,61,0.36),transparent_22rem),radial-gradient(circle_at_12%_12%,rgba(37,99,235,0.38),transparent_24rem),linear-gradient(135deg,#040b1d,#08152f_48%,#0b2f25)] text-white">
         <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex items-center gap-4">
             {client?.profilePhotoUrl ? <img src={client.profilePhotoUrl} alt="" className="h-20 w-20 rounded-full object-cover ring-4 ring-white/18" /> : <div className="grid h-20 w-20 place-items-center rounded-full bg-white/12 ring-4 ring-white/18"><UserCircle className="h-10 w-10" /></div>}
@@ -282,7 +282,7 @@ export function ClientSettingsPage() {
 }
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
-  return <div className="mb-4"><h2 className="font-display text-lg font-extrabold text-forest-950 dark:text-ivory">{title}</h2>{subtitle && <p className="mt-1 text-sm text-charcoal/58 dark:text-white/58">{subtitle}</p>}</div>;
+  return <div className="mb-4"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-gold-600 dark:text-gold-100">Portfolio intelligence</p><h2 className="mt-1 font-display text-xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{title}</h2>{subtitle && <p className="mt-1 text-sm text-charcoal/58 dark:text-white/58">{subtitle}</p>}</div>;
 }
 
 function ChartBox({ children }: { children: ReactElement }) {
@@ -290,7 +290,7 @@ function ChartBox({ children }: { children: ReactElement }) {
 }
 
 function QuickAction({ to, label, icon }: { to: string; label: string; icon: ReactNode }) {
-  return <Link to={to} className="inline-flex items-center justify-center gap-2 rounded-lg bg-white/12 px-3 py-2 text-sm font-bold text-white ring-1 ring-white/12 hover:bg-white/18">{icon}{label}</Link>;
+  return <Link to={to} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/18 hover:shadow-[0_16px_38px_rgba(0,0,0,0.18)]">{icon}{label}</Link>;
 }
 
 function Info({ label, value }: { label: string; value?: ReactNode }) {

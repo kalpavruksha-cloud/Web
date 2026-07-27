@@ -8,7 +8,7 @@ import { formatCurrency, formatDate } from "../../../utils/format";
 import { AdminCard, AdminLoading, AdminPage, AdminTable, MetricCard, StatusBadge } from "../AdminComponents";
 import { computeAdminMetrics, distribution, monthlySeries, recentActivity, title } from "../adminUtils";
 
-const chartColors = ["#14583f", "#1e7b54", "#d7ab3d", "#6b8f71", "#a97a16", "#36453d"];
+const chartColors = ["#08152f", "#153bb7", "#d7ab3d", "#2563eb", "#1e7b54", "#a97a16"];
 
 export function AdminDashboard() {
   const dashboard = useDashboard();
@@ -117,7 +117,7 @@ export function AdminDashboard() {
           <SectionTitle title="Recent Activity" subtitle="Compiled from live client, transaction, withdrawal, and document records" />
           <div className="grid gap-3">
             {activityRows.length === 0 ? <p className="text-sm text-charcoal/60 dark:text-white/60">No activity records were returned by the spreadsheet APIs.</p> : activityRows.map((item) => (
-              <div key={`${item.title}-${item.id}`} className="rounded-lg border border-forest-100 bg-forest-50/55 p-3 dark:border-white/10 dark:bg-white/5">
+              <div key={`${item.title}-${item.id}`} className="rounded-[18px] border border-navy-100/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.88),rgba(238,244,255,0.74))] p-4 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:shadow-glow dark:border-white/10 dark:bg-white/7">
                 <div className="flex items-start justify-between gap-3">
                   <div><p className="font-bold text-forest-950 dark:text-ivory">{item.title}</p><p className="mt-1 text-sm text-charcoal/62 dark:text-white/62">{item.detail}</p></div>
                   <span className="text-xs font-bold text-gold-700 dark:text-gold-100">{formatDate(item.date)}</span>
@@ -132,7 +132,7 @@ export function AdminDashboard() {
 }
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
-  return <div className="mb-4"><h2 className="font-display text-lg font-extrabold text-forest-950 dark:text-ivory">{title}</h2><p className="mt-1 text-sm text-charcoal/58 dark:text-white/58">{subtitle}</p></div>;
+  return <div className="mb-4"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-gold-600 dark:text-gold-100">Executive intelligence</p><h2 className="mt-1 font-display text-xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{title}</h2><p className="mt-1 text-sm text-charcoal/58 dark:text-white/58">{subtitle}</p></div>;
 }
 
 function ChartBox({ children, small = false }: { children: ReactElement; small?: boolean }) {
