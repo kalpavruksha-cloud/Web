@@ -2,6 +2,7 @@ const { randomUUID } = require("node:crypto");
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec";
 const DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
+const DEPLOYMENT_MARKER = "vercel-native-api-env-fallback-2026-07-27-v2";
 
 let jwtModulePromise;
 
@@ -260,6 +261,7 @@ async function health(env, requestId) {
 
   return {
     backend: "ok",
+    deploymentMarker: DEPLOYMENT_MARKER,
     appsScriptConnectivity: upstream.success || upstream.error?.code !== "APPS_SCRIPT_UNAVAILABLE" ? "reachable" : "unreachable",
     appsScriptCapability: upstream.success ? "ready" : "missing_required_action",
     spreadsheetConnectivity: upstream.success ? "verified_by_apps_script" : "not_verified",
