@@ -36,7 +36,7 @@ git push -u origin main
 The frontend and Express backend now run together on Vercel:
 
 - React app: `client/dist`
-- Express API: `/api/[...path].ts`
+- Express API: `api/index.ts`
 - Browser API base URL: `/api`
 
 Vercel project settings:
