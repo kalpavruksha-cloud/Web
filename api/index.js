@@ -347,7 +347,7 @@ function getEnv() {
     clientUrl,
     appsScriptUrl: firstEnv("APPS_SCRIPT_URL", "GOOGLE_APPS_SCRIPT_URL", "APPS_SCRIPT_WEB_APP_URL") || DEFAULT_APPS_SCRIPT_URL,
     spreadsheetId: firstEnv("SPREADSHEET_ID", "GOOGLE_SPREADSHEET_ID", "SHEET_ID") || DEFAULT_SPREADSHEET_ID,
-    jwtSecret: firstEnv("JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET", "VERCEL_JWT_SECRET") || "",
+    jwtSecret: firstEnv("JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET", "VERCEL_JWT_SECRET") || firstSecretLikeEnv(),
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || "8h",
     timeoutMs: Number(process.env.APPS_SCRIPT_TIMEOUT_MS || 15000),
     corsOrigins: unique([
@@ -378,6 +378,17 @@ function environmentDiagnostics() {
     vercel: Boolean(process.env.VERCEL),
     vercelEnv: process.env.VERCEL_ENV || null,
     vercelUrlPresent: Boolean(process.env.VERCEL_URL),
+    secretLikeEnvironmentKeys: Object.keys(process.env)
+      .filter((name) => /JWT|SECRET|AUTH/i.test(name))
+      .sort()
+      .map((name) => {
+        const raw = process.env[name] || "";
+        return {
+          name,
+          rawLength: raw.length,
+          trimmedLength: stripWrappingQuotes(raw.trim()).length
+        };
+      }),
     jwtCandidates: names.map((name) => {
       const raw = process.env[name];
       const stripped = raw ? stripWrappingQuotes(raw.trim()) : "";
@@ -401,6 +412,13 @@ function firstEnv(...names) {
 
 function stripWrappingQuotes(value) {
   return value.replace(/^["']|["']$/g, "");
+}
+
+function firstSecretLikeEnv() {
+  const key = Object.keys(process.env)
+    .filter((name) => /JWT|SECRET|AUTH/i.test(name))
+    .find((name) => stripWrappingQuotes(String(process.env[name] || "").trim()).length >= 32);
+  return key ? stripWrappingQuotes(String(process.env[key] || "").trim()) : "";
 }
 
 function applyCors(req, res) {
