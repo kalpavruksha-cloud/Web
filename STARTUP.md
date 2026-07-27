@@ -51,6 +51,12 @@ Required frontend value:
 VITE_API_BASE_URL=http://localhost:8080/api
 ```
 
+For Vercel production:
+
+```env
+VITE_API_BASE_URL=/api
+```
+
 ## Start
 
 ```bash

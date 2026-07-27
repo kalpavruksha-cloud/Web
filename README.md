@@ -29,8 +29,8 @@ Startup health: `http://localhost:8080/api/system/startup`
 
 This repository is ready for:
 
-- Frontend: Vercel, using `vercel.json`
-- Backend: Render, Railway, or another Node.js host
+- Frontend and backend API: Vercel, using `vercel.json`
+- Optional separate backend: Render, Railway, or another Node.js host
 - Database: existing Google Spreadsheet through the deployed Google Apps Script Web App
 
 Do not commit real `.env` files. Use `.env.example`, `server/.env.example`, and `client/.env.production.example` as templates.

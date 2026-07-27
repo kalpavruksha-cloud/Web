@@ -30,5 +30,9 @@ if (!parsed.success) {
 export const env = {
   ...parsed.data,
   isProduction: parsed.data.NODE_ENV === "production",
-  corsOrigins: parsed.data.CORS_ALLOWED_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean)
+  corsOrigins: [
+    ...parsed.data.CORS_ALLOWED_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean),
+    parsed.data.CLIENT_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined
+  ].filter((origin, index, origins): origin is string => Boolean(origin) && origins.indexOf(origin) === index)
 };

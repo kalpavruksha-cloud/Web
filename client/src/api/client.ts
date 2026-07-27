@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { ApiResponse } from "../types/domain";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api";
+const baseURL = resolveBaseURL();
 
 export const api = axios.create({
   baseURL,
@@ -33,4 +33,15 @@ export async function sendData<T>(method: "post" | "put" | "delete", url: string
     throw new Error(response.data.error?.details ?? response.data.message);
   }
   return response.data.data;
+}
+
+function resolveBaseURL() {
+  const configured = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (!configured) return "/api";
+
+  const isLocalApi = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/api\/?$/i.test(configured);
+  const isLocalPage = typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+  if (isLocalApi && !isLocalPage) return "/api";
+  return configured;
 }
