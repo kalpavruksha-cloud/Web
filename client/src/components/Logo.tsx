@@ -8,7 +8,7 @@ export function Logo({ compact = false, variant = "login" }: { compact?: boolean
       </div>
     ) : (
       <div className="relative grid h-28 w-full place-items-center overflow-hidden rounded-2xl border border-gold-100/25 bg-white/10 shadow-[0_12px_30px_rgba(0,0,0,0.16)] ring-1 ring-white/10 dark:bg-white/7">
-        <img src={logo} alt="Kalpavruksha Wealth" className="h-[12.5rem] w-auto -translate-y-3 object-contain" />
+        <img src={logo} alt="Kalpavruksha Wealth" className="h-[12.5rem] w-auto -translate-y-8 object-contain" />
       </div>
     );
   }
