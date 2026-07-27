@@ -8,6 +8,9 @@ import { fail } from "../utils/apiResponse.js";
 type JwtPayload = User & { iat: number; exp: number };
 
 export function signSession(user: User, remember = false): string {
+  if (!env.isConfigValid && env.configError?.includes("JWT_SECRET")) {
+    throw new Error(`JWT_SECRET is not configured correctly: ${env.configError}`);
+  }
   return jwt.sign(user, env.JWT_SECRET, { expiresIn: (remember ? "30d" : env.JWT_EXPIRES_IN) as SignOptions["expiresIn"] });
 }
 

@@ -5,7 +5,14 @@ import { ok } from "../utils/apiResponse.js";
 
 export async function health(req: Request, res: Response) {
   const data = await appsScriptService.health(req.requestId);
-  res.status(data.appsScriptCapability === "ready" ? 200 : 503).json(ok(data, "System health checked", req.requestId));
+  const payload = {
+    ...data,
+    configuration: {
+      valid: env.isConfigValid,
+      error: env.configError
+    }
+  };
+  res.status(data.appsScriptCapability === "ready" && env.isConfigValid ? 200 : 503).json(ok(payload, "System health checked", req.requestId));
 }
 
 export async function spreadsheetSchema(req: Request, res: Response) {
@@ -22,7 +29,11 @@ export async function startup(req: Request, res: Response) {
   const data = {
     backend: {
       running: true,
-      url: `http://localhost:${env.PORT}/api`
+      url: env.isProduction ? `${env.CLIENT_URL}/api` : `http://localhost:${env.PORT}/api`,
+      configuration: {
+        valid: env.isConfigValid,
+        error: env.configError
+      }
     },
     frontend: frontendData,
     appsScript: {
@@ -41,7 +52,7 @@ export async function startup(req: Request, res: Response) {
     }
   };
 
-  const complete = data.frontend.running && data.appsScript.reachable && data.spreadsheet.reachable;
+  const complete = env.isConfigValid && data.frontend.running && data.appsScript.reachable && data.spreadsheet.reachable;
   res.status(complete ? 200 : 503).json(ok(data, "Startup health checked", req.requestId));
 }
 
