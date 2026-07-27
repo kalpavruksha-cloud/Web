@@ -262,6 +262,7 @@ async function health(env, requestId) {
   return {
     backend: "ok",
     deploymentMarker: DEPLOYMENT_MARKER,
+    environmentDiagnostics: environmentDiagnostics(),
     appsScriptConnectivity: upstream.success || upstream.error?.code !== "APPS_SCRIPT_UNAVAILABLE" ? "reachable" : "unreachable",
     appsScriptCapability: upstream.success ? "ready" : "missing_required_action",
     spreadsheetConnectivity: upstream.success ? "verified_by_apps_script" : "not_verified",
@@ -368,6 +369,26 @@ function getEnv() {
     env.error = errors.join("; ");
   }
   return env;
+}
+
+function environmentDiagnostics() {
+  const names = ["JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET"];
+  return {
+    runtime: process.version,
+    vercel: Boolean(process.env.VERCEL),
+    vercelEnv: process.env.VERCEL_ENV || null,
+    vercelUrlPresent: Boolean(process.env.VERCEL_URL),
+    jwtCandidates: names.map((name) => {
+      const raw = process.env[name];
+      const stripped = raw ? stripWrappingQuotes(raw.trim()) : "";
+      return {
+        name,
+        present: Boolean(raw),
+        rawLength: raw ? raw.length : 0,
+        trimmedLength: stripped.length
+      };
+    })
+  };
 }
 
 function firstEnv(...names) {
