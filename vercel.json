@@ -5,11 +5,7 @@
   "outputDirectory": "client/dist",
   "functions": {
     "api/index.js": {
-      "maxDuration": 30,
-      "includeFiles": [
-        "server/dist/**",
-        "server/package.json"
-      ]
+      "maxDuration": 30
     }
   },
   "routes": [
