@@ -347,7 +347,7 @@ function getEnv() {
     clientUrl,
     appsScriptUrl: firstEnv("APPS_SCRIPT_URL", "GOOGLE_APPS_SCRIPT_URL", "APPS_SCRIPT_WEB_APP_URL") || DEFAULT_APPS_SCRIPT_URL,
     spreadsheetId: firstEnv("SPREADSHEET_ID", "GOOGLE_SPREADSHEET_ID", "SHEET_ID") || DEFAULT_SPREADSHEET_ID,
-    jwtSecret: firstEnv("JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET") || "",
+    jwtSecret: firstEnv("JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET", "VERCEL_JWT_SECRET") || "",
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || "8h",
     timeoutMs: Number(process.env.APPS_SCRIPT_TIMEOUT_MS || 15000),
     corsOrigins: unique([
@@ -372,7 +372,7 @@ function getEnv() {
 }
 
 function environmentDiagnostics() {
-  const names = ["JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET"];
+  const names = ["JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET", "VERCEL_JWT_SECRET"];
   return {
     runtime: process.version,
     vercel: Boolean(process.env.VERCEL),

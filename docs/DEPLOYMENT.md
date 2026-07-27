@@ -69,6 +69,15 @@ VITE_API_BASE_URL=/api
 
 `JWT_SECRET` must be set in the same Vercel environment as the deployment you are testing. If testing a preview deployment URL, set it for Preview too, then redeploy.
 
+If the dashboard value is not visible in `/api/system/health`, set it from the Vercel CLI inside the linked project:
+
+```bash
+vercel env add JWT_SECRET production
+vercel env add JWT_SECRET preview
+vercel env add JWT_SECRET development
+vercel --prod
+```
+
 Do not set `VITE_API_BASE_URL` to `http://localhost:8080/api` in Vercel.
 
 After deployment, verify:
