@@ -13,10 +13,8 @@ The spreadsheet is the only master database. The browser never calls Apps Script
 ## Quick Start
 
 ```bash
-cp .env.example server/.env
 npm install
-npm run dev:server
-npm run dev:client
+npm run dev
 ```
 
 Frontend: `http://localhost:5173`
@@ -25,12 +23,16 @@ Backend: `http://localhost:8080/api`
 
 Health check: `http://localhost:8080/api/system/health`
 
-## Important Integration Status
+Startup health: `http://localhost:8080/api/system/startup`
 
-The provided Apps Script deployment is reachable, but probing `action=health`, `action=schema`, and `action=getSettings` returned:
+## Deployment
 
-```json
-{ "success": false, "error": "Invalid action" }
-```
+This repository is ready for:
 
-This repository includes a complete replacement Apps Script in `google-apps-script/Code.gs`, but it is not deployed automatically.
+- Frontend: Vercel, using `vercel.json`
+- Backend: Render, Railway, or another Node.js host
+- Database: existing Google Spreadsheet through the deployed Google Apps Script Web App
+
+Do not commit real `.env` files. Use `.env.example`, `server/.env.example`, and `client/.env.production.example` as templates.
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for GitHub, Vercel, backend, CORS, and custom-domain steps.
