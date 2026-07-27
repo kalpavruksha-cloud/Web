@@ -92,20 +92,23 @@ export function ClientLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {mobileOpen && <button aria-label="Close client menu" className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => setMobileOpen(false)} />}
-      <aside className={cn("no-print fixed inset-y-0 left-0 z-50 flex w-80 max-w-[86vw] flex-col overflow-hidden bg-forest-900 px-3 pb-4 pt-2 text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
-        <div className="flex items-center justify-between"><Logo variant="portal" /><button aria-label="Close menu" onClick={() => setMobileOpen(false)}><X className="h-5 w-5" /></button></div>
-        <nav className="mt-3 grid min-h-0 flex-1 gap-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(215,171,61,0.55)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gold-300/55">
+      <aside className={cn("no-print fixed inset-y-0 left-0 z-50 flex w-[19rem] max-w-[88vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#040b1d,#08152f_45%,#0b2f25)] px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(0.5rem+env(safe-area-inset-top))] text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1"><Logo variant="portal" mobile /></div>
+          <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="mt-1 shrink-0 rounded-xl border border-white/10 bg-white/10 p-2"><X className="h-5 w-5" /></button>
+        </div>
+        <nav className="mt-2 grid min-h-0 flex-1 gap-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(215,171,61,0.55)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gold-300/55">
           {navItems.map((item) => <ClientNavItem key={item.to} item={item} onClick={() => setMobileOpen(false)} />)}
         </nav>
       </aside>
 
       <div className={cn("min-h-screen transition-all", collapsed ? "lg:pl-24" : "lg:pl-72")}>
-        <header className="no-print sticky top-0 z-30 border-b border-white/50 bg-white/68 px-4 py-3 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/72 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
+        <header className="no-print sticky top-0 z-30 border-b border-white/50 bg-white/72 px-3 py-2.5 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/72 sm:px-4 lg:px-8 lg:py-3">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <button aria-label="Open client menu" onClick={() => setMobileOpen(true)} className="rounded-lg border border-forest-100 bg-white p-2 dark:border-white/10 dark:bg-white/5 lg:hidden"><Menu className="h-5 w-5" /></button>
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-600 dark:text-gold-100">Kalpavruksha Client Portal</p>
+                <p className="truncate text-[0.68rem] font-bold uppercase tracking-[0.12em] text-gold-600 dark:text-gold-100 sm:text-xs sm:tracking-[0.18em]">Kalpavruksha Client Portal</p>
                 <p className="mt-1 truncate text-sm font-semibold text-charcoal/62 dark:text-white/62">{statusText(location.pathname.split("/").filter(Boolean).pop())}</p>
               </div>
             </div>
@@ -114,17 +117,17 @@ export function ClientLayout({ children }: { children: ReactNode }) {
               <span className="sr-only">Search client portal</span>
               <input className="w-full bg-transparent" placeholder="Search transactions, documents, support" />
             </label>
-            <div className="flex items-center gap-2">
-              <button aria-label="Notifications" onClick={() => history.push("/client/notifications")} className="relative rounded-2xl border border-navy-100/70 bg-white/82 p-3 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8"><Bell className="h-5 w-5" /><span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-gold-400 shadow-[0_0_0_4px_rgba(215,171,61,0.18)]" /></button>
-              <button aria-label="Toggle dark mode" onClick={toggleTheme} className="rounded-2xl border border-navy-100/70 bg-white/82 p-3 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8">{theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}</button>
-              <button aria-label="Log out" onClick={handleLogout} className="rounded-2xl bg-[linear-gradient(135deg,#08152f,#153bb7)] p-3 text-white shadow-[0_12px_30px_rgba(21,59,183,0.28)] hover:shadow-[0_18px_42px_rgba(21,59,183,0.36)]"><LogOut className="h-5 w-5" /></button>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button aria-label="Notifications" onClick={() => history.push("/client/notifications")} className="relative rounded-xl border border-navy-100/70 bg-white/82 p-2.5 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8 sm:rounded-2xl sm:p-3"><Bell className="h-5 w-5" /><span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-gold-400 shadow-[0_0_0_4px_rgba(215,171,61,0.18)]" /></button>
+              <button aria-label="Toggle dark mode" onClick={toggleTheme} className="rounded-xl border border-navy-100/70 bg-white/82 p-2.5 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8 sm:rounded-2xl sm:p-3">{theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}</button>
+              <button aria-label="Log out" onClick={handleLogout} className="rounded-xl bg-[linear-gradient(135deg,#08152f,#153bb7)] p-2.5 text-white shadow-[0_12px_30px_rgba(21,59,183,0.28)] hover:shadow-[0_18px_42px_rgba(21,59,183,0.36)] sm:rounded-2xl sm:p-3"><LogOut className="h-5 w-5" /></button>
             </div>
           </div>
         </header>
-        <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }} className="mx-auto w-full max-w-[1380px] px-4 py-6 pb-24 lg:px-8">
+        <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }} className="mx-auto w-full max-w-[1380px] px-3 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-6 lg:px-8">
           {children}
         </motion.main>
-        <nav className="no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-forest-100 bg-white/95 px-2 py-2 backdrop-blur dark:border-white/10 dark:bg-charcoal/95 lg:hidden">
+        <nav className="no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-forest-100 bg-white/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur dark:border-white/10 dark:bg-charcoal/95 lg:hidden">
           {navItems.slice(0, 5).map((item) => <ClientNavItem key={item.to} item={item} mobile />)}
         </nav>
       </div>
@@ -135,8 +138,8 @@ export function ClientLayout({ children }: { children: ReactNode }) {
 export function ClientPage({ title, eyebrow, actions, children }: { title: string; eyebrow?: ReactNode; actions?: ReactNode; children: ReactNode }) {
   return (
     <>
-      <div className="sticky top-[73px] z-20 mb-6 flex flex-col justify-between gap-4 rounded-[18px] border border-white/60 bg-white/68 px-5 py-4 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-white/8 lg:flex-row lg:items-end">
-        <div><p className="text-xs font-extrabold uppercase tracking-[0.22em] text-gold-600 dark:text-gold-100">{eyebrow ?? "Live client records"}</p><h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{title}</h1></div>
+      <div className="mb-4 flex flex-col justify-between gap-3 rounded-[18px] border border-white/60 bg-white/68 px-4 py-3 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-white/8 sm:mb-6 sm:px-5 sm:py-4 lg:sticky lg:top-[73px] lg:z-20 lg:flex-row lg:items-end">
+        <div className="min-w-0"><p className="text-[0.68rem] font-extrabold uppercase tracking-[0.16em] text-gold-600 dark:text-gold-100 sm:text-xs sm:tracking-[0.22em]">{eyebrow ?? "Live client records"}</p><h1 className="mt-2 break-words font-display text-2xl font-extrabold tracking-tight text-navy-900 dark:text-ivory sm:text-3xl">{title}</h1></div>
         {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </div>
       {children}
@@ -145,11 +148,11 @@ export function ClientPage({ title, eyebrow, actions, children }: { title: strin
 }
 
 export function ClientCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} className={cn("kv-card p-5", className)}>{children}</motion.section>;
+  return <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} className={cn("kv-card p-4 sm:p-5", className)}>{children}</motion.section>;
 }
 
 export function ClientMetric({ label, value, hint, icon }: { label: string; value: string; hint?: string; icon?: ReactNode }) {
-  return <ClientCard><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold text-charcoal/58 dark:text-white/58">{label}</p><p className="mt-2 text-2xl font-extrabold text-forest-950 dark:text-ivory">{value}</p>{hint && <p className="mt-2 text-xs font-bold text-gold-600 dark:text-gold-100">{hint}</p>}</div>{icon && <div className="rounded-lg bg-forest-50 p-3 text-forest-800 dark:bg-gold-100/10 dark:text-gold-100">{icon}</div>}</div></ClientCard>;
+  return <ClientCard><div className="flex items-start justify-between gap-3 sm:gap-4"><div className="min-w-0"><p className="text-sm font-semibold text-charcoal/58 dark:text-white/58">{label}</p><p className="mt-2 break-words text-[1.35rem] font-extrabold leading-tight text-forest-950 dark:text-ivory sm:text-2xl">{value}</p>{hint && <p className="mt-2 text-xs font-bold text-gold-600 dark:text-gold-100">{hint}</p>}</div>{icon && <div className="shrink-0 rounded-lg bg-forest-50 p-2.5 text-forest-800 dark:bg-gold-100/10 dark:text-gold-100 sm:p-3">{icon}</div>}</div></ClientCard>;
 }
 
 export function ClientStatus({ value }: { value?: string | boolean }) {
@@ -183,14 +186,14 @@ export function ClientTable<T>({ rows, columns, searchPlaceholder = "Search reco
           </tbody>
         </table>
       </div>
-      <div className="mt-4 flex justify-between gap-3 text-sm text-charcoal/60 dark:text-white/60"><span>{filtered.length} records</span><div className="flex items-center gap-2"><button onClick={() => setPage((value) => Math.max(value - 1, 1))} className="rounded-lg border border-forest-100 px-3 py-2 dark:border-white/10">Previous</button><span className="font-bold">Page {Math.min(page, pageCount)} of {pageCount}</span><button onClick={() => setPage((value) => Math.min(value + 1, pageCount))} className="rounded-lg border border-forest-100 px-3 py-2 dark:border-white/10">Next</button></div></div>
+      <div className="mt-4 flex flex-col justify-between gap-3 text-sm text-charcoal/60 dark:text-white/60 sm:flex-row sm:items-center"><span>{filtered.length} records</span><div className="flex items-center justify-between gap-2 sm:justify-start"><button onClick={() => setPage((value) => Math.max(value - 1, 1))} className="rounded-lg border border-forest-100 px-3 py-2 dark:border-white/10">Previous</button><span className="font-bold">Page {Math.min(page, pageCount)} of {pageCount}</span><button onClick={() => setPage((value) => Math.min(value + 1, pageCount))} className="rounded-lg border border-forest-100 px-3 py-2 dark:border-white/10">Next</button></div></div>
     </div>
   );
 }
 
 export function ClientButton({ children, onClick, type = "button", disabled, tone = "primary" }: { children: ReactNode; onClick?: () => void; type?: "button" | "submit"; disabled?: boolean; tone?: "primary" | "secondary" | "danger" }) {
   const cls = tone === "primary" ? "kv-button-primary" : tone === "danger" ? "rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-red-800 shadow-sm dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-100" : "kv-button-secondary";
-  return <button type={type} disabled={disabled} onClick={onClick} className={cn("inline-flex items-center justify-center gap-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-60", cls)}>{children}</button>;
+  return <button type={type} disabled={disabled} onClick={onClick} className={cn("inline-flex w-full items-center justify-center gap-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto", cls)}>{children}</button>;
 }
 
 export function ClientField({ label, children }: { label: string; children: ReactNode }) {
@@ -294,5 +297,5 @@ function ClientNavItem({ item, collapsed, mobile, onClick }: { item: typeof navI
   const location = useLocation();
   const Icon = item.icon;
   const active = item.to === "/client" ? location.pathname === "/client" : location.pathname.startsWith(item.to);
-  return <Link to={item.to} onClick={onClick} title={collapsed ? item.label : undefined} className={cn("group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold text-white/70 transition hover:bg-white/10 hover:text-white", active && "bg-white text-navy-900 shadow-[0_12px_28px_rgba(215,171,61,0.16)] hover:bg-white hover:text-navy-900", collapsed && "justify-center", mobile && "justify-center px-2 py-2 text-charcoal/70 dark:text-white/70")}><span className={cn("absolute left-0 h-6 w-1 rounded-full bg-gold-400 opacity-0 transition", active && "opacity-100")} /><Icon className="h-5 w-5 shrink-0 transition group-hover:scale-110" />{!collapsed && !mobile && <span>{item.label}</span>}{mobile && <span className="sr-only">{item.label}</span>}</Link>;
+  return <Link to={item.to} onClick={onClick} title={collapsed ? item.label : undefined} className={cn("group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold text-white/70 transition hover:bg-white/10 hover:text-white", active && "bg-white text-navy-900 shadow-[0_12px_28px_rgba(215,171,61,0.16)] hover:bg-white hover:text-navy-900", collapsed && "justify-center", mobile && "justify-center rounded-xl px-2 py-2 text-charcoal/70 dark:text-white/70")}><span className={cn("absolute left-0 h-6 w-1 rounded-full bg-gold-400 opacity-0 transition", active && "opacity-100", mobile && "hidden")} /><Icon className="h-5 w-5 shrink-0 transition group-hover:scale-110" />{!collapsed && !mobile && <span className="truncate">{item.label}</span>}{mobile && <span className="sr-only">{item.label}</span>}</Link>;
 }

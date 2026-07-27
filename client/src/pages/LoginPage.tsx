@@ -47,11 +47,11 @@ export function LoginPage() {
         <p className="absolute bottom-10 left-10 right-10 text-sm text-white/60">HTTPS, role-based access, and verified spreadsheet records only.</p>
       </section>
 
-      <section className="grid place-items-center px-5 py-10">
+      <section className="grid place-items-center px-4 py-6 sm:px-5 sm:py-10">
         <div className="w-full max-w-md">
-          <div className="mb-8 lg:hidden"><Logo /></div>
-          <div className="rounded-[26px] border border-white/70 bg-white/82 p-7 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-white/8">
-            <h2 className="font-display text-3xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">Sign in securely</h2>
+          <div className="mb-4 flex justify-center sm:mb-8 lg:hidden"><Logo /></div>
+          <div className="rounded-[22px] border border-white/70 bg-white/82 p-5 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-white/8 sm:rounded-[26px] sm:p-7">
+            <h2 className="font-display text-2xl font-extrabold tracking-tight text-navy-900 dark:text-ivory sm:text-3xl">Sign in securely</h2>
             <p className="mt-2 text-sm text-charcoal/65 dark:text-white/65">Use your registered login ID or email and portal password. Your spreadsheet role opens the correct portal.</p>
             {error && <div className="mt-4"><ErrorState title="Login failed" message={error} /></div>}
             {forgot && (
@@ -79,7 +79,7 @@ export function LoginPage() {
                 </span>
                 {errors.password && <span className="text-xs text-red-600">{errors.password.message}</span>}
               </label>
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <label className="flex items-center gap-2"><input type="checkbox" {...register("remember")} /> Remember session</label>
                 <button type="button" className="font-semibold text-forest-700 dark:text-gold-100" onClick={() => setForgot((value) => !value)}>Forgot password?</button>
               </div>

@@ -29,23 +29,23 @@ export function RegisterPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center overflow-hidden bg-[radial-gradient(circle_at_8%_0%,rgba(215,171,61,0.18),transparent_28rem),radial-gradient(circle_at_88%_12%,rgba(37,99,235,0.16),transparent_30rem),linear-gradient(135deg,#fbfaf4,#f5f8fb_46%,#eef5f1)] px-5 py-10 dark:bg-[linear-gradient(135deg,#040b1d,#071733_50%,#0b201a)]">
+    <main className="grid min-h-screen place-items-center overflow-hidden bg-[radial-gradient(circle_at_8%_0%,rgba(215,171,61,0.18),transparent_28rem),radial-gradient(circle_at_88%_12%,rgba(37,99,235,0.16),transparent_30rem),linear-gradient(135deg,#fbfaf4,#f5f8fb_46%,#eef5f1)] px-4 py-6 dark:bg-[linear-gradient(135deg,#040b1d,#071733_50%,#0b201a)] sm:px-5 sm:py-10">
       <div className="w-full max-w-3xl">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <Logo />
-          <Link to="/login" className="kv-button-secondary inline-flex items-center gap-2 text-sm">
+        <div className="mb-4 grid gap-3 sm:mb-6 sm:flex sm:items-center sm:justify-between">
+          <div className="flex justify-center sm:block"><Logo /></div>
+          <Link to="/login" className="kv-button-secondary inline-flex items-center justify-center gap-2 text-sm">
             <ArrowLeft className="h-4 w-4" /> Sign in
           </Link>
         </div>
-        <section className="kv-card p-7">
+        <section className="kv-card p-5 sm:p-7">
           <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
-            <div className="flex items-start gap-4">
-            <div className="rounded-2xl border border-gold-100/70 bg-[linear-gradient(135deg,rgba(215,171,61,0.22),rgba(37,99,235,0.08))] p-3 text-navy-900 shadow-sm dark:border-gold-100/15 dark:text-gold-100">
+            <div className="flex items-start gap-3 sm:gap-4">
+            <div className="shrink-0 rounded-2xl border border-gold-100/70 bg-[linear-gradient(135deg,rgba(215,171,61,0.22),rgba(37,99,235,0.08))] p-3 text-navy-900 shadow-sm dark:border-gold-100/15 dark:text-gold-100">
               <UserPlus className="h-6 w-6" />
             </div>
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-gold-600 dark:text-gold-100">Investor onboarding</p>
-              <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">Register for Kalpavruksha Portal</h1>
+            <div className="min-w-0">
+              <p className="text-[0.68rem] font-extrabold uppercase tracking-[0.16em] text-gold-600 dark:text-gold-100 sm:text-xs sm:tracking-[0.22em]">Investor onboarding</p>
+              <h1 className="mt-2 break-words font-display text-2xl font-extrabold tracking-tight text-navy-900 dark:text-ivory sm:text-3xl">Register for Kalpavruksha Portal</h1>
               <p className="mt-1 text-sm text-charcoal/65 dark:text-white/65">Your details will be added to the official spreadsheet for activation and review.</p>
             </div>
             </div>

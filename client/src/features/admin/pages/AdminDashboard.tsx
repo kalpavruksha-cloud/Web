@@ -136,5 +136,5 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) 
 }
 
 function ChartBox({ children, small = false }: { children: ReactElement; small?: boolean }) {
-  return <div className={small ? "h-56" : "h-80"}><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>;
+  return <div className={small ? "h-52 sm:h-56" : "h-64 sm:h-80"}><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>;
 }

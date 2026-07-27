@@ -45,9 +45,9 @@ export function ClientDashboardPage() {
     <ClientPage title={`Welcome, ${client?.fullName || user?.name || "Investor"}`} eyebrow={client?.clientId || user?.clientId}>
       <ClientCard className="mb-6 overflow-hidden border-white/10 bg-[radial-gradient(circle_at_88%_0%,rgba(215,171,61,0.36),transparent_22rem),radial-gradient(circle_at_12%_12%,rgba(37,99,235,0.38),transparent_24rem),linear-gradient(135deg,#040b1d,#08152f_48%,#0b2f25)] text-white">
         <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="flex items-center gap-4">
-            {client?.profilePhotoUrl ? <img src={client.profilePhotoUrl} alt="" className="h-20 w-20 rounded-full object-cover ring-4 ring-white/18" /> : <div className="grid h-20 w-20 place-items-center rounded-full bg-white/12 ring-4 ring-white/18"><UserCircle className="h-10 w-10" /></div>}
-            <div><p className="text-sm font-bold text-gold-100">Client ID {client?.clientId || user?.clientId}</p><h2 className="mt-1 font-display text-3xl font-extrabold">{client?.fullName || user?.name}</h2><div className="mt-3 flex flex-wrap gap-2"><ClientStatus value={data.kycStatus || client?.kycStatus} /><ClientStatus value={client?.accountStatus || "active"} /></div></div>
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            {client?.profilePhotoUrl ? <img src={client.profilePhotoUrl} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover ring-4 ring-white/18 sm:h-20 sm:w-20" /> : <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white/12 ring-4 ring-white/18 sm:h-20 sm:w-20"><UserCircle className="h-9 w-9 sm:h-10 sm:w-10" /></div>}
+            <div className="min-w-0"><p className="text-sm font-bold text-gold-100">Client ID {client?.clientId || user?.clientId}</p><h2 className="mt-1 break-words font-display text-2xl font-extrabold leading-tight sm:text-3xl">{client?.fullName || user?.name}</h2><div className="mt-3 flex flex-wrap gap-2"><ClientStatus value={data.kycStatus || client?.kycStatus} /><ClientStatus value={client?.accountStatus || "active"} /></div></div>
           </div>
           <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[520px]">
             <QuickAction to="/client/add-investment" label="Add Investment" icon={<PlusCircle className="h-4 w-4" />} />
@@ -286,15 +286,15 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle?: string })
 }
 
 function ChartBox({ children }: { children: ReactElement }) {
-  return <div className="h-72"><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>;
+  return <div className="h-60 sm:h-72"><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>;
 }
 
 function QuickAction({ to, label, icon }: { to: string; label: string; icon: ReactNode }) {
-  return <Link to={to} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/18 hover:shadow-[0_16px_38px_rgba(0,0,0,0.18)]">{icon}{label}</Link>;
+  return <Link to={to} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/18 hover:shadow-[0_16px_38px_rgba(0,0,0,0.18)]">{icon}{label}</Link>;
 }
 
 function Info({ label, value }: { label: string; value?: ReactNode }) {
-  return <div className="flex justify-between gap-3 border-b border-forest-100 py-2 text-sm last:border-0 dark:border-white/10"><dt className="text-charcoal/58 dark:text-white/58">{label}</dt><dd className="font-bold text-forest-950 dark:text-ivory">{value ?? "Not available"}</dd></div>;
+  return <div className="flex flex-col gap-1 border-b border-forest-100 py-2 text-sm last:border-0 dark:border-white/10 sm:flex-row sm:justify-between sm:gap-3"><dt className="text-charcoal/58 dark:text-white/58">{label}</dt><dd className="min-w-0 break-words font-bold text-forest-950 dark:text-ivory sm:text-right">{value ?? "Not available"}</dd></div>;
 }
 
 function DetailGrid({ data, masked = false }: { data?: Record<string, unknown>; masked?: boolean }) {
@@ -312,5 +312,5 @@ function EditableProfileFields({ data, form, setForm }: { data?: Profile; form: 
 }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
-  return <label className="mb-3 flex items-center justify-between gap-4 rounded-lg border border-forest-100 p-3 text-sm font-bold dark:border-white/10"><span>{label}</span><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /></label>;
+  return <label className="mb-3 flex items-center justify-between gap-4 rounded-lg border border-forest-100 p-3 text-sm font-bold dark:border-white/10"><span className="min-w-0">{label}</span><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /></label>;
 }

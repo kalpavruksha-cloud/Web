@@ -17,7 +17,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed right-4 top-4 z-50 grid gap-3">
+      <div className="fixed inset-x-3 top-3 z-50 grid gap-3 sm:inset-x-auto sm:right-4 sm:top-4">
         <AnimatePresence>
           {toasts.map((item) => (
             <motion.div
@@ -25,7 +25,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: 24 }}
-              className="relative w-80 overflow-hidden rounded-[18px] border border-white/60 bg-white/86 p-4 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/88"
+              className="relative w-full overflow-hidden rounded-[18px] border border-white/60 bg-white/86 p-4 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/88 sm:w-80"
               role="status"
             >
               <div className="flex items-start justify-between gap-3">

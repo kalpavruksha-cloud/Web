@@ -75,21 +75,24 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {mobileOpen && <button aria-label="Close admin menu" className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => setMobileOpen(false)} />}
-      <aside className={cn("no-print fixed inset-y-0 left-0 z-50 flex w-72 flex-col overflow-hidden border-r border-forest-100 bg-white px-3 pb-4 pt-2 shadow-2xl transition-transform duration-300 ease-out dark:border-white/10 dark:bg-charcoal lg:hidden", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
-        <div className="flex items-center justify-between"><Logo variant="portal" /><button aria-label="Close menu" onClick={() => setMobileOpen(false)}><ChevronLeft className="h-5 w-5" /></button></div>
-        <nav className="mt-3 grid min-h-0 flex-1 gap-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(215,171,61,0.55)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gold-300/55">
+      <aside className={cn("no-print fixed inset-y-0 left-0 z-50 flex w-[19rem] max-w-[88vw] flex-col overflow-hidden border-r border-forest-100 bg-white px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(0.5rem+env(safe-area-inset-top))] shadow-2xl transition-transform duration-300 ease-out dark:border-white/10 dark:bg-charcoal lg:hidden", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1"><Logo variant="portal" mobile /></div>
+          <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="mt-1 shrink-0 rounded-xl border border-forest-100 bg-white/85 p-2 text-navy-900 shadow-sm dark:border-white/10 dark:bg-white/8 dark:text-white"><ChevronLeft className="h-5 w-5" /></button>
+        </div>
+        <nav className="mt-2 grid min-h-0 flex-1 gap-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(215,171,61,0.55)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gold-300/55">
           {navItems.map((item) => <AdminNavItem key={item.to} item={item} onClick={() => setMobileOpen(false)} />)}
         </nav>
       </aside>
 
       <div className={cn("min-h-screen transition-all", collapsed ? "lg:pl-24" : "lg:pl-72")}>
-        <header className="no-print sticky top-0 z-30 border-b border-white/50 bg-white/68 px-4 py-3 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/72 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
+        <header className="no-print sticky top-0 z-30 border-b border-white/50 bg-white/72 px-3 py-2.5 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/72 sm:px-4 lg:px-8 lg:py-3">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <button aria-label="Open admin menu" onClick={() => setMobileOpen(true)} className="rounded-lg border border-forest-100 bg-white p-2 dark:border-white/10 dark:bg-white/5 lg:hidden"><Menu className="h-5 w-5" /></button>
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-600 dark:text-gold-100">Kalpavruksha Admin</p>
-                <div className="mt-1 flex flex-wrap items-center gap-1 text-sm text-charcoal/60 dark:text-white/60">
+                <p className="truncate text-[0.68rem] font-bold uppercase tracking-[0.12em] text-gold-600 dark:text-gold-100 sm:text-xs sm:tracking-[0.18em]">Kalpavruksha Admin</p>
+                <div className="mt-1 flex max-w-[42vw] items-center gap-1 overflow-hidden text-sm text-charcoal/60 dark:text-white/60 sm:max-w-none sm:flex-wrap">
                   {crumbs.map((crumb, index) => <span key={`${crumb}-${index}`}>{index > 0 && <span className="mx-1">/</span>}{crumb}</span>)}
                 </div>
               </div>
@@ -99,23 +102,23 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               <span className="sr-only">Admin search</span>
               <input className="w-full bg-transparent" placeholder="Search clients, IDs, records" />
             </label>
-            <div className="flex items-center gap-2">
-              <button aria-label="Notifications" className="relative rounded-2xl border border-navy-100/70 bg-white/82 p-3 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button aria-label="Notifications" className="relative rounded-xl border border-navy-100/70 bg-white/82 p-2.5 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8 sm:rounded-2xl sm:p-3">
                 <Bell className="h-5 w-5" />
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-gold-400 shadow-[0_0_0_4px_rgba(215,171,61,0.18)]" />
               </button>
-              <button aria-label="Toggle dark mode" onClick={toggleTheme} className="rounded-2xl border border-navy-100/70 bg-white/82 p-3 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8">
+              <button aria-label="Toggle dark mode" onClick={toggleTheme} className="rounded-xl border border-navy-100/70 bg-white/82 p-2.5 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8 sm:rounded-2xl sm:p-3">
                 {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </button>
               <div className="hidden items-center gap-3 rounded-2xl border border-navy-100/70 bg-white/82 px-3 py-2 shadow-sm dark:border-white/10 dark:bg-white/8 sm:flex">
                 <UserCircle className="h-5 w-5 text-forest-700 dark:text-gold-100" />
                 <div className="max-w-36 truncate text-sm"><p className="truncate font-bold">{user?.name}</p><p className="text-xs text-charcoal/55 dark:text-white/55">Administrator</p></div>
               </div>
-              <button aria-label="Log out" onClick={handleLogout} className="rounded-2xl bg-[linear-gradient(135deg,#08152f,#153bb7)] p-3 text-white shadow-[0_12px_30px_rgba(21,59,183,0.28)] hover:shadow-[0_18px_42px_rgba(21,59,183,0.36)]"><LogOut className="h-5 w-5" /></button>
+              <button aria-label="Log out" onClick={handleLogout} className="rounded-xl bg-[linear-gradient(135deg,#08152f,#153bb7)] p-2.5 text-white shadow-[0_12px_30px_rgba(21,59,183,0.28)] hover:shadow-[0_18px_42px_rgba(21,59,183,0.36)] sm:rounded-2xl sm:p-3"><LogOut className="h-5 w-5" /></button>
             </div>
           </div>
         </header>
-        <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }} className="mx-auto w-full max-w-[1500px] px-4 py-6 pb-24 lg:px-8">
+        <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }} className="mx-auto w-full max-w-[1500px] px-3 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-6 lg:px-8">
           {children}
         </motion.main>
       </div>
@@ -126,10 +129,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 export function AdminPage({ title, eyebrow, actions, children }: { title: string; eyebrow?: ReactNode; actions?: ReactNode; children: ReactNode }) {
   return (
     <>
-      <div className="sticky top-[73px] z-20 mb-6 flex flex-col justify-between gap-4 rounded-[18px] border border-white/60 bg-white/68 px-5 py-4 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-white/8 lg:flex-row lg:items-end">
-        <div>
-          <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-gold-600 dark:text-gold-100">{eyebrow ?? "Live spreadsheet operations"}</p>
-          <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{title}</h1>
+      <div className="mb-4 flex flex-col justify-between gap-3 rounded-[18px] border border-white/60 bg-white/68 px-4 py-3 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-white/8 sm:mb-6 sm:px-5 sm:py-4 lg:sticky lg:top-[73px] lg:z-20 lg:flex-row lg:items-end">
+        <div className="min-w-0">
+          <p className="text-[0.68rem] font-extrabold uppercase tracking-[0.16em] text-gold-600 dark:text-gold-100 sm:text-xs sm:tracking-[0.22em]">{eyebrow ?? "Live spreadsheet operations"}</p>
+          <h1 className="mt-2 break-words font-display text-2xl font-extrabold tracking-tight text-navy-900 dark:text-ivory sm:text-3xl">{title}</h1>
         </div>
         {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </div>
@@ -139,7 +142,7 @@ export function AdminPage({ title, eyebrow, actions, children }: { title: string
 }
 
 export function AdminCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} className={cn("kv-card p-5", className)}>{children}</motion.section>;
+  return <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} className={cn("kv-card p-4 sm:p-5", className)}>{children}</motion.section>;
 }
 
 export function MetricCard({ label, value, hint, icon, tone = "green" }: { label: string; value: string; hint?: string; icon?: ReactNode; tone?: "green" | "gold" | "slate" }) {
@@ -149,10 +152,10 @@ export function MetricCard({ label, value, hint, icon, tone = "green" }: { label
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-charcoal/54 dark:text-white/54">{label}</p>
-          <p className="mt-3 truncate font-display text-3xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{value}</p>
+          <p className="mt-3 break-words font-display text-[1.6rem] font-extrabold leading-tight tracking-tight text-navy-900 dark:text-ivory sm:text-3xl">{value}</p>
           {hint && <p className="mt-2 text-xs font-bold text-gold-600 dark:text-gold-100">{hint}</p>}
         </div>
-        {icon && <div className={cn("rounded-lg p-3", toneClass)}>{icon}</div>}
+        {icon && <div className={cn("shrink-0 rounded-lg p-2.5 sm:p-3", toneClass)}>{icon}</div>}
       </div>
     </AdminCard>
   );
@@ -234,7 +237,7 @@ export function CommandButton({ children, onClick, tone = "primary", type = "but
     : tone === "danger"
       ? "rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-red-800 shadow-sm hover:bg-red-100 dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-100"
       : "kv-button-secondary";
-  return <button type={type} disabled={disabled} onClick={onClick} className={cn("inline-flex items-center justify-center gap-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-60", className)}>{children}</button>;
+  return <button type={type} disabled={disabled} onClick={onClick} className={cn("inline-flex w-full items-center justify-center gap-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto", className)}>{children}</button>;
 }
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -266,7 +269,7 @@ function AdminNavItem({ item, collapsed, onClick }: { item: typeof navItems[numb
     >
       <span className={cn("absolute left-0 h-6 w-1 rounded-full bg-gold-400 opacity-0 transition", active && "opacity-100")} />
       <Icon className="h-5 w-5 shrink-0 transition group-hover:scale-110" />
-      {!collapsed && <span>{item.label}</span>}
+      {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
   );
 }
