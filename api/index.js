@@ -1,5 +1,8 @@
 const { randomUUID } = require("node:crypto");
 
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec";
+const DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
+
 let jwtModulePromise;
 
 module.exports = async function handler(req, res) {
@@ -334,14 +337,14 @@ function getApiPath(rawUrl) {
 
 function getEnv() {
   const nodeEnv = normalizeNodeEnv(process.env.NODE_ENV);
-  const clientUrl = process.env.CLIENT_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:5173");
+  const clientUrl = firstEnv("CLIENT_URL", "FRONTEND_URL", "SITE_URL") || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:5173");
   const env = {
     production: nodeEnv === "production",
     nodeEnv,
     clientUrl,
-    appsScriptUrl: process.env.APPS_SCRIPT_URL || "",
-    spreadsheetId: process.env.SPREADSHEET_ID || "",
-    jwtSecret: process.env.JWT_SECRET || "",
+    appsScriptUrl: firstEnv("APPS_SCRIPT_URL", "GOOGLE_APPS_SCRIPT_URL", "APPS_SCRIPT_WEB_APP_URL") || DEFAULT_APPS_SCRIPT_URL,
+    spreadsheetId: firstEnv("SPREADSHEET_ID", "GOOGLE_SPREADSHEET_ID", "SHEET_ID") || DEFAULT_SPREADSHEET_ID,
+    jwtSecret: firstEnv("JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET") || "",
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || "8h",
     timeoutMs: Number(process.env.APPS_SCRIPT_TIMEOUT_MS || 15000),
     corsOrigins: unique([
@@ -363,6 +366,18 @@ function getEnv() {
     env.error = errors.join("; ");
   }
   return env;
+}
+
+function firstEnv(...names) {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value && value.trim()) return stripWrappingQuotes(value.trim());
+  }
+  return "";
+}
+
+function stripWrappingQuotes(value) {
+  return value.replace(/^["']|["']$/g, "");
 }
 
 function applyCors(req, res) {

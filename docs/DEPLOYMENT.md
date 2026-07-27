@@ -67,6 +67,8 @@ SUPPORT_WHATSAPP_URL=https://wa.me/910000000000
 VITE_API_BASE_URL=/api
 ```
 
+`JWT_SECRET` must be set in the same Vercel environment as the deployment you are testing. If testing a preview deployment URL, set it for Preview too, then redeploy.
+
 Do not set `VITE_API_BASE_URL` to `http://localhost:8080/api` in Vercel.
 
 After deployment, verify:
