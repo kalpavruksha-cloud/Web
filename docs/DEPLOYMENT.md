@@ -43,8 +43,8 @@ Vercel project settings:
 
 - Framework preset: Vite
 - Root directory: repository root
-- Install command: `npm install`
-- Build command: `npm run build`
+- Install command: `npm install --include=dev`
+- Build command: `npm run build --workspace client`
 - Output directory: `client/dist`
 
 The root `vercel.json` contains these settings and React SPA rewrites.
