@@ -72,15 +72,15 @@ export function ClientLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(135deg,#fbfaf4_0%,#eef7f2_48%,#f8faf8_100%)] text-charcoal dark:bg-[linear-gradient(135deg,#071713_0%,#10251f_56%,#151b1a_100%)] dark:text-white">
-      <aside className={cn("no-print fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden border-r border-forest-100/80 bg-forest-900 px-3 pb-4 pt-2 text-white shadow-xl transition-[width,transform] duration-300 ease-out lg:flex", collapsed ? "w-24" : "w-72")}>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_8%_0%,rgba(215,171,61,0.16),transparent_28rem),radial-gradient(circle_at_88%_6%,rgba(37,99,235,0.12),transparent_30rem),linear-gradient(135deg,#fbfaf4_0%,#f5f8fb_46%,#eef7f2_100%)] text-charcoal dark:bg-[linear-gradient(135deg,#040b1d_0%,#071733_48%,#0b201a_100%)] dark:text-white">
+      <aside className={cn("no-print fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#040b1d,#08152f_45%,#0b2f25)] px-3 pb-4 pt-2 text-white shadow-[24px_0_70px_rgba(4,11,29,0.28)] transition-[width,transform] duration-300 ease-out lg:flex", collapsed ? "w-24" : "w-72")}>
         <div className="flex items-center justify-between gap-3">
           <Logo compact={collapsed} variant="portal" />
           <button aria-label="Collapse client sidebar" onClick={toggleCollapsed} className="rounded-lg border border-white/10 bg-white/10 p-2 hover:bg-white/15">
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
         </div>
-        <div className={cn("mt-2 rounded-xl border border-white/10 bg-white/10 p-3 shadow-sm", collapsed && "mt-3 px-2")}>
+        <div className={cn("mt-2 rounded-[18px] border border-white/10 bg-white/10 p-3 shadow-glass backdrop-blur-xl", collapsed && "mt-3 px-2")}>
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-full bg-gold-100 text-forest-900"><UserCircle className="h-6 w-6" /></div>
             {!collapsed && <div className="min-w-0"><p className="truncate text-sm font-extrabold">{user?.name}</p><p className="text-xs text-white/62">{user?.clientId}</p></div>}
@@ -100,7 +100,7 @@ export function ClientLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <div className={cn("min-h-screen transition-all", collapsed ? "lg:pl-24" : "lg:pl-72")}>
-        <header className="no-print sticky top-0 z-30 border-b border-forest-100/80 bg-ivory/88 px-4 py-3 backdrop-blur-xl dark:border-white/10 dark:bg-charcoal/88 lg:px-8">
+        <header className="no-print sticky top-0 z-30 border-b border-white/50 bg-white/68 px-4 py-3 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/72 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <button aria-label="Open client menu" onClick={() => setMobileOpen(true)} className="rounded-lg border border-forest-100 bg-white p-2 dark:border-white/10 dark:bg-white/5 lg:hidden"><Menu className="h-5 w-5" /></button>
@@ -109,19 +109,19 @@ export function ClientLayout({ children }: { children: ReactNode }) {
                 <p className="mt-1 truncate text-sm font-semibold text-charcoal/62 dark:text-white/62">{statusText(location.pathname.split("/").filter(Boolean).pop())}</p>
               </div>
             </div>
-            <label className="hidden min-w-64 items-center gap-2 rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm shadow-sm dark:border-white/10 dark:bg-white/5 md:flex">
+            <label className="hidden min-w-64 items-center gap-2 rounded-2xl border border-navy-100/70 bg-white/82 px-4 py-3 text-sm shadow-sm dark:border-white/10 dark:bg-white/8 md:flex">
               <Search className="h-4 w-4 text-charcoal/45 dark:text-white/45" />
               <span className="sr-only">Search client portal</span>
               <input className="w-full bg-transparent" placeholder="Search transactions, documents, support" />
             </label>
             <div className="flex items-center gap-2">
-              <button aria-label="Notifications" onClick={() => history.push("/client/notifications")} className="relative rounded-lg border border-forest-100 bg-white p-2 hover:bg-forest-50 dark:border-white/10 dark:bg-white/5"><Bell className="h-5 w-5" /></button>
-              <button aria-label="Toggle dark mode" onClick={toggleTheme} className="rounded-lg border border-forest-100 bg-white p-2 hover:bg-forest-50 dark:border-white/10 dark:bg-white/5">{theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}</button>
-              <button aria-label="Log out" onClick={handleLogout} className="rounded-lg bg-forest-700 p-2 text-white hover:bg-forest-900"><LogOut className="h-5 w-5" /></button>
+              <button aria-label="Notifications" onClick={() => history.push("/client/notifications")} className="relative rounded-2xl border border-navy-100/70 bg-white/82 p-3 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8"><Bell className="h-5 w-5" /><span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-gold-400 shadow-[0_0_0_4px_rgba(215,171,61,0.18)]" /></button>
+              <button aria-label="Toggle dark mode" onClick={toggleTheme} className="rounded-2xl border border-navy-100/70 bg-white/82 p-3 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8">{theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}</button>
+              <button aria-label="Log out" onClick={handleLogout} className="rounded-2xl bg-[linear-gradient(135deg,#08152f,#153bb7)] p-3 text-white shadow-[0_12px_30px_rgba(21,59,183,0.28)] hover:shadow-[0_18px_42px_rgba(21,59,183,0.36)]"><LogOut className="h-5 w-5" /></button>
             </div>
           </div>
         </header>
-        <motion.main initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mx-auto w-full max-w-[1380px] px-4 py-6 pb-24 lg:px-8">
+        <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }} className="mx-auto w-full max-w-[1380px] px-4 py-6 pb-24 lg:px-8">
           {children}
         </motion.main>
         <nav className="no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-forest-100 bg-white/95 px-2 py-2 backdrop-blur dark:border-white/10 dark:bg-charcoal/95 lg:hidden">
@@ -135,8 +135,8 @@ export function ClientLayout({ children }: { children: ReactNode }) {
 export function ClientPage({ title, eyebrow, actions, children }: { title: string; eyebrow?: ReactNode; actions?: ReactNode; children: ReactNode }) {
   return (
     <>
-      <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-        <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-600 dark:text-gold-100">{eyebrow ?? "Live client records"}</p><h1 className="mt-2 font-display text-3xl font-extrabold text-forest-950 dark:text-ivory">{title}</h1></div>
+      <div className="sticky top-[73px] z-20 mb-6 flex flex-col justify-between gap-4 rounded-[18px] border border-white/60 bg-white/68 px-5 py-4 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-white/8 lg:flex-row lg:items-end">
+        <div><p className="text-xs font-extrabold uppercase tracking-[0.22em] text-gold-600 dark:text-gold-100">{eyebrow ?? "Live client records"}</p><h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{title}</h1></div>
         {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </div>
       {children}
@@ -145,7 +145,7 @@ export function ClientPage({ title, eyebrow, actions, children }: { title: strin
 }
 
 export function ClientCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <section className={cn("rounded-lg border border-forest-100/80 bg-white/92 p-5 shadow-[0_16px_45px_rgba(16,39,30,0.08)] backdrop-blur dark:border-white/10 dark:bg-white/7", className)}>{children}</section>;
+  return <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} className={cn("kv-card p-5", className)}>{children}</motion.section>;
 }
 
 export function ClientMetric({ label, value, hint, icon }: { label: string; value: string; hint?: string; icon?: ReactNode }) {
@@ -160,7 +160,7 @@ export function ClientStatus({ value }: { value?: string | boolean }) {
     : low.includes("pending") || low.includes("review")
       ? "border-gold-200 bg-gold-100/35 text-gold-800 dark:border-gold-100/20 dark:bg-gold-100/10 dark:text-gold-100"
       : "border-red-200 bg-red-50 text-red-800 dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-100";
-  return <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-xs font-bold", cls)}>{text}</span>;
+  return <span className={cn("inline-flex rounded-full border px-3 py-1.5 text-xs font-extrabold shadow-sm", cls)}>{text}</span>;
 }
 
 export function ClientTable<T>({ rows, columns, searchPlaceholder = "Search records", pageSize = 10 }: { rows: T[]; columns: ClientColumn<T>[]; searchPlaceholder?: string; pageSize?: number }) {
@@ -175,11 +175,11 @@ export function ClientTable<T>({ rows, columns, searchPlaceholder = "Search reco
         <Search className="h-4 w-4 text-charcoal/45 dark:text-white/45" /><span className="sr-only">Search</span>
         <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder={searchPlaceholder} className="w-full bg-transparent" />
       </label>
-      <div className="overflow-x-auto rounded-lg border border-forest-100 bg-white dark:border-white/10 dark:bg-white/5">
+      <div className="overflow-x-auto rounded-[18px] border border-white/60 bg-white/80 shadow-glass backdrop-blur dark:border-white/10 dark:bg-white/7">
         <table className="min-w-full text-left text-sm">
           <thead className="bg-[linear-gradient(90deg,#0b2f25,#14583f_55%,#d7ab3d)] text-xs uppercase text-ivory shadow-sm"><tr>{columns.map((column) => <th key={column.key} className="whitespace-nowrap px-4 py-3 font-extrabold">{column.header}</th>)}</tr></thead>
           <tbody className="divide-y divide-forest-100 dark:divide-white/10">
-            {visible.length === 0 ? <tr><td colSpan={columns.length} className="px-4 py-10 text-center text-charcoal/60 dark:text-white/60">No spreadsheet records match this view.</td></tr> : visible.map((row, index) => <tr key={index} className="hover:bg-forest-50/70 dark:hover:bg-white/7">{columns.map((column) => <td key={column.key} className="whitespace-nowrap px-4 py-3">{column.render(row)}</td>)}</tr>)}
+            {visible.length === 0 ? <tr><td colSpan={columns.length} className="px-4 py-10 text-center text-charcoal/60 dark:text-white/60">No spreadsheet records match this view.</td></tr> : visible.map((row, index) => <tr key={index} className="transition odd:bg-navy-50/30 hover:bg-gold-100/20 dark:odd:bg-white/[0.03] dark:hover:bg-white/8">{columns.map((column) => <td key={column.key} className="whitespace-nowrap px-4 py-3 font-medium">{column.render(row)}</td>)}</tr>)}
           </tbody>
         </table>
       </div>
@@ -189,8 +189,8 @@ export function ClientTable<T>({ rows, columns, searchPlaceholder = "Search reco
 }
 
 export function ClientButton({ children, onClick, type = "button", disabled, tone = "primary" }: { children: ReactNode; onClick?: () => void; type?: "button" | "submit"; disabled?: boolean; tone?: "primary" | "secondary" | "danger" }) {
-  const cls = tone === "primary" ? "bg-forest-700 text-white hover:bg-forest-900" : tone === "danger" ? "border border-red-200 bg-red-50 text-red-800 dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-100" : "border border-forest-100 bg-white text-forest-900 dark:border-white/10 dark:bg-white/5 dark:text-white";
-  return <button type={type} disabled={disabled} onClick={onClick} className={cn("inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60", cls)}>{children}</button>;
+  const cls = tone === "primary" ? "kv-button-primary" : tone === "danger" ? "rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-red-800 shadow-sm dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-100" : "kv-button-secondary";
+  return <button type={type} disabled={disabled} onClick={onClick} className={cn("inline-flex items-center justify-center gap-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-60", cls)}>{children}</button>;
 }
 
 export function ClientField({ label, children }: { label: string; children: ReactNode }) {
@@ -198,7 +198,7 @@ export function ClientField({ label, children }: { label: string; children: Reac
 }
 
 export function ClientInput(props: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={cn("rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5", props.className)} />;
+  return <input {...props} className={cn("rounded-2xl border border-navy-100/70 bg-white/85 px-4 py-3 text-sm font-medium shadow-sm dark:border-white/10 dark:bg-white/7", props.className)} />;
 }
 
 export function FileUpload({ label, category, recordId, endpoint, onUploaded }: { label: string; category: string; recordId?: string; endpoint: string; onUploaded?: (data: unknown) => void }) {
@@ -269,7 +269,7 @@ export function FileUpload({ label, category, recordId, endpoint, onUploaded }: 
   return (
     <div>
       <p className="mb-2 text-sm font-bold text-charcoal/76 dark:text-white/76">{label}</p>
-      <div onDragOver={(event) => event.preventDefault()} onDrop={drop} className="rounded-lg border border-dashed border-forest-200 bg-forest-50/60 p-4 text-center dark:border-white/15 dark:bg-white/5">
+      <div onDragOver={(event) => event.preventDefault()} onDrop={drop} className="rounded-[18px] border border-dashed border-gold-400/55 bg-[linear-gradient(135deg,rgba(215,171,61,0.14),rgba(37,99,235,0.07))] p-5 text-center shadow-inner backdrop-blur dark:border-gold-100/20 dark:bg-white/5">
         <UploadCloud className="mx-auto h-7 w-7 text-forest-700 dark:text-gold-100" />
         <p className="mt-2 text-sm font-semibold">{file ? file.name : "Drag file here or choose a file"}</p>
         <p className="mt-1 text-xs text-charcoal/58 dark:text-white/58">PDF, JPG, JPEG, PNG up to 10 MB</p>
@@ -294,5 +294,5 @@ function ClientNavItem({ item, collapsed, mobile, onClick }: { item: typeof navI
   const location = useLocation();
   const Icon = item.icon;
   const active = item.to === "/client" ? location.pathname === "/client" : location.pathname.startsWith(item.to);
-  return <Link to={item.to} onClick={onClick} title={collapsed ? item.label : undefined} className={cn("flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-bold text-white/72 transition hover:bg-white/10 hover:text-white", active && "bg-gold-100 text-forest-950 hover:bg-gold-100 hover:text-forest-950", collapsed && "justify-center", mobile && "justify-center px-2 py-2 text-charcoal/70 dark:text-white/70")}><Icon className="h-5 w-5 shrink-0" />{!collapsed && !mobile && <span>{item.label}</span>}{mobile && <span className="sr-only">{item.label}</span>}</Link>;
+  return <Link to={item.to} onClick={onClick} title={collapsed ? item.label : undefined} className={cn("group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold text-white/70 transition hover:bg-white/10 hover:text-white", active && "bg-white text-navy-900 shadow-[0_12px_28px_rgba(215,171,61,0.16)] hover:bg-white hover:text-navy-900", collapsed && "justify-center", mobile && "justify-center px-2 py-2 text-charcoal/70 dark:text-white/70")}><span className={cn("absolute left-0 h-6 w-1 rounded-full bg-gold-400 opacity-0 transition", active && "opacity-100")} /><Icon className="h-5 w-5 shrink-0 transition group-hover:scale-110" />{!collapsed && !mobile && <span>{item.label}</span>}{mobile && <span className="sr-only">{item.label}</span>}</Link>;
 }

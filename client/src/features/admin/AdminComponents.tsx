@@ -61,11 +61,11 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(135deg,#fbfaf4_0%,#eef7f0_45%,#f7f8f5_100%)] text-charcoal dark:bg-[linear-gradient(135deg,#071713_0%,#112820_55%,#161b1a_100%)] dark:text-white">
-      <aside className={cn("no-print fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden border-r border-forest-100/80 bg-white/92 px-3 pb-4 pt-2 shadow-xl backdrop-blur-xl transition-[width,transform] duration-300 ease-out dark:border-white/10 dark:bg-charcoal/94 lg:flex", collapsed ? "w-24" : "w-72")}>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_8%_0%,rgba(215,171,61,0.16),transparent_28rem),radial-gradient(circle_at_88%_6%,rgba(37,99,235,0.12),transparent_30rem),linear-gradient(135deg,#fbfaf4_0%,#f5f8fb_46%,#eef7f0_100%)] text-charcoal dark:bg-[linear-gradient(135deg,#040b1d_0%,#071733_48%,#0b201a_100%)] dark:text-white">
+      <aside className={cn("no-print fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#ffffff,#f7f9ff_48%,#eef7f0)] px-3 pb-4 pt-2 shadow-[24px_0_70px_rgba(4,11,29,0.12)] backdrop-blur-xl transition-[width,transform] duration-300 ease-out dark:bg-[linear-gradient(180deg,#040b1d,#08152f_46%,#0b2f25)] lg:flex", collapsed ? "w-24" : "w-72")}>
         <div className="flex items-center justify-between gap-3">
           <Logo compact={collapsed} variant="portal" />
-          <button aria-label="Collapse admin sidebar" onClick={() => setCollapsed((value) => !value)} className="rounded-lg border border-forest-100 bg-white p-2 text-forest-800 hover:bg-forest-50 dark:border-white/10 dark:bg-white/5 dark:text-gold-100">
+          <button aria-label="Collapse admin sidebar" onClick={() => setCollapsed((value) => !value)} className="rounded-2xl border border-navy-100/70 bg-white/82 p-2 text-navy-900 shadow-sm hover:border-gold-400/60 dark:border-white/10 dark:bg-white/8 dark:text-gold-100">
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
         </div>
@@ -83,7 +83,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <div className={cn("min-h-screen transition-all", collapsed ? "lg:pl-24" : "lg:pl-72")}>
-        <header className="no-print sticky top-0 z-30 border-b border-forest-100/80 bg-ivory/86 px-4 py-3 backdrop-blur-xl dark:border-white/10 dark:bg-charcoal/86 lg:px-8">
+        <header className="no-print sticky top-0 z-30 border-b border-white/50 bg-white/68 px-4 py-3 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/72 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <button aria-label="Open admin menu" onClick={() => setMobileOpen(true)} className="rounded-lg border border-forest-100 bg-white p-2 dark:border-white/10 dark:bg-white/5 lg:hidden"><Menu className="h-5 w-5" /></button>
@@ -94,28 +94,28 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                 </div>
               </div>
             </div>
-            <label className="hidden min-w-64 items-center gap-2 rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm shadow-sm dark:border-white/10 dark:bg-white/5 md:flex">
+            <label className="hidden min-w-64 items-center gap-2 rounded-2xl border border-navy-100/70 bg-white/82 px-4 py-3 text-sm shadow-sm dark:border-white/10 dark:bg-white/8 md:flex">
               <Search className="h-4 w-4 text-charcoal/45 dark:text-white/45" />
               <span className="sr-only">Admin search</span>
               <input className="w-full bg-transparent" placeholder="Search clients, IDs, records" />
             </label>
             <div className="flex items-center gap-2">
-              <button aria-label="Notifications" className="relative rounded-lg border border-forest-100 bg-white p-2 hover:bg-forest-50 dark:border-white/10 dark:bg-white/5">
+              <button aria-label="Notifications" className="relative rounded-2xl border border-navy-100/70 bg-white/82 p-3 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8">
                 <Bell className="h-5 w-5" />
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-gold-500" />
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-gold-400 shadow-[0_0_0_4px_rgba(215,171,61,0.18)]" />
               </button>
-              <button aria-label="Toggle dark mode" onClick={toggleTheme} className="rounded-lg border border-forest-100 bg-white p-2 hover:bg-forest-50 dark:border-white/10 dark:bg-white/5">
+              <button aria-label="Toggle dark mode" onClick={toggleTheme} className="rounded-2xl border border-navy-100/70 bg-white/82 p-3 shadow-sm hover:bg-gold-100/25 dark:border-white/10 dark:bg-white/8">
                 {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </button>
-              <div className="hidden items-center gap-3 rounded-lg border border-forest-100 bg-white px-3 py-2 shadow-sm dark:border-white/10 dark:bg-white/5 sm:flex">
+              <div className="hidden items-center gap-3 rounded-2xl border border-navy-100/70 bg-white/82 px-3 py-2 shadow-sm dark:border-white/10 dark:bg-white/8 sm:flex">
                 <UserCircle className="h-5 w-5 text-forest-700 dark:text-gold-100" />
                 <div className="max-w-36 truncate text-sm"><p className="truncate font-bold">{user?.name}</p><p className="text-xs text-charcoal/55 dark:text-white/55">Administrator</p></div>
               </div>
-              <button aria-label="Log out" onClick={handleLogout} className="rounded-lg bg-forest-700 p-2 text-white hover:bg-forest-900"><LogOut className="h-5 w-5" /></button>
+              <button aria-label="Log out" onClick={handleLogout} className="rounded-2xl bg-[linear-gradient(135deg,#08152f,#153bb7)] p-3 text-white shadow-[0_12px_30px_rgba(21,59,183,0.28)] hover:shadow-[0_18px_42px_rgba(21,59,183,0.36)]"><LogOut className="h-5 w-5" /></button>
             </div>
           </div>
         </header>
-        <motion.main initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mx-auto w-full max-w-[1500px] px-4 py-6 pb-24 lg:px-8">
+        <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }} className="mx-auto w-full max-w-[1500px] px-4 py-6 pb-24 lg:px-8">
           {children}
         </motion.main>
       </div>
@@ -126,10 +126,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 export function AdminPage({ title, eyebrow, actions, children }: { title: string; eyebrow?: ReactNode; actions?: ReactNode; children: ReactNode }) {
   return (
     <>
-      <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+      <div className="sticky top-[73px] z-20 mb-6 flex flex-col justify-between gap-4 rounded-[18px] border border-white/60 bg-white/68 px-5 py-4 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-white/8 lg:flex-row lg:items-end">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-600 dark:text-gold-100">{eyebrow ?? "Live spreadsheet operations"}</p>
-          <h1 className="mt-2 font-display text-3xl font-extrabold text-forest-950 dark:text-ivory">{title}</h1>
+          <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-gold-600 dark:text-gold-100">{eyebrow ?? "Live spreadsheet operations"}</p>
+          <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{title}</h1>
         </div>
         {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </div>
@@ -139,7 +139,7 @@ export function AdminPage({ title, eyebrow, actions, children }: { title: string
 }
 
 export function AdminCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <section className={cn("rounded-lg border border-forest-100/80 bg-white/90 p-5 shadow-[0_16px_45px_rgba(16,39,30,0.08)] backdrop-blur dark:border-white/10 dark:bg-white/7", className)}>{children}</section>;
+  return <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} className={cn("kv-card p-5", className)}>{children}</motion.section>;
 }
 
 export function MetricCard({ label, value, hint, icon, tone = "green" }: { label: string; value: string; hint?: string; icon?: ReactNode; tone?: "green" | "gold" | "slate" }) {
@@ -148,8 +148,8 @@ export function MetricCard({ label, value, hint, icon, tone = "green" }: { label
     <AdminCard>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-charcoal/58 dark:text-white/58">{label}</p>
-          <p className="mt-2 truncate text-2xl font-extrabold text-forest-950 dark:text-ivory">{value}</p>
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-charcoal/54 dark:text-white/54">{label}</p>
+          <p className="mt-3 truncate font-display text-3xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{value}</p>
           {hint && <p className="mt-2 text-xs font-bold text-gold-600 dark:text-gold-100">{hint}</p>}
         </div>
         {icon && <div className={cn("rounded-lg p-3", toneClass)}>{icon}</div>}
@@ -166,7 +166,7 @@ export function StatusBadge({ value }: { value?: string | boolean }) {
     : normalized.includes("pending")
       ? "border-gold-200 bg-gold-100/30 text-gold-800 dark:border-gold-100/20 dark:bg-gold-100/10 dark:text-gold-100"
       : "border-red-200 bg-red-50 text-red-800 dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-100";
-  return <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-xs font-bold", tone)}>{text}</span>;
+  return <span className={cn("inline-flex rounded-full border px-3 py-1.5 text-xs font-extrabold shadow-sm", tone)}>{text}</span>;
 }
 
 export function AdminTable<T>({ rows, columns, searchPlaceholder = "Search records", filters, pageSize = 10 }: { rows: T[]; columns: Column<T>[]; searchPlaceholder?: string; filters?: Array<{ label: string; value: string; predicate: (row: T) => boolean }>; pageSize?: number }) {
@@ -200,17 +200,17 @@ export function AdminTable<T>({ rows, columns, searchPlaceholder = "Search recor
           </select>
         )}
       </div>
-      <div className="overflow-x-auto rounded-lg border border-forest-100 bg-white shadow-sm dark:border-white/10 dark:bg-white/5">
+      <div className="overflow-x-auto rounded-[18px] border border-white/60 bg-white/80 shadow-glass backdrop-blur dark:border-white/10 dark:bg-white/7">
         <table className="min-w-full text-left text-sm">
-          <thead className="bg-forest-800 text-xs uppercase text-ivory dark:bg-white/10">
-            <tr>{columns.map((column) => <th key={column.key} className="whitespace-nowrap px-4 py-3 font-extrabold">{column.header}</th>)}</tr>
+          <thead className="sticky top-0 z-10 bg-[linear-gradient(90deg,#08152f,#153bb7_54%,#d7ab3d)] text-xs uppercase text-white shadow-sm">
+            <tr>{columns.map((column) => <th key={column.key} className="whitespace-nowrap px-5 py-4 font-extrabold tracking-[0.08em]">{column.header}</th>)}</tr>
           </thead>
           <tbody className="divide-y divide-forest-100 dark:divide-white/10">
             {visible.length === 0 ? (
               <tr><td colSpan={columns.length} className="px-4 py-10 text-center text-charcoal/60 dark:text-white/60">No spreadsheet records match this view.</td></tr>
             ) : visible.map((row, index) => (
-              <tr key={index} className="transition hover:bg-forest-50/70 dark:hover:bg-white/7">
-                {columns.map((column) => <td key={column.key} className="whitespace-nowrap px-4 py-3 align-middle text-charcoal/80 dark:text-white/80">{column.render(row)}</td>)}
+              <tr key={index} className="transition odd:bg-navy-50/30 hover:bg-gold-100/20 dark:odd:bg-white/[0.03] dark:hover:bg-white/8">
+                {columns.map((column) => <td key={column.key} className="whitespace-nowrap px-5 py-4 align-middle font-medium text-charcoal/82 dark:text-white/82">{column.render(row)}</td>)}
               </tr>
             ))}
           </tbody>
@@ -230,11 +230,11 @@ export function AdminTable<T>({ rows, columns, searchPlaceholder = "Search recor
 
 export function CommandButton({ children, onClick, tone = "primary", type = "button", disabled }: { children: ReactNode; onClick?: () => void; tone?: "primary" | "secondary" | "danger"; type?: "button" | "submit"; disabled?: boolean }) {
   const className = tone === "primary"
-    ? "bg-forest-700 text-white hover:bg-forest-900"
+    ? "kv-button-primary"
     : tone === "danger"
-      ? "border border-red-200 bg-red-50 text-red-800 hover:bg-red-100 dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-100"
-      : "border border-forest-100 bg-white text-forest-900 hover:bg-forest-50 dark:border-white/10 dark:bg-white/5 dark:text-white";
-  return <button type={type} disabled={disabled} onClick={onClick} className={cn("inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60", className)}>{children}</button>;
+      ? "rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-red-800 shadow-sm hover:bg-red-100 dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-100"
+      : "kv-button-secondary";
+  return <button type={type} disabled={disabled} onClick={onClick} className={cn("inline-flex items-center justify-center gap-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-60", className)}>{children}</button>;
 }
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -242,11 +242,11 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={cn("rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm font-medium text-charcoal shadow-sm placeholder:text-charcoal/40 dark:border-white/10 dark:bg-white/5 dark:text-white", props.className)} />;
+  return <input {...props} className={cn("rounded-2xl border border-navy-100/70 bg-white/85 px-4 py-3 text-sm font-medium text-charcoal shadow-sm placeholder:text-charcoal/40 dark:border-white/10 dark:bg-white/7 dark:text-white", props.className)} />;
 }
 
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={cn("rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm font-medium text-charcoal shadow-sm dark:border-white/10 dark:bg-charcoal dark:text-white", props.className)} />;
+  return <select {...props} className={cn("rounded-2xl border border-navy-100/70 bg-white/85 px-4 py-3 text-sm font-medium text-charcoal shadow-sm dark:border-white/10 dark:bg-charcoal dark:text-white", props.className)} />;
 }
 
 function AdminNavItem({ item, collapsed, onClick }: { item: typeof navItems[number]; collapsed?: boolean; onClick?: () => void }) {
@@ -259,12 +259,13 @@ function AdminNavItem({ item, collapsed, onClick }: { item: typeof navItems[numb
       onClick={onClick}
       title={collapsed ? item.label : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-bold text-charcoal/68 transition hover:bg-forest-50 hover:text-forest-950 dark:text-white/68 dark:hover:bg-white/10 dark:hover:text-white",
-        active && "bg-forest-700 text-white shadow-sm hover:bg-forest-700 hover:text-white dark:bg-gold-100 dark:text-forest-950",
+        "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold text-charcoal/68 transition hover:bg-navy-50 hover:text-navy-900 dark:text-white/68 dark:hover:bg-white/10 dark:hover:text-white",
+        active && "bg-[linear-gradient(135deg,#08152f,#153bb7)] text-white shadow-[0_12px_28px_rgba(21,59,183,0.22)] hover:text-white dark:bg-gold-100 dark:text-forest-950",
         collapsed && "justify-center"
       )}
     >
-      <Icon className="h-5 w-5 shrink-0" />
+      <span className={cn("absolute left-0 h-6 w-1 rounded-full bg-gold-400 opacity-0 transition", active && "opacity-100")} />
+      <Icon className="h-5 w-5 shrink-0 transition group-hover:scale-110" />
       {!collapsed && <span>{item.label}</span>}
     </Link>
   );
