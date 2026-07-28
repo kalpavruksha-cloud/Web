@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v1";
+const CACHE_VERSION = "kalpavruksha-pwa-v2-icons-launch";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
@@ -6,9 +6,21 @@ const APP_SHELL_ASSETS = [
   "/",
   "/offline.html",
   "/manifest.webmanifest",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/apple-touch-icon.png"
+  "/icons/favicon.ico",
+  "/icons/favicon-16x16.png",
+  "/icons/favicon-32x32.png",
+  "/icons/icon-48x48.png",
+  "/icons/icon-72x72.png",
+  "/icons/icon-96x96.png",
+  "/icons/icon-128x128.png",
+  "/icons/icon-144x144.png",
+  "/icons/icon-152x152.png",
+  "/icons/apple-touch-icon.png",
+  "/icons/icon-192x192.png",
+  "/icons/icon-384x384.png",
+  "/icons/icon-512x512.png",
+  "/icons/icon-maskable-192x192.png",
+  "/icons/icon-maskable-512x512.png"
 ];
 
 self.addEventListener("install", (event) => {

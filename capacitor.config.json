@@ -1,6 +1,6 @@
 {
   "appId": "com.kalpavrukshawealth.portal",
-  "appName": "Kalpavruksha Wealth Portal",
+  "appName": "Kalpavruksha Wealth",
   "webDir": "client/dist",
   "bundledWebRuntime": false,
   "server": {

@@ -31,6 +31,53 @@ Google Spreadsheet remains the only business database. The service worker never 
 - App icons: `client/public/icons/`
 - Registration: `client/src/pwa/registerServiceWorker.ts`
 - Install/update/sync UI: `client/src/pwa/PwaStatus.tsx`
+- Launch screen: `client/src/pwa/LaunchScreen.tsx`
+- Capacitor source assets: `resources/`
+
+## Branded Icon Assets
+
+The icon set is generated from the official logo at:
+
+```text
+client/src/assets/kalpav-logo.png
+```
+
+Generated PWA icons:
+
+- `icon-48x48.png`
+- `icon-72x72.png`
+- `icon-96x96.png`
+- `icon-128x128.png`
+- `icon-144x144.png`
+- `icon-152x152.png`
+- `apple-touch-icon.png`
+- `icon-192x192.png`
+- `icon-384x384.png`
+- `icon-512x512.png`
+- `icon-maskable-192x192.png`
+- `icon-maskable-512x512.png`
+- `favicon.ico`
+- `favicon-16x16.png`
+- `favicon-32x32.png`
+
+Capacitor-ready source assets:
+
+- `resources/icon.png`
+- `resources/adaptive-icon-foreground.png`
+- `resources/adaptive-icon-background.png`
+- `resources/splash.png`
+
+## Launch Screen
+
+The in-app launch screen appears during a fresh app/browser start while the existing session check completes. It is not replayed during normal route changes.
+
+Behavior:
+
+- Minimum visible duration is approximately 1.5 seconds.
+- If authentication/session loading takes longer, the launch screen stays visible with a subtle loader.
+- Authenticated users entering `/`, `/login`, or `/admin-login` are moved to the correct dashboard after session readiness.
+- Logged-out users continue to the existing login page.
+- Reduced-motion users receive a simple, shorter fade.
 
 ## Synchronization
 
@@ -48,6 +95,13 @@ Google Spreadsheet remains the only business database. The service worker never 
 2. Open the production URL on Android Chrome.
 3. Use the in-app `Install Kalpavruksha App` banner or Chrome menu `Install app`.
 4. The app opens in standalone mode from the phone home screen.
+
+To see a changed PWA icon after deployment, remove the old installed app first:
+
+1. Long-press the old Kalpavruksha app icon.
+2. Remove/uninstall it from the device.
+3. Open the production URL in Chrome or Safari.
+4. Install/Add to Home Screen again.
 
 Installation URL:
 

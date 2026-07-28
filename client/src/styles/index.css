@@ -29,6 +29,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+#root:empty {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(215, 171, 61, 0.2), transparent 18rem),
+    linear-gradient(135deg, #040b1d, #08152f 52%, #0b2f25);
+}
+
 .dark body {
   color: #eef6f0;
   background:

@@ -6,6 +6,7 @@ import { App } from "./App";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
+import { LaunchScreen } from "./pwa/LaunchScreen";
 import { PwaStatus } from "./pwa/PwaStatus";
 import { registerServiceWorker } from "./pwa/registerServiceWorker";
 import "./styles/index.css";
@@ -36,6 +37,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <BrowserRouter>
             <AuthProvider>
               <App />
+              <LaunchScreen />
               <PwaStatus />
             </AuthProvider>
           </BrowserRouter>
