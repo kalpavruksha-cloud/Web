@@ -102,7 +102,8 @@ function resolveWhatsApp(settings?: PortalSettings, clientId?: string) {
     return { ready: true, url: `${configuredUrl}${separator}text=${encodedMessage}` };
   }
 
-  const digits = String(configuredNumber ?? "").replace(/\D/g, "");
+  const rawDigits = String(configuredNumber ?? "").replace(/\D/g, "");
+  const digits = rawDigits.length === 10 ? `91${rawDigits}` : rawDigits;
   if (!digits) return { ready: false, url: "" };
   return { ready: true, url: `https://wa.me/${digits}?text=${encodedMessage}` };
 }

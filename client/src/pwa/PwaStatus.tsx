@@ -4,6 +4,7 @@ import { Download, RefreshCw, RotateCw, Wifi, WifiOff, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "../utils/cn";
 import { installServiceWorkerUpdate } from "./registerServiceWorker";
+import { useStandaloneMode } from "./useStandaloneMode";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -17,10 +18,14 @@ export function PwaStatus() {
   const queryClient = useQueryClient();
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
+  const standaloneApp = useStandaloneMode();
   const [online, setOnline] = useState(() => navigator.onLine);
   const [lastSynced, setLastSynced] = useState(() => localStorage.getItem(LAST_SYNC_KEY));
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent>();
   const [updateRegistration, setUpdateRegistration] = useState<ServiceWorkerRegistration>();
+  const [appPanel, setAppPanel] = useState<"download" | "update" | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [appMessage, setAppMessage] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const pullDistanceRef = useRef(0);
@@ -53,7 +58,6 @@ export function PwaStatus() {
   useEffect(() => {
     function beforeInstallPrompt(event: Event) {
       event.preventDefault();
-      if (localStorage.getItem(INSTALL_DISMISSED_KEY) === "true") return;
       setInstallPrompt(event as BeforeInstallPromptEvent);
     }
 
@@ -124,13 +128,38 @@ export function PwaStatus() {
   }, [lastSynced]);
 
   async function installApp() {
-    if (!installPrompt) return;
+    if (!installPrompt) {
+      setAppPanel("download");
+      return;
+    }
     await installPrompt.prompt();
     const choice = await installPrompt.userChoice;
     if (choice.outcome !== "dismissed") {
       localStorage.setItem(INSTALL_DISMISSED_KEY, "true");
     }
     setInstallPrompt(undefined);
+    setAppPanel(null);
+  }
+
+  async function checkForUpdate() {
+    setCheckingUpdate(true);
+    setAppMessage("");
+    try {
+      const registration = await navigator.serviceWorker?.getRegistration();
+      await registration?.update();
+      const waitingRegistration = updateRegistration ?? registration;
+      if (waitingRegistration?.waiting) {
+        installServiceWorkerUpdate(waitingRegistration);
+        return;
+      }
+      setAppPanel("update");
+      setAppMessage("Your Kalpavruksha app is already up to date.");
+    } catch {
+      setAppPanel("update");
+      setAppMessage("Unable to check updates right now. Please confirm internet connectivity and try again.");
+    } finally {
+      setCheckingUpdate(false);
+    }
   }
 
   return (
@@ -150,6 +179,45 @@ export function PwaStatus() {
 
       <div className="fixed inset-x-3 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-[60] grid gap-2 pointer-events-none lg:bottom-4 lg:left-auto lg:right-4 lg:w-96">
         <AnimatePresence>
+          {appPanel && (
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 14 }}
+              className="pointer-events-auto rounded-2xl border border-white/60 bg-white/94 p-4 text-sm shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/94"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gold-100/60 text-forest-800 dark:bg-gold-100/14 dark:text-gold-100">
+                    {appPanel === "download" ? <Download className="h-5 w-5" /> : <RefreshCw className={cn("h-5 w-5", checkingUpdate && "animate-spin")} />}
+                  </div>
+                  <div>
+                    <p className="font-extrabold text-navy-900 dark:text-ivory">{appPanel === "download" ? "Download Kalpavruksha App" : "Update Kalpavruksha App"}</p>
+                    {appPanel === "download" ? (
+                      <p className="mt-1 text-xs leading-5 text-charcoal/64 dark:text-white/64">
+                        This is an installable web app. Tap <strong>Download App</strong> if your browser supports direct install, or use Chrome menu <strong>Install app</strong>. On iPhone Safari use Share, then <strong>Add to Home Screen</strong>.
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs leading-5 text-charcoal/64 dark:text-white/64">{appMessage || "Check for the latest deployed portal version."}</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={appPanel === "download" ? installApp : checkForUpdate}
+                      disabled={checkingUpdate}
+                      className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-forest-700 px-4 py-2 text-xs font-extrabold text-white disabled:opacity-60"
+                    >
+                      {appPanel === "download" ? <Download className="h-4 w-4" /> : <RefreshCw className={cn("h-4 w-4", checkingUpdate && "animate-spin")} />}
+                      {appPanel === "download" ? "Download App" : checkingUpdate ? "Checking..." : "Check Update"}
+                    </button>
+                  </div>
+                </div>
+                <button aria-label="Close app action" onClick={() => setAppPanel(null)} className="rounded-lg p-1 text-charcoal/60 dark:text-white/60">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {(!online || isMutating > 0) && (
             <motion.div
               initial={{ opacity: 0, y: 14 }}
@@ -167,7 +235,7 @@ export function PwaStatus() {
             </motion.div>
           )}
 
-          {installPrompt && online && (
+          {installPrompt && online && localStorage.getItem(INSTALL_DISMISSED_KEY) !== "true" && !standaloneApp && (
             <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
@@ -180,7 +248,7 @@ export function PwaStatus() {
                   <div>
                     <p className="font-extrabold text-navy-900 dark:text-ivory">Install Kalpavruksha App</p>
                     <p className="mt-1 text-xs text-charcoal/62 dark:text-white/62">Add the same live portal to your phone home screen.</p>
-                    <button onClick={installApp} className="mt-3 rounded-xl bg-forest-700 px-4 py-2 text-xs font-extrabold text-white">Install App</button>
+                    <button onClick={installApp} className="mt-3 rounded-xl bg-forest-700 px-4 py-2 text-xs font-extrabold text-white">Download App</button>
                   </div>
                 </div>
                 <button aria-label="Dismiss install app banner" onClick={() => { localStorage.setItem(INSTALL_DISMISSED_KEY, "true"); setInstallPrompt(undefined); }} className="rounded-lg p-1 text-charcoal/60 dark:text-white/60">
@@ -208,6 +276,18 @@ export function PwaStatus() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      <div className="no-print fixed bottom-[calc(5.7rem+env(safe-area-inset-bottom))] left-3 z-[58] lg:bottom-5 lg:left-5">
+        <button
+          type="button"
+          aria-label={standaloneApp ? "Update mobile app" : "Download mobile app"}
+          onClick={standaloneApp ? checkForUpdate : () => (installPrompt ? void installApp() : setAppPanel("download"))}
+          className="inline-flex items-center gap-2 rounded-full border border-white/50 bg-[linear-gradient(135deg,#040b1d,#0b2f25)] px-4 py-3 text-xs font-extrabold text-white shadow-[0_18px_48px_rgba(4,11,29,0.30)] ring-4 ring-gold-400/12"
+        >
+          {standaloneApp ? <RefreshCw className={cn("h-4 w-4", checkingUpdate && "animate-spin")} /> : <Download className="h-4 w-4" />}
+          {standaloneApp ? "Update App" : "Download App"}
+        </button>
       </div>
     </>
   );

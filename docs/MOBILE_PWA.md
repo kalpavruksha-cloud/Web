@@ -125,6 +125,20 @@ https://<your-production-portal-domain>/
 
 On Android Chrome, open the URL and tap `Install App`. On iPhone Safari, open the URL and use `Share` -> `Add to Home Screen`.
 
+The web portal also shows a floating `Download App` option. On supported browsers it opens the install prompt; otherwise it displays the browser-specific install steps.
+
+## Mobile App Updates
+
+The installed PWA shows a floating `Update App` option. Tapping it asks the service worker to check the latest deployed portal version.
+
+If a newer version is available:
+
+- The app prompts for update.
+- Tapping update activates the new service worker.
+- The app reloads into the latest version.
+
+If no newer version is available, the app shows that Kalpavruksha is already up to date.
+
 ## WhatsApp Support Assistant
 
 A floating WhatsApp assistant is available in both the web portal and installed PWA.
@@ -144,6 +158,12 @@ It reads the WhatsApp destination from, in order:
    - `VITE_WHATSAPP_DEFAULT_MESSAGE`
 
 Until the approved WhatsApp number is provided, the button remains visible and explains that the number is pending.
+
+Current configured WhatsApp number:
+
+```text
+916366636226
+```
 
 ## Capacitor Readiness
 
