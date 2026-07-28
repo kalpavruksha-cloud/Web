@@ -31,6 +31,7 @@ import { ErrorState, LoadingState } from "../../components/State";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/ToastContext";
+import { useStandaloneMode } from "../../pwa/useStandaloneMode";
 import { cn } from "../../utils/cn";
 import { fileCategoryFolder, readFileAsBase64, statusText } from "./clientUtils";
 
@@ -56,6 +57,7 @@ export function ClientLayout({ children }: { children: ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("kv-client-sidebar") === "collapsed");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const standaloneApp = useStandaloneMode();
   const history = useHistory();
   const location = useLocation();
 
@@ -73,7 +75,7 @@ export function ClientLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_8%_0%,rgba(215,171,61,0.16),transparent_28rem),radial-gradient(circle_at_88%_6%,rgba(37,99,235,0.12),transparent_30rem),linear-gradient(135deg,#fbfaf4_0%,#f5f8fb_46%,#eef7f2_100%)] text-charcoal dark:bg-[linear-gradient(135deg,#040b1d_0%,#071733_48%,#0b201a_100%)] dark:text-white">
-      <aside className={cn("no-print fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#040b1d,#08152f_45%,#0b2f25)] px-3 pb-4 pt-2 text-white shadow-[24px_0_70px_rgba(4,11,29,0.28)] transition-[width,transform] duration-300 ease-out lg:flex", collapsed ? "w-24" : "w-72")}>
+      <aside className={cn("no-print fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#040b1d,#08152f_45%,#0b2f25)] px-3 pb-4 pt-2 text-white shadow-[24px_0_70px_rgba(4,11,29,0.28)] transition-[width,transform] duration-300 ease-out", !standaloneApp && "lg:flex", collapsed ? "w-24" : "w-72")}>
         <div className="flex items-center justify-between gap-3">
           <Logo compact={collapsed} variant="portal" />
           <button aria-label="Collapse client sidebar" onClick={toggleCollapsed} className="rounded-lg border border-white/10 bg-white/10 p-2 hover:bg-white/15">
@@ -91,8 +93,8 @@ export function ClientLayout({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
-      {mobileOpen && <button aria-label="Close client menu" className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => setMobileOpen(false)} />}
-      <aside className={cn("no-print fixed inset-y-0 left-0 z-50 flex w-[19rem] max-w-[88vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#040b1d,#08152f_45%,#0b2f25)] px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(0.5rem+env(safe-area-inset-top))] text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
+      {mobileOpen && <button aria-label="Close client menu" className={cn("fixed inset-0 z-40 bg-black/35", !standaloneApp && "lg:hidden")} onClick={() => setMobileOpen(false)} />}
+      <aside className={cn("no-print fixed inset-y-0 left-0 z-50 flex w-[19rem] max-w-[88vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#040b1d,#08152f_45%,#0b2f25)] px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(0.5rem+env(safe-area-inset-top))] text-white shadow-2xl transition-transform duration-300 ease-out", !standaloneApp && "lg:hidden", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1"><Logo variant="portal" mobile /></div>
           <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="mt-1 shrink-0 rounded-xl border border-white/10 bg-white/10 p-2"><X className="h-5 w-5" /></button>
@@ -102,11 +104,11 @@ export function ClientLayout({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
-      <div className={cn("min-h-screen transition-all", collapsed ? "lg:pl-24" : "lg:pl-72")}>
+      <div className={cn("min-h-screen transition-all", !standaloneApp && (collapsed ? "lg:pl-24" : "lg:pl-72"))}>
         <header className="no-print sticky top-0 z-30 border-b border-white/50 bg-white/72 px-3 py-2.5 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/72 sm:px-4 lg:px-8 lg:py-3">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             <div className="flex min-w-0 items-center gap-3">
-              <button aria-label="Open client menu" onClick={() => setMobileOpen(true)} className="rounded-lg border border-forest-100 bg-white p-2 dark:border-white/10 dark:bg-white/5 lg:hidden"><Menu className="h-5 w-5" /></button>
+              <button aria-label="Open client menu" onClick={() => setMobileOpen(true)} className={cn("rounded-lg border border-forest-100 bg-white p-2 dark:border-white/10 dark:bg-white/5", !standaloneApp && "lg:hidden")}><Menu className="h-5 w-5" /></button>
               <div className="min-w-0">
                 <p className="truncate text-[0.68rem] font-bold uppercase tracking-[0.12em] text-gold-600 dark:text-gold-100 sm:text-xs sm:tracking-[0.18em]">Kalpavruksha Client Portal</p>
                 <p className="mt-1 truncate text-sm font-semibold text-charcoal/62 dark:text-white/62">{statusText(location.pathname.split("/").filter(Boolean).pop())}</p>
@@ -124,10 +126,10 @@ export function ClientLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }} className="mx-auto w-full max-w-[1380px] px-3 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-6 lg:px-8">
+        <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }} className={cn("mx-auto w-full px-3 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-6 lg:px-8", standaloneApp ? "max-w-[520px]" : "max-w-[1380px]")}>
           {children}
         </motion.main>
-        <nav className="no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-forest-100 bg-white/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur dark:border-white/10 dark:bg-charcoal/95 lg:hidden">
+        <nav className={cn("no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-forest-100 bg-white/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur dark:border-white/10 dark:bg-charcoal/95", !standaloneApp && "lg:hidden")}>
           {navItems.slice(0, 5).map((item) => <ClientNavItem key={item.to} item={item} mobile />)}
         </nav>
       </div>

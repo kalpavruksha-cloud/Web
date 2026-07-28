@@ -26,6 +26,7 @@ import { Logo } from "../../components/Logo";
 import { LoadingState } from "../../components/State";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
+import { useStandaloneMode } from "../../pwa/useStandaloneMode";
 import { cn } from "../../utils/cn";
 import { title } from "./adminUtils";
 
@@ -51,6 +52,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const standaloneApp = useStandaloneMode();
   const history = useHistory();
   const location = useLocation();
   const crumbs = location.pathname.split("/").filter(Boolean).map(title);
@@ -62,7 +64,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_8%_0%,rgba(215,171,61,0.16),transparent_28rem),radial-gradient(circle_at_88%_6%,rgba(37,99,235,0.12),transparent_30rem),linear-gradient(135deg,#fbfaf4_0%,#f5f8fb_46%,#eef7f0_100%)] text-charcoal dark:bg-[linear-gradient(135deg,#040b1d_0%,#071733_48%,#0b201a_100%)] dark:text-white">
-      <aside className={cn("no-print fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#ffffff,#f7f9ff_48%,#eef7f0)] px-3 pb-4 pt-2 shadow-[24px_0_70px_rgba(4,11,29,0.12)] backdrop-blur-xl transition-[width,transform] duration-300 ease-out dark:bg-[linear-gradient(180deg,#040b1d,#08152f_46%,#0b2f25)] lg:flex", collapsed ? "w-24" : "w-72")}>
+      <aside className={cn("no-print fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#ffffff,#f7f9ff_48%,#eef7f0)] px-3 pb-4 pt-2 shadow-[24px_0_70px_rgba(4,11,29,0.12)] backdrop-blur-xl transition-[width,transform] duration-300 ease-out dark:bg-[linear-gradient(180deg,#040b1d,#08152f_46%,#0b2f25)]", !standaloneApp && "lg:flex", collapsed ? "w-24" : "w-72")}>
         <div className="flex items-center justify-between gap-3">
           <Logo compact={collapsed} variant="portal" />
           <button aria-label="Collapse admin sidebar" onClick={() => setCollapsed((value) => !value)} className="rounded-2xl border border-navy-100/70 bg-white/82 p-2 text-navy-900 shadow-sm hover:border-gold-400/60 dark:border-white/10 dark:bg-white/8 dark:text-gold-100">
@@ -74,8 +76,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
-      {mobileOpen && <button aria-label="Close admin menu" className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => setMobileOpen(false)} />}
-      <aside className={cn("no-print fixed inset-y-0 left-0 z-50 flex w-[19rem] max-w-[88vw] flex-col overflow-hidden border-r border-forest-100 bg-white px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(0.5rem+env(safe-area-inset-top))] shadow-2xl transition-transform duration-300 ease-out dark:border-white/10 dark:bg-charcoal lg:hidden", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
+      {mobileOpen && <button aria-label="Close admin menu" className={cn("fixed inset-0 z-40 bg-black/35", !standaloneApp && "lg:hidden")} onClick={() => setMobileOpen(false)} />}
+      <aside className={cn("no-print fixed inset-y-0 left-0 z-50 flex w-[19rem] max-w-[88vw] flex-col overflow-hidden border-r border-forest-100 bg-white px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(0.5rem+env(safe-area-inset-top))] shadow-2xl transition-transform duration-300 ease-out dark:border-white/10 dark:bg-charcoal", !standaloneApp && "lg:hidden", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1"><Logo variant="portal" mobile /></div>
           <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="mt-1 shrink-0 rounded-xl border border-forest-100 bg-white/85 p-2 text-navy-900 shadow-sm dark:border-white/10 dark:bg-white/8 dark:text-white"><ChevronLeft className="h-5 w-5" /></button>
@@ -85,11 +87,11 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
-      <div className={cn("min-h-screen transition-all", collapsed ? "lg:pl-24" : "lg:pl-72")}>
+      <div className={cn("min-h-screen transition-all", !standaloneApp && (collapsed ? "lg:pl-24" : "lg:pl-72"))}>
         <header className="no-print sticky top-0 z-30 border-b border-white/50 bg-white/72 px-3 py-2.5 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/72 sm:px-4 lg:px-8 lg:py-3">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             <div className="flex min-w-0 items-center gap-3">
-              <button aria-label="Open admin menu" onClick={() => setMobileOpen(true)} className="rounded-lg border border-forest-100 bg-white p-2 dark:border-white/10 dark:bg-white/5 lg:hidden"><Menu className="h-5 w-5" /></button>
+              <button aria-label="Open admin menu" onClick={() => setMobileOpen(true)} className={cn("rounded-lg border border-forest-100 bg-white p-2 dark:border-white/10 dark:bg-white/5", !standaloneApp && "lg:hidden")}><Menu className="h-5 w-5" /></button>
               <div className="min-w-0">
                 <p className="truncate text-[0.68rem] font-bold uppercase tracking-[0.12em] text-gold-600 dark:text-gold-100 sm:text-xs sm:tracking-[0.18em]">Kalpavruksha Admin</p>
                 <div className="mt-1 flex max-w-[42vw] items-center gap-1 overflow-hidden text-sm text-charcoal/60 dark:text-white/60 sm:max-w-none sm:flex-wrap">
@@ -118,7 +120,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }} className="mx-auto w-full max-w-[1500px] px-3 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-6 lg:px-8">
+        <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }} className={cn("mx-auto w-full px-3 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-6 lg:px-8", standaloneApp ? "max-w-[520px]" : "max-w-[1500px]")}>
           {children}
         </motion.main>
       </div>

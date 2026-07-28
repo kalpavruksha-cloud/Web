@@ -6,6 +6,7 @@ import { App } from "./App";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
+import { WhatsAppChat } from "./components/WhatsAppChat";
 import { LaunchScreen } from "./pwa/LaunchScreen";
 import { PwaStatus } from "./pwa/PwaStatus";
 import { registerServiceWorker } from "./pwa/registerServiceWorker";
@@ -38,6 +39,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <AuthProvider>
               <App />
               <LaunchScreen />
+              <WhatsAppChat />
               <PwaStatus />
             </AuthProvider>
           </BrowserRouter>

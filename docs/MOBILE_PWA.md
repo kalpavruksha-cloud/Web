@@ -96,6 +96,8 @@ Behavior:
 3. Use the in-app `Install Kalpavruksha App` banner or Chrome menu `Install app`.
 4. The app opens in standalone mode from the phone home screen.
 
+The installed PWA uses the mobile app shell even if the screen is wide. Normal Chrome, Safari, Firefox, and desktop browsers keep the responsive web behavior.
+
 To see a changed PWA icon after deployment, remove the old installed app first:
 
 1. Long-press the old Kalpavruksha app icon.
@@ -110,6 +112,38 @@ https://<your-vercel-domain>/
 ```
 
 Replace the placeholder with the active production Vercel or custom domain.
+
+## Client Installation Link
+
+The current mobile app is a PWA, not an APK download.
+
+Clients install it from the production portal URL:
+
+```text
+https://<your-production-portal-domain>/
+```
+
+On Android Chrome, open the URL and tap `Install App`. On iPhone Safari, open the URL and use `Share` -> `Add to Home Screen`.
+
+## WhatsApp Support Assistant
+
+A floating WhatsApp assistant is available in both the web portal and installed PWA.
+
+It reads the WhatsApp destination from, in order:
+
+1. Spreadsheet/platform settings returned by `/api/settings`:
+   - `supportWhatsappUrl`
+   - `supportWhatsAppUrl`
+   - `SUPPORT_WHATSAPP_URL`
+   - `supportWhatsappNumber`
+   - `supportWhatsAppNumber`
+   - `SUPPORT_WHATSAPP_NUMBER`
+2. Vercel/Vite environment variables:
+   - `VITE_WHATSAPP_URL`
+   - `VITE_WHATSAPP_NUMBER`
+   - `VITE_WHATSAPP_DEFAULT_MESSAGE`
+
+Until the approved WhatsApp number is provided, the button remains visible and explains that the number is pending.
 
 ## Capacitor Readiness
 
