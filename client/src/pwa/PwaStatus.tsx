@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsFetching, useIsMutating, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 import { Download, RefreshCw, RotateCw, Wifi, WifiOff, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useAuth } from "../context/AuthContext";
 import { cn } from "../utils/cn";
 import { installServiceWorkerUpdate } from "./registerServiceWorker";
 import { useStandaloneMode } from "./useStandaloneMode";
@@ -16,6 +18,8 @@ const INSTALL_DISMISSED_KEY = "kv-install-dismissed";
 
 export function PwaStatus() {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const { user, loading } = useAuth();
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
   const standaloneApp = useStandaloneMode();
@@ -29,6 +33,7 @@ export function PwaStatus() {
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const pullDistanceRef = useRef(0);
+  const showAppAction = !loading && !user && ["/", "/login", "/admin-login", "/register"].includes(location.pathname);
 
   useEffect(() => {
     function onOnline() {
@@ -54,6 +59,11 @@ export function PwaStatus() {
     localStorage.setItem(LAST_SYNC_KEY, timestamp);
     setLastSynced(timestamp);
   }, [isFetching, online]);
+
+  useEffect(() => {
+    if (showAppAction) return;
+    setAppPanel(null);
+  }, [showAppAction]);
 
   useEffect(() => {
     function beforeInstallPrompt(event: Event) {
@@ -179,7 +189,7 @@ export function PwaStatus() {
 
       <div className="fixed inset-x-3 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-[60] grid gap-2 pointer-events-none lg:bottom-4 lg:left-auto lg:right-4 lg:w-96">
         <AnimatePresence>
-          {appPanel && (
+          {showAppAction && appPanel && (
             <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
@@ -235,7 +245,7 @@ export function PwaStatus() {
             </motion.div>
           )}
 
-          {installPrompt && online && localStorage.getItem(INSTALL_DISMISSED_KEY) !== "true" && !standaloneApp && (
+          {showAppAction && installPrompt && online && localStorage.getItem(INSTALL_DISMISSED_KEY) !== "true" && !standaloneApp && (
             <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
@@ -258,7 +268,7 @@ export function PwaStatus() {
             </motion.div>
           )}
 
-          {updateRegistration && (
+          {showAppAction && updateRegistration && (
             <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
@@ -278,17 +288,19 @@ export function PwaStatus() {
         </AnimatePresence>
       </div>
 
-      <div className="no-print fixed bottom-[calc(5.7rem+env(safe-area-inset-bottom))] left-3 z-[58] lg:bottom-5 lg:left-5">
-        <button
-          type="button"
-          aria-label={standaloneApp ? "Update mobile app" : "Download mobile app"}
-          onClick={standaloneApp ? checkForUpdate : () => (installPrompt ? void installApp() : setAppPanel("download"))}
-          className="inline-flex items-center gap-2 rounded-full border border-white/50 bg-[linear-gradient(135deg,#040b1d,#0b2f25)] px-4 py-3 text-xs font-extrabold text-white shadow-[0_18px_48px_rgba(4,11,29,0.30)] ring-4 ring-gold-400/12"
-        >
-          {standaloneApp ? <RefreshCw className={cn("h-4 w-4", checkingUpdate && "animate-spin")} /> : <Download className="h-4 w-4" />}
-          {standaloneApp ? "Update App" : "Download App"}
-        </button>
-      </div>
+      {showAppAction && (
+        <div className="no-print fixed bottom-[calc(5.7rem+env(safe-area-inset-bottom))] left-3 z-[58] lg:bottom-5 lg:left-5">
+          <button
+            type="button"
+            aria-label={standaloneApp ? "Update mobile app" : "Download mobile app"}
+            onClick={standaloneApp ? checkForUpdate : () => (installPrompt ? void installApp() : setAppPanel("download"))}
+            className="inline-flex items-center gap-2 rounded-full border border-white/50 bg-[linear-gradient(135deg,#040b1d,#0b2f25)] px-4 py-3 text-xs font-extrabold text-white shadow-[0_18px_48px_rgba(4,11,29,0.30)] ring-4 ring-gold-400/12"
+          >
+            {standaloneApp ? <RefreshCw className={cn("h-4 w-4", checkingUpdate && "animate-spin")} /> : <Download className="h-4 w-4" />}
+            {standaloneApp ? "Update App" : "Download App"}
+          </button>
+        </div>
+      )}
     </>
   );
 }

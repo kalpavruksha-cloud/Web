@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v4-download-update-whatsapp";
+const CACHE_VERSION = "kalpavruksha-pwa-v5-login-actions-icon-v2";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
@@ -6,21 +6,21 @@ const APP_SHELL_ASSETS = [
   "/",
   "/offline.html",
   "/manifest.webmanifest",
-  "/icons/favicon.ico",
-  "/icons/favicon-16x16.png",
-  "/icons/favicon-32x32.png",
-  "/icons/icon-48x48.png",
-  "/icons/icon-72x72.png",
-  "/icons/icon-96x96.png",
-  "/icons/icon-128x128.png",
-  "/icons/icon-144x144.png",
-  "/icons/icon-152x152.png",
-  "/icons/apple-touch-icon.png",
-  "/icons/icon-192x192.png",
-  "/icons/icon-384x384.png",
-  "/icons/icon-512x512.png",
-  "/icons/icon-maskable-192x192.png",
-  "/icons/icon-maskable-512x512.png"
+  "/icons/favicon-v2.ico",
+  "/icons/favicon-v2-16x16.png",
+  "/icons/favicon-v2-32x32.png",
+  "/icons/app-icon-v2-48x48.png",
+  "/icons/app-icon-v2-72x72.png",
+  "/icons/app-icon-v2-96x96.png",
+  "/icons/app-icon-v2-128x128.png",
+  "/icons/app-icon-v2-144x144.png",
+  "/icons/app-icon-v2-152x152.png",
+  "/icons/apple-touch-icon-v2.png",
+  "/icons/app-icon-v2-192x192.png",
+  "/icons/app-icon-v2-384x384.png",
+  "/icons/app-icon-v2-512x512.png",
+  "/icons/app-icon-maskable-v2-192x192.png",
+  "/icons/app-icon-maskable-v2-512x512.png"
 ];
 
 self.addEventListener("install", (event) => {
