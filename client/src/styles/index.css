@@ -51,6 +51,7 @@ textarea {
 
 html {
   scroll-behavior: smooth;
+  background: #fbfaf4;
 }
 
 ::selection {
@@ -59,6 +60,7 @@ html {
 
 button,
 a {
+  touch-action: manipulation;
   transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
@@ -76,6 +78,13 @@ input:focus,
 select:focus,
 textarea:focus {
   box-shadow: 0 0 0 4px rgba(215, 171, 61, 0.16);
+}
+
+@media (display-mode: standalone) {
+  body {
+    min-height: 100svh;
+    overscroll-behavior-y: contain;
+  }
 }
 
 * {

@@ -1,0 +1,18 @@
+{
+  "appId": "com.kalpavrukshawealth.portal",
+  "appName": "Kalpavruksha Wealth Portal",
+  "webDir": "client/dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1600,
+      "launchAutoHide": true,
+      "backgroundColor": "#040b1d",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    }
+  }
+}

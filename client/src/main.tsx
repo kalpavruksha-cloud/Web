@@ -6,17 +6,27 @@ import { App } from "./App";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
+import { PwaStatus } from "./pwa/PwaStatus";
+import { registerServiceWorker } from "./pwa/registerServiceWorker";
 import "./styles/index.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,
-      refetchOnWindowFocus: false,
+      staleTime: 15_000,
+      gcTime: 10 * 60_000,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
       retry: 1
+    },
+    mutations: {
+      networkMode: "online",
+      retry: false
     }
   }
 });
+
+registerServiceWorker();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -26,6 +36,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <BrowserRouter>
             <AuthProvider>
               <App />
+              <PwaStatus />
             </AuthProvider>
           </BrowserRouter>
         </ToastProvider>
