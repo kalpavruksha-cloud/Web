@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_07_27_REGISTER_ID_FIX_V5";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_CLIENT_CREDENTIAL_SYNC_V6";
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -162,19 +162,15 @@ function schema(payload) {
 
 function login(payload) {
   requireFields(payload, ["identifier", "password"]);
-  var sheet = requireSheet(getSpreadsheet(payload), ["CLIENT_CREDENTIALS", "Credentials", "Users"]);
+  var spreadsheet = getSpreadsheet(payload);
+  var sheet = requireSheet(spreadsheet, ["CLIENT_CREDENTIALS", "Credentials", "Users"]);
   var rows = readRows(sheet);
+  var clientSheet = findSheet(spreadsheet, ["CLIENTS", "Client", "Clients", "Profile"]);
+  var clientRows = clientSheet ? readRows(clientSheet) : [];
   var loginId = normalizeLogin(payload.identifier);
   var loginPassword = normalizePassword(payload.password);
   var expectedRole = normalizeRole(payload.expectedRole);
-  var matches = rows.filter(function(row) {
-    return normalizeLogin(credentialLoginId(row)) === loginId;
-  });
-  if (!matches.length) {
-    matches = rows.filter(function(row) {
-      return normalizeLogin(first(row, ["Email", "email"])) === loginId;
-    });
-  }
+  var matches = findLoginMatches(rows, loginId);
   if (expectedRole) {
     var roleMatches = matches.filter(function(row) {
       return credentialRole(row) === expectedRole;
@@ -185,17 +181,29 @@ function login(payload) {
     matches = roleMatches;
   }
   var match = matches[0];
-  if (!match) throw coded("LOGIN_ID_NOT_FOUND", "Login ID was not found in CLIENT_CREDENTIALS");
-  var stored = String(first(match, ["Password", "password", "Portal Password", "PASSWORD"]) || "");
+  var clientRow = findClientLoginRow(clientRows, loginId, match);
+  var credentialMissing = false;
+  if (!match && (!expectedRole || expectedRole === "client")) {
+    match = clientRow;
+    credentialMissing = !!match;
+  }
+  if (!match) throw coded("LOGIN_ID_NOT_FOUND", "Login ID was not found in CLIENT_CREDENTIALS or CLIENTS");
+  var stored = String(first(match, passwordHeaders()) || "");
+  if (!stored && clientRow) stored = String(first(clientRow, passwordHeaders()) || "");
+  if (!stored && credentialMissing) throw coded("CLIENT_CREDENTIALS_MISSING", "Client exists in CLIENTS, but no password was found. Add a matching row in CLIENT_CREDENTIALS with ClientId, Password, Role=client, Status=active, or add a Portal Password column to the client row once and login again.");
+  if (!stored) throw coded("PASSWORD_NOT_CONFIGURED", "Password is not configured for this login");
   if (normalizePassword(stored) !== loginPassword) throw coded("PASSWORD_MISMATCH", "Password does not match the CLIENT_CREDENTIALS row");
-  var status = normalizeStatus(first(match, ["Status", "Account Status", "status"]) || "active");
+  var status = effectiveLoginStatus(match, clientRow);
   var role = credentialRole(match);
+  if (credentialMissing && role === "client") {
+    upsertCredentialFromClient(payload, clientRow || match, stored);
+  }
   return {
     user: {
       id: cleanString(first(match, ["User ID", "ID", "Admin ID", "AdminId", "ClientId (Login ID)", "Login ID", "ClientId", "Client ID", "Email"]) || payload.identifier),
-      clientId: role === "admin" ? "" : cleanString(credentialLoginId(match) || ""),
-      email: cleanString(first(match, ["Email", "email"]) || ""),
-      name: cleanString(first(match, ["Name", "Full Name", "ClientName", "Client Name"]) || payload.identifier),
+      clientId: role === "admin" ? "" : cleanString(credentialLoginId(match) || credentialLoginId(clientRow || {}) || ""),
+      email: cleanString(first(match, ["Email", "email"]) || first(clientRow || {}, ["Email", "email"]) || ""),
+      name: cleanString(first(match, ["Name", "Full Name", "ClientName", "Client Name"]) || first(clientRow || {}, ["Name", "Full Name", "ClientName", "Client Name"]) || payload.identifier),
       role: role,
       status: status
     }
@@ -203,20 +211,49 @@ function login(payload) {
 }
 
 function loginDiagnostics(payload) {
-  var sheet = requireSheet(getSpreadsheet(payload), ["CLIENT_CREDENTIALS", "Credentials", "Users"]);
-  return readRows(sheet).map(function(row) {
+  var spreadsheet = getSpreadsheet(payload);
+  var sheet = requireSheet(spreadsheet, ["CLIENT_CREDENTIALS", "Credentials", "Users"]);
+  var clientSheet = findSheet(spreadsheet, ["CLIENTS", "Client", "Clients", "Profile"]);
+  var clientRows = clientSheet ? readRows(clientSheet) : [];
+  var credentialRows = readRows(sheet);
+  var credentialSummary = credentialRows.map(function(row) {
     var loginId = cleanString(credentialLoginId(row));
-    var password = cleanString(first(row, ["Password", "password", "Portal Password", "PASSWORD"]));
+    var clientRow = findClientLoginRow(clientRows, normalizeLogin(loginId), row);
+    var password = cleanString(first(row, passwordHeaders()));
     return {
       loginId: loginId,
       clientName: cleanString(first(row, ["ClientName", "Client Name", "Name", "Full Name"])),
       role: credentialRole(row),
       rawRole: cleanString(first(row, ["Role", "role", "User Role", "Portal Role", "Access Role"])),
-      status: normalizeStatus(first(row, ["Status", "Account Status", "status"]) || "active"),
+      status: effectiveLoginStatus(row, clientRow),
+      credentialStatus: normalizeStatus(first(row, ["Status", "Account Status", "status"]) || "active"),
+      clientSheetStatus: normalizeStatus(first(clientRow || {}, ["Status", "Account Status", "AccountStatus"]) || ""),
+      clientRowFound: !!clientRow,
       passwordConfigured: password.length > 0,
       passwordLength: password.length
     };
   });
+  var missingCredentialClients = clientRows.filter(function(row) {
+    var id = normalizeLogin(credentialLoginId(row));
+    if (!id) return false;
+    return !credentialRows.some(function(credential) { return normalizeLogin(credentialLoginId(credential)) === id; });
+  }).map(function(row) {
+    var password = cleanString(first(row, passwordHeaders()));
+    return {
+      loginId: cleanString(credentialLoginId(row)),
+      clientName: cleanString(first(row, ["ClientName", "Client Name", "Name", "Full Name"])),
+      status: normalizeStatus(first(row, ["Status", "Account Status", "AccountStatus"]) || ""),
+      passwordConfiguredInClientSheet: password.length > 0,
+      passwordLength: password.length,
+      issue: password ? "will_auto_sync_on_successful_login" : "missing_client_credentials_row"
+    };
+  });
+  return {
+    credentialsCount: credentialRows.length,
+    clientRowsCount: clientRows.length,
+    credentials: credentialSummary,
+    missingCredentialClients: missingCredentialClients
+  };
 }
 
 function registerClient(payload) {
@@ -361,11 +398,30 @@ function getClient(payload) {
 }
 
 function createClient(payload) {
-  return appendRecord(payload, ["CLIENTS", "Client", "Clients", "Profile"], payload);
+  var spreadsheet = getSpreadsheet(payload);
+  var clientsSheet = requireSheet(spreadsheet, ["CLIENTS", "Client", "Clients", "Profile"]);
+  var credentialsSheet = findSheet(spreadsheet, ["CLIENT_CREDENTIALS", "Credentials", "Users"]);
+  var clientId = cleanString(payload.clientId || payload.ClientId || payload["Client ID"] || payload["ClientId"]);
+  if (!clientId) clientId = nextClientId([clientsSheet, credentialsSheet]);
+  var clientPayload = clonePayload(payload, {
+    ClientId: clientId,
+    clientId: clientId,
+    Role: payload.role || payload.Role || "client",
+    Status: payload.status || payload.Status || "active"
+  });
+  var created = appendRecord(clientPayload, ["CLIENTS", "Client", "Clients", "Profile"], clientPayload);
+  if (cleanString(first(clientPayload, passwordHeaders()) || clientPayload.password)) {
+    upsertCredentialFromClient(clientPayload, clientPayload, cleanString(first(clientPayload, passwordHeaders()) || clientPayload.password));
+  }
+  return created;
 }
 
 function updateClient(payload) {
-  return updateRecord(payload, ["CLIENTS", "Client", "Clients", "Profile"], "ClientId", payload.id || payload.clientId, payload);
+  var updated = updateRecord(payload, ["CLIENTS", "Client", "Clients", "Profile"], "ClientId", payload.id || payload.clientId, payload);
+  if (cleanString(first(payload, passwordHeaders()) || payload.password)) {
+    upsertCredentialFromClient(payload, payload, cleanString(first(payload, passwordHeaders()) || payload.password));
+  }
+  return updated;
 }
 
 function getProfile(payload) {
@@ -1120,6 +1176,66 @@ function mapSupportRequest(row) {
   };
 }
 
+function findLoginMatches(rows, loginId) {
+  return rows.filter(function(row) {
+    return normalizeLogin(credentialLoginId(row)) === loginId;
+  }).concat(rows.filter(function(row) {
+    return normalizeLogin(credentialLoginId(row)) !== loginId && normalizeLogin(first(row, ["Email", "email"])) === loginId;
+  })).concat(rows.filter(function(row) {
+    return normalizeLogin(credentialLoginId(row)) !== loginId && normalizeLogin(first(row, ["Mobile", "Phone", "Contact", "Mobile Number"])) === loginId;
+  }));
+}
+
+function findClientLoginRow(rows, loginId, credentialRow) {
+  if (!rows || !rows.length) return null;
+  var credentialClientId = credentialRow ? normalizeLogin(credentialLoginId(credentialRow)) : "";
+  for (var i = 0; i < rows.length; i++) {
+    if (credentialClientId && normalizeLogin(credentialLoginId(rows[i])) === credentialClientId) return rows[i];
+  }
+  for (var j = 0; j < rows.length; j++) {
+    if (normalizeLogin(credentialLoginId(rows[j])) === loginId) return rows[j];
+  }
+  for (var k = 0; k < rows.length; k++) {
+    if (normalizeLogin(first(rows[k], ["Email", "email"])) === loginId) return rows[k];
+  }
+  for (var m = 0; m < rows.length; m++) {
+    if (normalizeLogin(first(rows[m], ["Mobile", "Phone", "Contact", "Mobile Number"])) === loginId) return rows[m];
+  }
+  return null;
+}
+
+function effectiveLoginStatus(credentialRow, clientRow) {
+  var credentialStatus = normalizeStatus(first(credentialRow || {}, ["Status", "Account Status", "AccountStatus", "status"]) || "active");
+  var clientStatus = normalizeStatus(first(clientRow || {}, ["Status", "Account Status", "AccountStatus", "status"]) || "");
+  if (["blocked", "inactive", "disabled", "suspended"].indexOf(credentialStatus) >= 0) return credentialStatus;
+  if (clientStatus) return clientStatus;
+  return credentialStatus || "active";
+}
+
+function passwordHeaders() {
+  return ["Password", "password", "Portal Password", "PortalPassword", "Login Password", "LoginPassword", "Temporary Password", "Temp Password", "PASSWORD"];
+}
+
+function upsertCredentialFromClient(payload, clientRow, password) {
+  var clientId = cleanString(credentialLoginId(clientRow));
+  if (!clientId) throw coded("MISSING_CLIENT_ID", "Cannot create login credentials without ClientId");
+  var status = normalizeStatus(first(clientRow, ["Status", "Account Status", "AccountStatus"]) || "active");
+  var values = {
+    "ClientId (Login ID)": clientId,
+    ClientId: clientId,
+    ClientName: cleanString(first(clientRow, ["ClientName", "Client Name", "Name", "Full Name", "fullName"]) || clientId),
+    Email: cleanString(first(clientRow, ["Email", "email"]) || ""),
+    Mobile: cleanString(first(clientRow, ["Mobile", "Phone", "Contact", "Mobile Number", "mobile"]) || ""),
+    Password: cleanString(password),
+    Role: "client",
+    Status: status || "active",
+    LastPasswordChange: new Date()
+  };
+  upsertClientRecord(payload, ["CLIENT_CREDENTIALS", "Credentials", "Users"], ["ClientId (Login ID)", "Login ID", "ClientId", "Client ID", "User ID"], clientId, values);
+  audit(payload, "syncCredentialFromClient", "CLIENT_CREDENTIALS", clientId);
+  return values;
+}
+
 function credentialLoginId(row) {
   return first(row, ["ClientId (Login ID)", "Login ID", "LoginId", "User ID", "UserId", "Admin ID", "AdminId", "ClientId", "Client ID", "CLIENT_ID", "clientId"]);
 }
@@ -1358,7 +1474,7 @@ function nextClientId(sheets) {
       var id = cleanString(first(row, headers));
       if (!id) return;
       used[normalizeLogin(id)] = true;
-      var match = id.match(/KWM?(\d+)/i);
+      var match = id.match(/K(?:WM|MW|W)(\d+)/i);
       if (match) max = Math.max(max, Number(match[1]));
     });
   });
@@ -1389,7 +1505,10 @@ function cleanString(value) {
 }
 
 function normalizeLogin(value) {
-  return cleanString(value).toLowerCase();
+  var login = cleanString(value).toLowerCase().replace(/\s+/g, "");
+  var clientMatch = login.match(/^k(?:wm|mw|w)[-_]?(\d+)$/i);
+  if (clientMatch) return "kwm" + clientMatch[1];
+  return login;
 }
 
 function normalizePassword(value) {
