@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_DRIVE_AUTHORIZATION_V8";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_DRIVE_WRITE_AUTHORIZATION_V9";
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -96,10 +96,16 @@ function deploymentTest(payload) {
 function driveAuthorizationTest(payload) {
   payload = payload || {};
   var root = DriveApp.getRootFolder();
+  var testFolder = root.createFolder("Kalpavruksha Portal Authorization Test " + new Date().getTime());
+  var testFolderId = testFolder.getId();
+  testFolder.setTrashed(true);
   return {
-    driveApp: "authorized",
+    driveApp: "write_authorized",
     rootFolderId: root.getId(),
     rootFolderName: root.getName(),
+    testFolderCreated: true,
+    testFolderId: testFolderId,
+    testFolderTrashed: true,
     spreadsheetId: payload.spreadsheetId || DEFAULT_SPREADSHEET_ID,
     timestamp: new Date().toISOString()
   };

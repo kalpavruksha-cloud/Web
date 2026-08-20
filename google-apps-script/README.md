@@ -44,4 +44,6 @@ If upload fails with `You do not have permission to call DriveApp.getRootFolder`
 
 The result must include:
 
-`"driveApp":"authorized"`
+`"driveApp":"write_authorized"`
+
+This test creates a temporary folder in My Drive and immediately moves it to trash. That is intentional: it forces Google Apps Script to request the full `https://www.googleapis.com/auth/drive` permission required for client document uploads.
