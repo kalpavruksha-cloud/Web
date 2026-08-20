@@ -23,3 +23,25 @@ Do not create a new spreadsheet. Keep using:
 7. Update `APPS_SCRIPT_URL` in the backend environment if the deployment URL changes.
 8. Approve the requested Spreadsheet and Drive permissions.
 9. Verify `GET /api/system/health` and admin `GET /api/admin/spreadsheet-schema`.
+
+## Drive Upload Authorization
+
+Document upload requires Google Drive permission because files are saved in Drive before their metadata is written to the `DOCUMENTS` sheet.
+
+If upload fails with `You do not have permission to call DriveApp.getRootFolder`, do this in the Apps Script editor:
+
+1. Open **Project Settings**.
+2. Enable **Show "appsscript.json" manifest file in editor**.
+3. Open `appsscript.json`.
+4. Replace it with the local `google-apps-script/appsscript.json`.
+5. Open `Code.gs` and replace it with the latest local `google-apps-script/Code.gs`.
+6. In the function selector, run `driveAuthorizationTest`.
+7. Approve the Google permissions, including Drive.
+8. Deploy a new Web App version with **Execute as: Me**.
+9. Test:
+
+`https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?action=driveAuthorizationTest`
+
+The result must include:
+
+`"driveApp":"authorized"`

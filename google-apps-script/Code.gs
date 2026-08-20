@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_DOCUMENT_UPLOAD_DOWNLOAD_V7";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_DRIVE_AUTHORIZATION_V8";
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -16,6 +16,7 @@ var REQUIRED_SHEETS = [
 
 var ACTIONS = {
   deploymentTest: deploymentTest,
+  driveAuthorizationTest: driveAuthorizationTest,
   health: health,
   schema: schema,
   login: login,
@@ -87,6 +88,18 @@ function deploymentTest(payload) {
     marker: DEPLOYMENT_MARKER,
     doGetAvailable: typeof doGet === "function",
     doPostAvailable: typeof doPost === "function",
+    spreadsheetId: payload.spreadsheetId || DEFAULT_SPREADSHEET_ID,
+    timestamp: new Date().toISOString()
+  };
+}
+
+function driveAuthorizationTest(payload) {
+  payload = payload || {};
+  var root = DriveApp.getRootFolder();
+  return {
+    driveApp: "authorized",
+    rootFolderId: root.getId(),
+    rootFolderName: root.getName(),
     spreadsheetId: payload.spreadsheetId || DEFAULT_SPREADSHEET_ID,
     timestamp: new Date().toISOString()
   };
