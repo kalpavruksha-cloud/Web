@@ -13,6 +13,7 @@ import {
   updateProfile
 } from "../controllers/dataController.js";
 import { clientRead, clientUpload, clientWrite, rejectClientIdOverride } from "../controllers/clientController.js";
+import { ads } from "../controllers/adsController.js";
 import { health, spreadsheetSchema, startup } from "../controllers/systemController.js";
 import { authenticate, clientScope, requireRole } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
@@ -40,6 +41,7 @@ export const apiRouter = Router();
 
 apiRouter.get("/system/health", asyncHandler(health));
 apiRouter.get("/system/startup", asyncHandler(startup));
+apiRouter.get("/ads", asyncHandler(ads));
 
 apiRouter.use(authenticate);
 

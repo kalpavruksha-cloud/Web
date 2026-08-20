@@ -32,6 +32,7 @@ These tabs are detected or supported by the current Apps Script mapper:
 - `REFERRALS`
 - `NOTIFICATIONS`
 - `ACTIVITY_LOG`
+- `PORTAL_ADS`
 - `PlatformSettings` / `Settings` / `PortalSettings`
 
 ## Client Portal Tabs Added When Missing
@@ -44,6 +45,36 @@ The Apps Script extension reuses compatible existing tabs first. If a required w
 - `Support Requests`
 - `FAQ`
 - `Client Preferences`
+- `PORTAL_ADS`
+
+## Portal Ads
+
+Ads are controlled from the `PORTAL_ADS` tab. The backend exposes them through `GET /api/ads`; the frontend never reads the spreadsheet directly.
+
+Required headers:
+
+- `AdId`
+- `CompanyName`
+- `Category`
+- `Title`
+- `Description`
+- `ImageUrl`
+- `TargetUrl`
+- `ButtonText`
+- `Placement`
+- `StartDate`
+- `EndDate`
+- `Status`
+- `Priority`
+
+Supported placement examples:
+
+- `login`
+- `dashboard`
+- `mobile_home`
+- `all`
+
+Only rows with `Status` set to `Active`, `Published`, `Live`, `Show`, `Visible`, or `Enabled` are displayed. `Placement` can contain comma-separated values. `StartDate`, `EndDate`, and `Priority` are optional controls for scheduling and ordering.
 
 ## Required Client Workflow Columns
 

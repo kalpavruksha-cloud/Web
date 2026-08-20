@@ -6,6 +6,7 @@ import type {
   DashboardSummary,
   Investment,
   PortalSettings,
+  PortalAd,
   Profile,
   Referral,
   SpreadsheetSchema,
@@ -17,6 +18,7 @@ import type {
 const LIVE_READ_REFETCH_MS = 45_000;
 const DASHBOARD_REFETCH_MS = 30_000;
 const SESSION_REFETCH_MS = 5 * 60_000;
+const ADS_REFETCH_MS = 10 * 60_000;
 
 const RELATED_QUERY_KEYS: Record<string, string[]> = {
   clients: ["admin-clients", "profile", "client-profile", "client-dashboard"],
@@ -68,6 +70,16 @@ export function useProfile() {
 
 export function useResource<T>(name: string, path: string, params?: Record<string, unknown>) {
   return useQuery({ queryKey: [name, params], queryFn: () => getData<T>(path, params), refetchInterval: LIVE_READ_REFETCH_MS });
+}
+
+export function useAds(placement: string) {
+  return useQuery({
+    queryKey: ["ads", placement],
+    queryFn: () => getData<PortalAd[]>("/ads", { placement }),
+    staleTime: ADS_REFETCH_MS,
+    refetchInterval: ADS_REFETCH_MS,
+    retry: false
+  });
 }
 
 export function useAction<T>(invalidate: string[]) {

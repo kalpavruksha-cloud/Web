@@ -109,6 +109,15 @@ textarea:focus {
   background: linear-gradient(180deg, rgba(215, 171, 61, 0.7), rgba(21, 59, 183, 0.42));
 }
 
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @layer components {
   .kv-glass {
     @apply border border-white/40 bg-white/70 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-white/10;

@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Bell, Copy, Download, ExternalLink, FileText, IndianRupee, LifeBuoy, PlusCircle, Printer, UploadCloud, UserCircle, WalletCards } from "lucide-react";
 import { api } from "../../../api/client";
-import { useAction, useResource } from "../../../api/queries";
+import { useAction, useAds, useResource } from "../../../api/queries";
+import { PortalAdBanner, PortalAdSwipe } from "../../../components/PortalAds";
 import { ErrorState } from "../../../components/State";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../context/ThemeContext";
@@ -33,6 +34,8 @@ export function ClientDashboardPage() {
   const { user } = useAuth();
   const dashboard = useResource<ClientDashboardData>("client-dashboard", "/client/dashboard");
   const requests = useResource<InvestmentRequest[]>("client-investment-requests", "/client/investment-requests");
+  const dashboardAds = useAds("dashboard");
+  const mobileAds = useAds("mobile_home");
   if (dashboard.isLoading || requests.isLoading) return <ClientLoading label="Loading your dashboard" />;
   if (dashboard.error) return <ErrorState title="Unable to load dashboard" message={dashboard.error instanceof Error ? dashboard.error.message : undefined} />;
   const data = dashboard.data;
@@ -61,12 +64,16 @@ export function ClientDashboardPage() {
         </div>
       </ClientCard>
 
+      <PortalAdSwipe ads={mobileAds.data?.length ? mobileAds.data : dashboardAds.data} className="mb-5 md:hidden" showEmpty />
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <ClientMetric label="Total Invested" value={formatCurrency(data.totalInvestedAmount)} icon={<IndianRupee className="h-5 w-5" />} />
         <ClientMetric label="Portfolio Value" value={formatCurrency(data.currentPortfolioValue)} hint={`${formatCurrency(data.totalReturns)} returns`} icon={<IndianRupee className="h-5 w-5" />} />
         <ClientMetric label="Available Balance" value={formatCurrency(data.availableBalance ?? data.walletBalance)} hint={`${data.pendingWithdrawals} pending withdrawals`} icon={<WalletCards className="h-5 w-5" />} />
         <ClientMetric label="Referral Earnings" value={formatCurrency(data.referralEarnings)} hint={`${pendingRequests} pending investment requests`} icon={<Copy className="h-5 w-5" />} />
       </div>
+
+      <PortalAdBanner ads={dashboardAds.data} className="mt-6 hidden md:block" showEmpty label="Dashboard ad card" />
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <ClientCard><SectionTitle title="Investment Growth" subtitle="Based on your transaction ledger" /><ChartBox><AreaChart data={growth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="date" /><YAxis tickFormatter={(value) => `${Number(value) / 1000}k`} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area dataKey="value" type="monotone" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox></ClientCard>
@@ -330,3 +337,4 @@ function EditableProfileFields({ data, form, setForm }: { data?: Profile; form: 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
   return <label className="mb-3 flex items-center justify-between gap-4 rounded-lg border border-forest-100 p-3 text-sm font-bold dark:border-white/10"><span className="min-w-0">{label}</span><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /></label>;
 }
+

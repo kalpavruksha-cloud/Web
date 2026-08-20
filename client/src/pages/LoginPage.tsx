@@ -3,7 +3,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Eye, EyeOff, Leaf, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Link, useHistory } from "react-router-dom";
+import { useAds } from "../api/queries";
 import { Logo } from "../components/Logo";
+import { PortalAdBanner } from "../components/PortalAds";
 import { ErrorState } from "../components/State";
 import { useAuth } from "../context/AuthContext";
 import { loginFormSchema, type LoginFormValues } from "../schemas/auth";
@@ -14,6 +16,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string>();
   const [forgot, setForgot] = useState(false);
+  const loginAds = useAds("login");
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: { identifier: "", password: "", remember: false }
@@ -43,6 +46,7 @@ export function LoginPage() {
             <div className="rounded-[18px] border border-white/10 bg-white/8 p-4 backdrop-blur-xl"><ShieldCheck className="h-5 w-5 text-gold-100" /><p className="mt-3 text-sm font-bold">Role-secure access</p></div>
             <div className="rounded-[18px] border border-white/10 bg-white/8 p-4 backdrop-blur-xl"><Sparkles className="h-5 w-5 text-gold-100" /><p className="mt-3 text-sm font-bold">Live wealth records</p></div>
           </div>
+          <PortalAdBanner ads={loginAds.data} className="mt-8" showEmpty label="Login page ad banner" />
         </div>
         <p className="absolute bottom-10 left-10 right-10 text-sm text-white/60">HTTPS, role-based access, and verified spreadsheet records only.</p>
       </section>
@@ -50,6 +54,7 @@ export function LoginPage() {
       <section className="grid place-items-center px-4 py-6 sm:px-5 sm:py-10">
         <div className="w-full max-w-md">
           <div className="mb-4 flex justify-center sm:mb-8 lg:hidden"><Logo /></div>
+          <PortalAdBanner ads={loginAds.data} className="mb-4 lg:hidden" showEmpty label="Login page ad banner" />
           <div className="rounded-[22px] border border-white/70 bg-white/82 p-5 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-white/8 sm:rounded-[26px] sm:p-7">
             <h2 className="font-display text-2xl font-extrabold tracking-tight text-navy-900 dark:text-ivory sm:text-3xl">Sign in securely</h2>
             <p className="mt-2 text-sm text-charcoal/65 dark:text-white/65">Use your registered login ID or email and portal password. Your spreadsheet role opens the correct portal.</p>
@@ -96,3 +101,4 @@ export function LoginPage() {
     </main>
   );
 }
+

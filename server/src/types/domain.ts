@@ -142,6 +142,20 @@ export type PortalSettings = {
   brandingText?: string;
 };
 
+export type PortalAd = {
+  id: string;
+  companyName: string;
+  category?: string;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  targetUrl?: string;
+  buttonText?: string;
+  placement: string;
+  priority?: number;
+  status: string;
+};
+
 export type DashboardSummary = {
   client?: Profile;
   totalInvestedAmount: number;
