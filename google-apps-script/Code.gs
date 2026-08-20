@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_DRIVE_WRITE_AUTHORIZATION_V9";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_DOCUMENT_CLIENT_ID_MAPPING_V10";
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -45,6 +45,7 @@ var ACTIONS = {
   updateReferral: updateReferral,
   getDocuments: getDocuments,
   createDocument: createDocument,
+  repairDocumentClientIds: repairDocumentClientIds,
   deleteDocument: deleteDocument,
   getNotifications: getNotifications,
   createNotification: createNotification,
@@ -541,6 +542,34 @@ function createDocument(payload) {
   return appendRecord(payload, ["DOCUMENTS", "Documents", "Document", "Docs"], payload);
 }
 
+function repairDocumentClientIds(payload) {
+  var sheet = requireSheet(getSpreadsheet(payload), ["DOCUMENTS", "Documents", "Document", "Docs"]);
+  var headers = getHeaders(sheet);
+  ensureHeaders(sheet, ["ClientId", "Client ID", "CLIENT_ID"]);
+  headers = getHeaders(sheet);
+  var clientIndexes = ["ClientId", "Client ID", "CLIENT_ID"].map(function(header) {
+    return findHeaderIndex(headers, [header]);
+  }).filter(function(index) { return index >= 0; });
+  var fileIndex = findHeaderIndex(headers, ["FileName", "File Name"]);
+  var nameIndex = findHeaderIndex(headers, ["Name", "Document Name"]);
+  var rows = sheet.getDataRange().getValues();
+  var repaired = 0;
+  for (var i = 1; i < rows.length; i++) {
+    var hasClientId = clientIndexes.some(function(index) { return cleanString(rows[i][index]); });
+    if (hasClientId) continue;
+    var source = cleanString(fileIndex >= 0 ? rows[i][fileIndex] : "") || cleanString(nameIndex >= 0 ? rows[i][nameIndex] : "");
+    var match = source.match(/(K(?:WM|MW|W)[-_]?\d+)/i);
+    if (!match) continue;
+    var clientId = match[1].replace(/[-_]/g, "").toUpperCase();
+    clientIndexes.forEach(function(index) {
+      sheet.getRange(i + 1, index + 1).setValue(clientId);
+    });
+    repaired += 1;
+  }
+  audit(payload || {}, "repairDocumentClientIds", sheet.getName(), String(repaired));
+  return { repaired: repaired };
+}
+
 function deleteDocument(payload) {
   return updateRecord(payload, ["DOCUMENTS", "Documents", "Document", "Docs"], "DocumentId", payload.id, { Status: "archived" });
 }
@@ -771,7 +800,9 @@ function uploadClientDocument(payload) {
   var documentId = "DOC-" + Date.now();
   appendRecord(payload, ["DOCUMENTS", "Documents", "Document", "Docs"], {
     DocumentId: documentId,
+    ClientId: payload.clientId,
     "Client ID": payload.clientId,
+    CLIENT_ID: payload.clientId,
     Name: payload.fileName,
     Category: payload.category,
     Description: payload.description,
@@ -1463,13 +1494,17 @@ function getHeaders(sheet) {
 
 function first(row, names) {
   var keys = Object.keys(row);
+  var emptyValue = "";
   for (var i = 0; i < names.length; i++) {
     var wanted = normalizeKey(names[i]);
     for (var j = 0; j < keys.length; j++) {
-      if (normalizeKey(keys[j]) === wanted) return row[keys[j]];
+      if (normalizeKey(keys[j]) === wanted) {
+        if (row[keys[j]] !== undefined && row[keys[j]] !== null && row[keys[j]] !== "") return row[keys[j]];
+        emptyValue = row[keys[j]];
+      }
     }
   }
-  return "";
+  return emptyValue;
 }
 
 function byId(rows, id, key) {
