@@ -60,6 +60,7 @@ apiRouter.get("/client/agreements", asyncHandler(clientRead("getClientAgreements
 apiRouter.post("/client/agreements/:id/upload-signed", validate(clientUploadSchema), asyncHandler(clientUpload("uploadSignedAgreement")));
 apiRouter.get("/client/documents", asyncHandler(clientRead("getClientDocuments")));
 apiRouter.post("/client/documents/upload", validate(clientUploadSchema), asyncHandler(clientUpload("uploadClientDocument")));
+apiRouter.get("/client/documents/:id/download", validate(idParamSchema), asyncHandler(clientRead("downloadClientDocument")));
 apiRouter.put("/client/documents/:id/replace", validate(clientUploadSchema), asyncHandler(clientUpload("replaceClientDocument")));
 apiRouter.delete("/client/documents/:id", validate(idParamSchema), asyncHandler(clientWrite("archiveClientDocument")));
 apiRouter.get("/client/referrals", asyncHandler(clientRead("getReferrals")));

@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_CLIENT_CREDENTIAL_SYNC_V6";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_DOCUMENT_UPLOAD_DOWNLOAD_V7";
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -66,6 +66,7 @@ var ACTIONS = {
   uploadSignedAgreement: uploadSignedAgreement,
   getClientDocuments: getClientDocuments,
   uploadClientDocument: uploadClientDocument,
+  downloadClientDocument: downloadClientDocument,
   replaceClientDocument: replaceClientDocument,
   archiveClientDocument: archiveClientDocument,
   uploadProfilePhoto: uploadProfilePhoto,
@@ -771,6 +772,24 @@ function uploadClientDocument(payload) {
   return clonePayload(upload, { documentId: documentId, status: "Under Verification" });
 }
 
+function downloadClientDocument(payload) {
+  requireFields(payload, ["id"]);
+  var existing = byId(getClientDocuments(payload), payload.id, "id");
+  var fileId = existing.fileId || extractDriveFileId(existing.driveUrl);
+  if (!fileId) throw coded("DOCUMENT_FILE_NOT_FOUND", "The selected document does not have a Google Drive file ID");
+  var file = DriveApp.getFileById(fileId);
+  var blob = file.getBlob();
+  logClientActivity(clonePayload(payload, { actionName: "downloadClientDocument", recordId: payload.id }));
+  return {
+    documentId: existing.id,
+    fileId: file.getId(),
+    fileName: existing.fileName || file.getName(),
+    mimeType: existing.mimeType || blob.getContentType(),
+    fileSize: existing.fileSize || file.getSize(),
+    base64Data: Utilities.base64Encode(blob.getBytes())
+  };
+}
+
 function replaceClientDocument(payload) {
   var existing = byId(getClientDocuments(payload), payload.id, "id");
   if (existing.status === "verified") throw coded("VERIFIED_DOCUMENT_LOCKED", "Verified documents require an admin-controlled replacement request");
@@ -906,6 +925,21 @@ function getSecureFile(payload) {
   if (!payload.fileId) throw coded("VALIDATION_ERROR", "fileId is required");
   var file = DriveApp.getFileById(payload.fileId);
   return { fileId: file.getId(), fileName: file.getName(), fileUrl: file.getUrl(), mimeType: file.getMimeType(), fileSize: file.getSize() };
+}
+
+function extractDriveFileId(url) {
+  var text = cleanString(url);
+  if (!text) return "";
+  var patterns = [
+    /\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /[?&]id=([a-zA-Z0-9_-]+)/,
+    /\/open\?id=([a-zA-Z0-9_-]+)/
+  ];
+  for (var i = 0; i < patterns.length; i++) {
+    var match = text.match(patterns[i]);
+    if (match) return match[1];
+  }
+  return "";
 }
 
 function logClientActivity(payload) {
@@ -1083,6 +1117,7 @@ function mapReferral(row) {
 }
 
 function mapDocument(row) {
+  var driveUrl = first(row, ["FileURL", "Google Drive URL", "Drive URL", "URL", "Link"]);
   return {
     id: String(first(row, ["DocumentId", "Document ID", "Doc ID", "ID"]) || ""),
     clientId: String(first(row, ["ClientId", "Client ID", "CLIENT_ID"]) || ""),
@@ -1090,7 +1125,11 @@ function mapDocument(row) {
     type: String(first(row, ["Category", "FileType", "File Type", "Type", "Document Type"]) || "Other"),
     uploadDate: first(row, ["Upload Date", "Date"]),
     status: normalizeStatus(first(row, ["Status"])),
-    driveUrl: first(row, ["FileURL", "Google Drive URL", "Drive URL", "URL", "Link"])
+    driveUrl: driveUrl,
+    fileId: first(row, ["GoogleDriveFileId", "Google Drive File ID", "Drive File ID", "File ID"]) || extractDriveFileId(driveUrl),
+    fileName: first(row, ["FileName", "File Name", "Name"]),
+    mimeType: first(row, ["MimeType", "Mime Type", "Content Type"]),
+    fileSize: number(first(row, ["FileSize", "File Size", "Size"]))
   };
 }
 

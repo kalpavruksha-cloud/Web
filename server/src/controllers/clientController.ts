@@ -19,6 +19,7 @@ type ClientAction =
   | "uploadSignedAgreement"
   | "getClientDocuments"
   | "uploadClientDocument"
+  | "downloadClientDocument"
   | "replaceClientDocument"
   | "archiveClientDocument"
   | "getReferrals"

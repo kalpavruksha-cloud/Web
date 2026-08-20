@@ -127,7 +127,11 @@ const fieldAliases: Record<string, AliasMap> = {
     name: ["name", "documentname", "documenttype"],
     type: ["type", "documenttype"],
     uploadDate: ["uploaddate", "uploadedat", "date"],
-    driveUrl: ["googledriveurl", "driveurl", "url", "link", "fileurl"]
+    driveUrl: ["googledriveurl", "driveurl", "url", "link", "fileurl"],
+    fileId: ["googledrivefileid", "drivefileid", "fileid"],
+    fileName: ["filename", "filenameuploaded", "file"],
+    mimeType: ["mimetype", "contenttype"],
+    fileSize: ["filesize", "size"]
   },
   notification: {
     ...common,
@@ -260,7 +264,11 @@ export function toDocument(row: Row, map: Map<string, string>): ClientDocument {
     type: String(value(row, map, "type") ?? "Other"),
     uploadDate: toDateString(value(row, map, "uploadDate")),
     status: normalizeStatus(value(row, map, "status"), "available"),
-    driveUrl: optionalString(value(row, map, "driveUrl"))
+    driveUrl: optionalString(value(row, map, "driveUrl")),
+    fileId: optionalString(value(row, map, "fileId")),
+    fileName: optionalString(value(row, map, "fileName")),
+    mimeType: optionalString(value(row, map, "mimeType")),
+    fileSize: toNumber(value(row, map, "fileSize"))
   };
 }
 

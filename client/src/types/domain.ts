@@ -101,6 +101,10 @@ export type ClientDocument = {
   uploadDate?: string;
   status: string;
   driveUrl?: string;
+  fileId?: string;
+  fileName?: string;
+  mimeType?: string;
+  fileSize?: number;
 };
 
 export type ClientNotification = {

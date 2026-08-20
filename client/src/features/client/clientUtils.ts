@@ -54,6 +54,21 @@ export function readFileAsBase64(file: File) {
   });
 }
 
+export function downloadBase64File(filename: string, mimeType: string, base64Data: string) {
+  const binary = globalThis.atob(base64Data);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  const blob = new Blob([bytes], { type: mimeType || "application/octet-stream" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename || "kalpavruksha-document";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function fileCategoryFolder(category: string) {
   const normalized = category.toLowerCase();
   if (normalized.includes("agreement")) return "Agreements";
