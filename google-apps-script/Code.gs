@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_PORTAL_ADS_V11";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_DOCUMENT_CLIENT_ID_MAPPING_V10";
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -11,8 +11,7 @@ var REQUIRED_SHEETS = [
   "DASHBOARD",
   "Documents",
   "Referrals",
-  "ACTIVITY_LOG",
-  "PORTAL_ADS"
+  "ACTIVITY_LOG"
 ];
 
 var ACTIONS = {
@@ -20,8 +19,6 @@ var ACTIONS = {
   driveAuthorizationTest: driveAuthorizationTest,
   health: health,
   schema: schema,
-  getAds: getAds,
-  ensurePortalAds: ensurePortalAds,
   login: login,
   registerClient: registerClient,
   dashboard: dashboard,
@@ -154,7 +151,6 @@ function route(payload) {
 function health(payload) {
   var started = Date.now();
   var spreadsheet = getSpreadsheet(payload);
-  ensurePortalAdsSheet(spreadsheet);
   var detected = spreadsheet.getSheets().map(function(sheet) { return sheet.getName(); });
   return {
     appsScript: "ok",
@@ -183,45 +179,6 @@ function schema(payload) {
     }),
     warnings: []
   };
-}
-
-function ensurePortalAds(payload) {
-  var sheet = ensurePortalAdsSheet(getSpreadsheet(payload || {}));
-  return {
-    sheetName: sheet.getName(),
-    headers: getHeaders(sheet),
-    recordCount: Math.max(sheet.getDataRange().getValues().length - 1, 0)
-  };
-}
-
-function getAds(payload) {
-  payload = payload || {};
-  var sheet = ensurePortalAdsSheet(getSpreadsheet(payload));
-  var placement = normalizeStatus(payload.placement || "");
-  var now = new Date();
-  return readRows(sheet).map(mapPortalAd).filter(function(ad) {
-    if (!ad.id || !ad.companyName || !ad.title || ad.status !== "active") return false;
-    if (!placement) return true;
-    return ad.placements.indexOf(placement) >= 0 || ad.placements.indexOf("all") >= 0 || ad.placements.indexOf("global") >= 0;
-  }).filter(function(ad) {
-    return isAdInDateWindow(ad, now);
-  }).sort(function(a, b) {
-    return b.priority - a.priority;
-  }).map(function(ad) {
-    return {
-      id: ad.id,
-      companyName: ad.companyName,
-      category: ad.category,
-      title: ad.title,
-      description: ad.description,
-      imageUrl: ad.imageUrl,
-      targetUrl: ad.targetUrl,
-      buttonText: ad.buttonText,
-      placement: ad.placement,
-      priority: ad.priority,
-      status: ad.status
-    };
-  });
 }
 
 function login(payload) {
@@ -1306,73 +1263,6 @@ function mapSupportRequest(row) {
     adminResponse: first(row, ["Admin Response"]),
     updatedDate: first(row, ["Updated Date"])
   };
-}
-
-function mapPortalAd(row) {
-  var placement = cleanString(first(row, ["Placement", "Placements", "Position", "Screen"]) || "all");
-  return {
-    id: cleanString(first(row, ["AdId", "Ad ID", "ID"])),
-    companyName: cleanString(first(row, ["CompanyName", "Company Name", "Company", "Brand"])),
-    category: cleanString(first(row, ["Category", "Business Category"])),
-    title: cleanString(first(row, ["Title", "Headline"])),
-    description: cleanString(first(row, ["Description", "Message", "Body"])),
-    imageUrl: cleanString(first(row, ["ImageUrl", "Image URL", "Banner URL", "Image"])),
-    targetUrl: cleanString(first(row, ["TargetUrl", "Target URL", "Link", "URL"])),
-    buttonText: cleanString(first(row, ["ButtonText", "Button Text", "CTA"]) || "Know More"),
-    placement: placement,
-    placements: placement.split(",").map(function(item) { return normalizeStatus(item); }).filter(Boolean),
-    startDate: first(row, ["StartDate", "Start Date", "Valid From"]),
-    endDate: first(row, ["EndDate", "End Date", "Valid To"]),
-    status: normalizeAdStatus(first(row, ["Status", "Visibility"])),
-    priority: number(first(row, ["Priority", "Sort Order", "Weight"]))
-  };
-}
-
-function normalizeAdStatus(value) {
-  var status = normalizeStatus(value || "inactive");
-  if (["active", "published", "live", "show", "visible", "enabled"].indexOf(status) >= 0) return "active";
-  return status || "inactive";
-}
-
-function isAdInDateWindow(ad, now) {
-  var start = dateValue(ad.startDate);
-  var end = dateValue(ad.endDate);
-  if (start && start.getTime() > now.getTime()) return false;
-  if (end && end.getTime() < startOfDay(now).getTime()) return false;
-  return true;
-}
-
-function dateValue(value) {
-  if (!value) return null;
-  if (Object.prototype.toString.call(value) === "[object Date]" && !isNaN(value.getTime())) return value;
-  var parsed = new Date(value);
-  return isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function startOfDay(value) {
-  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
-}
-
-function ensurePortalAdsSheet(spreadsheet) {
-  return ensureSheet(spreadsheet, "PORTAL_ADS", portalAdHeaders());
-}
-
-function portalAdHeaders() {
-  return [
-    "AdId",
-    "CompanyName",
-    "Category",
-    "Title",
-    "Description",
-    "ImageUrl",
-    "TargetUrl",
-    "ButtonText",
-    "Placement",
-    "StartDate",
-    "EndDate",
-    "Status",
-    "Priority"
-  ];
 }
 
 function findLoginMatches(rows, loginId) {
