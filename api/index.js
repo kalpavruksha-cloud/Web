@@ -340,7 +340,7 @@ function getApiPath(rawUrl) {
 
 function getEnv() {
   const nodeEnv = normalizeNodeEnv(process.env.NODE_ENV);
-  const clientUrl = firstEnv("CLIENT_URL", "FRONTEND_URL", "SITE_URL") || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:5173");
+  const clientUrl = normalizeUrl(firstEnv("CLIENT_URL", "FRONTEND_URL", "SITE_URL") || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:5173"));
   const env = {
     production: nodeEnv === "production",
     nodeEnv,
@@ -351,9 +351,9 @@ function getEnv() {
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || "8h",
     timeoutMs: Number(process.env.APPS_SCRIPT_TIMEOUT_MS || 15000),
     corsOrigins: unique([
-      ...String(process.env.CORS_ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:3000").split(",").map((item) => item.trim()).filter(Boolean),
+      ...String(process.env.CORS_ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:3000").split(",").map((item) => normalizeUrl(item)).filter(Boolean),
       clientUrl,
-      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : ""
+      process.env.VERCEL_URL ? normalizeUrl(`https://${process.env.VERCEL_URL}`) : ""
     ]),
     valid: true,
     error: null
@@ -424,7 +424,8 @@ function firstSecretLikeEnv() {
 function applyCors(req, res) {
   const env = getEnv();
   const origin = req.headers.origin;
-  if (!origin || env.corsOrigins.includes(origin)) {
+  const normalizedOrigin = normalizeUrl(origin || "");
+  if (!origin || env.corsOrigins.includes(normalizedOrigin)) {
     res.setHeader("Access-Control-Allow-Origin", origin || env.clientUrl);
     res.setHeader("Vary", "Origin");
   }
@@ -529,6 +530,12 @@ function isUrl(value) {
   }
 }
 
+function normalizeUrl(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
 function stripTags(value) {
   return String(value).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
+
+
