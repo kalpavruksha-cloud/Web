@@ -33,11 +33,11 @@ export function ClientDashboardPage() {
   const { user } = useAuth();
   const dashboard = useResource<ClientDashboardData>("client-dashboard", "/client/dashboard");
   const requests = useResource<InvestmentRequest[]>("client-investment-requests", "/client/investment-requests");
-  if (dashboard.isLoading || requests.isLoading) return <ClientLoading label="Loading your dashboard" />;
+  if (dashboard.isLoading) return <ClientLoading label="Loading your dashboard" />;
   if (dashboard.error) return <ErrorState title="Unable to load dashboard" message={dashboard.error instanceof Error ? dashboard.error.message : undefined} />;
   const data = dashboard.data;
   if (!data) return <ErrorState title="Dashboard unavailable" message="The spreadsheet did not return dashboard records." />;
-  const pendingRequests = (requests.data ?? []).filter((row) => String(row.status).toLowerCase().includes("pending")).length;
+  const pendingRequests = requests.data ? requests.data.filter((row) => String(row.status).toLowerCase().includes("pending")).length : 0;
   const allocation = (data.investments ?? []).map((row) => ({ name: row.category || row.plan, value: row.currentValue || row.principalAmount }));
   const growth = (data.recentTransactions ?? []).slice().reverse().map((row) => ({ date: formatDate(row.date), value: row.balance ?? row.credit - row.debit }));
   const client = data.client;
@@ -65,7 +65,7 @@ export function ClientDashboardPage() {
         <ClientMetric label="Total Invested" value={formatCurrency(data.totalInvestedAmount)} icon={<IndianRupee className="h-5 w-5" />} />
         <ClientMetric label="Portfolio Value" value={formatCurrency(data.currentPortfolioValue)} hint={`${formatCurrency(data.totalReturns)} returns`} icon={<IndianRupee className="h-5 w-5" />} />
         <ClientMetric label="Available Balance" value={formatCurrency(data.availableBalance ?? data.walletBalance)} hint={`${data.pendingWithdrawals} pending withdrawals`} icon={<WalletCards className="h-5 w-5" />} />
-        <ClientMetric label="Referral Earnings" value={formatCurrency(data.referralEarnings)} hint={`${pendingRequests} pending investment requests`} icon={<Copy className="h-5 w-5" />} />
+        <ClientMetric label="Referral Earnings" value={formatCurrency(data.referralEarnings)} hint={requests.isLoading ? "Investment requests loading" : `${pendingRequests} pending investment requests`} icon={<Copy className="h-5 w-5" />} />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">

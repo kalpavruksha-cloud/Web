@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_20_DOCUMENT_CLIENT_ID_MAPPING_V10";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_21_CLIENT_DASHBOARD_SPEED_V11";
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -348,10 +348,11 @@ function registerClient(payload) {
 }
 
 function dashboard(payload) {
-  var clientId = payload.role === "admin" ? "" : String(payload.clientId || "");
+  var isAdmin = payload.role === "admin";
+  var clientId = isAdmin ? "" : String(payload.clientId || "");
   var dashboardRows = readModule(payload, ["DASHBOARD", "Dashboard"], mapDashboard, true);
-  var adminPayload = clonePayload(payload, { role: "admin" });
-  var allDashboardRows = readModule(adminPayload, ["DASHBOARD", "Dashboard"], mapDashboard, false);
+  var adminPayload = isAdmin ? clonePayload(payload, { role: "admin" }) : null;
+  var allDashboardRows = isAdmin ? readModule(adminPayload, ["DASHBOARD", "Dashboard"], mapDashboard, false) : [];
   var investments = getInvestments(payload);
   var transactions = getTransactions(payload);
   var withdrawals = getWithdrawals(payload);
@@ -359,7 +360,7 @@ function dashboard(payload) {
   var documents = getDocuments(payload);
   var notifications = getNotifications(payload);
   var dashboardRow = dashboardRows[0] || {};
-  var sourceDashboardRows = payload.role === "admin" ? allDashboardRows : dashboardRows;
+  var sourceDashboardRows = isAdmin ? allDashboardRows : dashboardRows;
   var totalInvested = sum(sourceDashboardRows, "totalInvestedAmount") || sum(investments, "principalAmount");
   var currentValue = sum(sourceDashboardRows, "currentPortfolioValue") || sum(investments, "currentValue") || totalInvested;
   var monthlyReturn = sum(investments, "monthlyReturn");
@@ -389,7 +390,7 @@ function dashboard(payload) {
   };
   if (payload.role === "admin") {
     var clients = getClients(payload);
-    var allKycRows = readModule(adminPayload, ["KYC"], function(row) {
+    var allKycRows = readModule(adminPayload || payload, ["KYC"], function(row) {
       return {
         clientId: String(first(row, ["ClientId", "Client ID", "CLIENT_ID"]) || ""),
         kycStatus: normalizeStatus(first(row, ["KYCStatus", "KYC Status", "KYC"]) || "pending")
@@ -446,11 +447,8 @@ function updateClient(payload) {
 }
 
 function getProfile(payload) {
-  var rows = getClients(payload);
-  for (var i = 0; i < rows.length; i++) {
-    if (normalizeText(rows[i].clientId) === normalizeText(payload.clientId)) return rows[i];
-  }
-  return null;
+  var rows = readModule(payload, ["CLIENTS", "Client", "Clients", "Profile"], mapProfile, true);
+  return rows[0] || null;
 }
 
 function updateProfile(payload) {
@@ -458,7 +456,7 @@ function updateProfile(payload) {
 }
 
 function getInvestments(payload) {
-  return readModule(payload, ["INVESTMENT_PLANS", "Investment", "Investments"], mapInvestment, false);
+  return readModule(payload, ["Investment_Master", "Investment Master", "INVESTMENT_PLANS", "Investment", "Investments"], mapInvestment, true);
 }
 
 function getInvestment(payload) {
@@ -1002,11 +1000,9 @@ function logClientActivity(payload) {
 function readModule(payload, sheetNames, mapper, scoped) {
   var sheet = findSheet(getSpreadsheet(payload), sheetNames);
   if (!sheet) return [];
-  var rows = readRows(sheet).map(mapper);
-  if (scoped && payload.role !== "admin") {
-    rows = rows.filter(function(row) { return normalizeText(row.clientId) === normalizeText(payload.clientId); });
-  }
-  return rows;
+  var clientScoped = scoped && payload.role !== "admin";
+  var rows = clientScoped ? readRowsForClient(sheet, payload.clientId) : readRows(sheet);
+  return rows.map(mapper);
 }
 
 function appendRecord(payload, sheetNames, values, duplicateHeaders) {
@@ -1478,7 +1474,23 @@ function readRows(sheet) {
   var values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
   var headers = values[0].map(String);
-  return values.slice(1).filter(function(row) {
+  return rowsToObjects(headers, values.slice(1));
+}
+
+function readRowsForClient(sheet, clientId) {
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var headers = values[0].map(String);
+  var clientIndex = findHeaderIndex(headers, ["ClientId", "Client ID", "CLIENT_ID", "clientId", "client_id", "KWM ID", "KWMID", "Login ID", "LoginId"]);
+  if (clientIndex < 0) return [];
+  var wanted = normalizeText(clientId);
+  return rowsToObjects(headers, values.slice(1).filter(function(row) {
+    return normalizeText(row[clientIndex]) === wanted;
+  }));
+}
+
+function rowsToObjects(headers, rows) {
+  return rows.filter(function(row) {
     return row.some(function(cell) { return cell !== ""; });
   }).map(function(row) {
     var item = {};

@@ -349,7 +349,7 @@ function getEnv() {
     spreadsheetId: firstEnv("SPREADSHEET_ID", "GOOGLE_SPREADSHEET_ID", "SHEET_ID") || DEFAULT_SPREADSHEET_ID,
     jwtSecret: firstEnv("JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET", "VERCEL_JWT_SECRET") || firstSecretLikeEnv(),
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || "8h",
-    timeoutMs: Number(process.env.APPS_SCRIPT_TIMEOUT_MS || 15000),
+    timeoutMs: resolveTimeoutMs(),
     corsOrigins: unique([
       ...String(process.env.CORS_ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:3000").split(",").map((item) => normalizeUrl(item)).filter(Boolean),
       clientUrl,
@@ -371,6 +371,11 @@ function getEnv() {
   return env;
 }
 
+function resolveTimeoutMs() {
+  const configured = Number(process.env.APPS_SCRIPT_TIMEOUT_MS || 28000);
+  if (!Number.isFinite(configured) || configured <= 0) return 28000;
+  return Math.min(Math.max(configured, 25000), 29000);
+}
 function environmentDiagnostics() {
   const names = ["JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET", "VERCEL_JWT_SECRET"];
   return {
