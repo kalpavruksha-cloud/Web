@@ -5,6 +5,7 @@ import {
   BadgeIndianRupee,
   Banknote,
   Bell,
+  Building2,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
@@ -46,6 +47,7 @@ const navItems = [
   { to: "/client/withdrawals", label: "Withdrawals", icon: BadgeIndianRupee },
   { to: "/client/documents", label: "Documents", icon: FileText },
   { to: "/client/referrals", label: "Referrals", icon: Users },
+  { to: "/client/about", label: "About Us", icon: Building2 },
   { to: "/client/profile", label: "Profile", icon: UserCircle },
   { to: "/client/faq", label: "FAQ", icon: CircleHelp },
   { to: "/client/support", label: "Help & Support", icon: LifeBuoy },
@@ -301,3 +303,5 @@ function ClientNavItem({ item, collapsed, mobile, onClick }: { item: typeof navI
   const active = item.to === "/client" ? location.pathname === "/client" : location.pathname.startsWith(item.to);
   return <Link to={item.to} onClick={onClick} title={collapsed ? item.label : undefined} className={cn("group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold text-white/70 transition hover:bg-white/10 hover:text-white", active && "bg-white text-navy-900 shadow-[0_12px_28px_rgba(215,171,61,0.16)] hover:bg-white hover:text-navy-900", collapsed && "justify-center", mobile && "justify-center rounded-xl px-2 py-2 text-charcoal/70 dark:text-white/70")}><span className={cn("absolute left-0 h-6 w-1 rounded-full bg-gold-400 opacity-0 transition", active && "opacity-100", mobile && "hidden")} /><Icon className="h-5 w-5 shrink-0 transition group-hover:scale-110" />{!collapsed && !mobile && <span className="truncate">{item.label}</span>}{mobile && <span className="sr-only">{item.label}</span>}</Link>;
 }
+
+

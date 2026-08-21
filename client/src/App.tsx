@@ -4,6 +4,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { HealthPage } from "./pages/HealthPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { AboutUsPage } from "./pages/AboutUsPage";
 import { AdminLayout } from "./features/admin/AdminComponents";
 import { AdminDashboard } from "./features/admin/pages/AdminDashboard";
 import {
@@ -59,6 +60,7 @@ export function App() {
             <Route path="/client/notifications" component={ClientNotificationsPage} />
             <Route path="/client/faq" component={FaqPage} />
             <Route path="/client/support" component={HelpSupportPage} />
+            <Route path="/client/about" component={AboutUsPage} />
             <Route path="/client/settings" component={ClientSettingsPage} />
             <Route exact path="/client" component={ClientDashboardPage} />
           </Switch>
@@ -76,6 +78,7 @@ export function App() {
             <Route path="/admin/referrals" component={AdminReferrals} />
             <Route path="/admin/notifications" component={AdminNotifications} />
             <Route path="/admin/reports" component={AdminReports} />
+            <Route path="/admin/about" component={AboutUsPage} />
             <Route path="/admin/settings" component={AdminSettings} />
             <Route path="/admin/activity" component={AdminActivityLog} />
             <Route path="/admin/system-health" component={AdminSystemHealth} />
@@ -88,3 +91,5 @@ export function App() {
     </Switch>
   );
 }
+
+

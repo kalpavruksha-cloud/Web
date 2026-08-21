@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import {
   Activity,
   Bell,
+  Building2,
   ChevronLeft,
   ChevronRight,
   Database,
@@ -42,6 +43,7 @@ const navItems = [
   { to: "/admin/referrals", label: "Referrals", icon: Users },
   { to: "/admin/notifications", label: "Notifications", icon: Bell },
   { to: "/admin/reports", label: "Reports", icon: Database },
+  { to: "/admin/about", label: "About Us", icon: Building2 },
   { to: "/admin/settings", label: "Settings", icon: Settings },
   { to: "/admin/activity", label: "Activity Log", icon: ShieldCheck },
   { to: "/admin/system-health", label: "System Health", icon: HeartPulse }
@@ -279,3 +281,5 @@ function AdminNavItem({ item, collapsed, onClick }: { item: typeof navItems[numb
 export function AdminLoading({ label = "Loading live admin records" }: { label?: string }) {
   return <main className="grid min-h-[60vh] place-items-center"><LoadingState label={label} /></main>;
 }
+
+
