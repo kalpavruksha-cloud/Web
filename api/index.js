@@ -2,7 +2,7 @@ const { randomUUID } = require("node:crypto");
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec";
 const DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-const DEPLOYMENT_MARKER = "vercel-native-api-env-fallback-2026-07-27-v2";
+const DEPLOYMENT_MARKER = "vercel-native-api-2026-08-26-login-status-fix-v3";
 
 let jwtModulePromise;
 
