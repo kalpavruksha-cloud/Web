@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { appsScriptService } from "../services/appsScriptService.js";
 import { ok, fail } from "../utils/apiResponse.js";
 import { sessionCookieOptions, signSession } from "../middleware/auth.js";
+import { normalizeStatus } from "../utils/format.js";
 
 export async function login(req: Request, res: Response) {
   const { identifier, password, remember, expectedRole } = req.body as { identifier: string; password: string; remember?: boolean; expectedRole?: "client" | "admin" };
@@ -19,7 +20,7 @@ export async function login(req: Request, res: Response) {
     return;
   }
 
-  if (user.status !== "active") {
+  if (!isActiveAccountStatus(user.status)) {
     res.status(403).json(fail("ACCOUNT_INACTIVE", "Your account is not active. Please contact support.", "Account inactive", req.requestId));
     return;
   }
@@ -47,4 +48,9 @@ export async function logout(req: Request, res: Response) {
 
 export async function session(req: Request, res: Response) {
   res.json(ok({ user: req.user }, "Session active", req.requestId));
+}
+
+
+function isActiveAccountStatus(value: unknown) {
+  return ["active", "enabled", "approved"].includes(normalizeStatus(value, "active"));
 }

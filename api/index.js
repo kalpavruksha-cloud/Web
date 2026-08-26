@@ -82,7 +82,7 @@ module.exports = async function handler(req, res) {
         send(res, 403, fail("WRONG_PORTAL_ROLE", body.expectedRole === "admin" ? "Use an admin account with Role = admin." : "Use a client account.", "Login failed", requestId));
         return;
       }
-      if (user.status !== "active") {
+      if (!isActiveAccountStatus(user.status)) {
         send(res, 403, fail("ACCOUNT_INACTIVE", "Your account is not active. Please contact support.", "Account inactive", requestId));
         return;
       }
@@ -454,10 +454,17 @@ function normalizeUser(user) {
     id: String(user.id || user.userId || user.clientId || user.email || ""),
     clientId: user.clientId ? String(user.clientId).toUpperCase() : undefined,
     role: String(user.role || "client").toLowerCase() === "admin" ? "admin" : "client",
-    status: String(user.status || "active").toLowerCase()
+    status: normalizeStatusValue(user.status || "active")
   };
 }
 
+function normalizeStatusValue(value) {
+  return String(value || "active").trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+function isActiveAccountStatus(value) {
+  return ["active", "enabled", "approved"].includes(normalizeStatusValue(value));
+}
 function send(res, status, body) {
   res.statusCode = status;
   res.setHeader("content-type", "application/json; charset=utf-8");

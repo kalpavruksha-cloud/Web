@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_21_CLIENT_DASHBOARD_SPEED_V11";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_26_LOGIN_STATUS_FIX_V12";
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -248,7 +248,7 @@ function loginDiagnostics(payload) {
       rawRole: cleanString(first(row, ["Role", "role", "User Role", "Portal Role", "Access Role"])),
       status: effectiveLoginStatus(row, clientRow),
       credentialStatus: normalizeStatus(first(row, ["Status", "Account Status", "status"]) || "active"),
-      clientSheetStatus: normalizeStatus(first(clientRow || {}, ["Status", "Account Status", "AccountStatus"]) || ""),
+      clientSheetStatus: normalizeOptionalStatus(first(clientRow || {}, ["Status", "Account Status", "AccountStatus", "status"])),
       clientRowFound: !!clientRow,
       passwordConfigured: password.length > 0,
       passwordLength: password.length
@@ -263,7 +263,7 @@ function loginDiagnostics(payload) {
     return {
       loginId: cleanString(credentialLoginId(row)),
       clientName: cleanString(first(row, ["ClientName", "Client Name", "Name", "Full Name"])),
-      status: normalizeStatus(first(row, ["Status", "Account Status", "AccountStatus"]) || ""),
+      status: normalizeOptionalStatus(first(row, ["Status", "Account Status", "AccountStatus", "status"])),
       passwordConfiguredInClientSheet: password.length > 0,
       passwordLength: password.length,
       issue: password ? "will_auto_sync_on_successful_login" : "missing_client_credentials_row"
@@ -1290,8 +1290,8 @@ function findClientLoginRow(rows, loginId, credentialRow) {
 }
 
 function effectiveLoginStatus(credentialRow, clientRow) {
-  var credentialStatus = normalizeStatus(first(credentialRow || {}, ["Status", "Account Status", "AccountStatus", "status"]) || "active");
-  var clientStatus = normalizeStatus(first(clientRow || {}, ["Status", "Account Status", "AccountStatus", "status"]) || "");
+  var credentialStatus = normalizeOptionalStatus(first(credentialRow || {}, ["Status", "Account Status", "AccountStatus", "status"])) || "active";
+  var clientStatus = normalizeOptionalStatus(first(clientRow || {}, ["Status", "Account Status", "AccountStatus", "status"]));
   if (["blocked", "inactive", "disabled", "suspended"].indexOf(credentialStatus) >= 0) return credentialStatus;
   if (clientStatus) return clientStatus;
   return credentialStatus || "active";
@@ -1622,6 +1622,11 @@ function normalizePassword(value) {
 
 function normalizeStatus(value) {
   return cleanString(value || "pending").toLowerCase().replace(/\s+/g, "_");
+}
+
+function normalizeOptionalStatus(value) {
+  var cleaned = cleanString(value);
+  return cleaned ? cleaned.toLowerCase().replace(/\s+/g, "_") : "";
 }
 
 function normalizeText(value) {
