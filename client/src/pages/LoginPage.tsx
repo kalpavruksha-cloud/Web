@@ -52,7 +52,6 @@ export function LoginPage() {
           <div className="mb-4 flex justify-center sm:mb-8 lg:hidden"><Logo /></div>
           <div className="rounded-[22px] border border-white/70 bg-white/82 p-5 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-white/8 sm:rounded-[26px] sm:p-7">
             <h2 className="font-display text-2xl font-extrabold tracking-tight text-navy-900 dark:text-ivory sm:text-3xl">Sign in securely</h2>
-            <p className="mt-2 text-sm text-charcoal/65 dark:text-white/65">Use your registered login ID or email and portal password. Your spreadsheet role opens the correct portal.</p>
             {error && <div className="mt-4"><ErrorState title="Login failed" message={error} /></div>}
             {forgot && (
               <div className="mt-4 rounded-[18px] border border-gold-100/70 bg-gold-100/30 p-4 text-sm font-semibold text-navy-900 dark:border-gold-100/20 dark:bg-white/10 dark:text-white">

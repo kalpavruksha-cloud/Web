@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v5-login-actions-icon-v2";
+const CACHE_VERSION = "kalpavruksha-pwa-v6-larger-icon-auto-update";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 

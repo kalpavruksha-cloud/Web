@@ -96,6 +96,7 @@ export type AccountOverview = {
 
 export type ClientDashboardData = DashboardSummary & {
   totalPayouts?: number;
+  totalWithdrawal?: number;
   availableBalance?: number;
   pendingInvestmentRequests?: number;
 };

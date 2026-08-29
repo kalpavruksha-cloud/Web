@@ -1,5 +1,3 @@
-type ServiceWorkerUpdateEvent = CustomEvent<{ registration: ServiceWorkerRegistration }>;
-
 export function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
 
@@ -11,7 +9,7 @@ export function registerServiceWorker() {
 
         worker.addEventListener("statechange", () => {
           if (worker.state === "installed" && navigator.serviceWorker.controller) {
-            window.dispatchEvent(new CustomEvent("kv-sw-update", { detail: { registration } }) as ServiceWorkerUpdateEvent);
+            installServiceWorkerUpdate(registration);
           }
         });
       });

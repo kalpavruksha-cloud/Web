@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_26_LOGIN_STATUS_FIX_V12";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_29_DASHBOARD_BALANCE_FIX_V13";
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -361,11 +361,13 @@ function dashboard(payload) {
   var notifications = getNotifications(payload);
   var dashboardRow = dashboardRows[0] || {};
   var sourceDashboardRows = isAdmin ? allDashboardRows : dashboardRows;
-  var totalInvested = sum(sourceDashboardRows, "totalInvestedAmount") || sum(investments, "principalAmount");
-  var currentValue = sum(sourceDashboardRows, "currentPortfolioValue") || sum(investments, "currentValue") || totalInvested;
+  var hasDashboardRows = sourceDashboardRows.length > 0;
+  var totalInvested = hasDashboardRows ? sum(sourceDashboardRows, "totalInvestedAmount") : sum(investments, "principalAmount");
+  var totalPayout = hasDashboardRows ? sum(sourceDashboardRows, "totalReturns") : 0;
+  var totalWithdrawal = hasDashboardRows ? sum(sourceDashboardRows, "totalWithdrawal") : sum(withdrawals, "amount");
+  var currentValue = hasDashboardRows ? sum(sourceDashboardRows, "currentPortfolioValue") : sum(investments, "currentValue") || totalInvested;
+  var availableBalance = totalInvested - totalWithdrawal;
   var monthlyReturn = sum(investments, "monthlyReturn");
-  var credits = sum(transactions, "credit");
-  var debits = sum(transactions, "debit");
   var paidReferrals = sum(referrals, "paidAmount");
   var pendingWithdrawals = withdrawals.filter(function(row) { return row.status === "pending"; }).length;
   var client = clientId ? getProfile(payload) : null;
@@ -374,9 +376,12 @@ function dashboard(payload) {
     client: client,
     totalInvestedAmount: totalInvested,
     currentPortfolioValue: currentValue,
-    totalReturns: currentValue - totalInvested,
+    totalReturns: hasDashboardRows ? totalPayout : currentValue - totalInvested,
+    totalPayouts: totalPayout,
+    totalWithdrawal: totalWithdrawal,
     monthlyReturn: monthlyReturn,
-    walletBalance: payload.role === "admin" ? sum(sourceDashboardRows, "walletBalance") : number(dashboardRow.walletBalance) || credits - debits,
+    walletBalance: availableBalance,
+    availableBalance: availableBalance,
     activeInvestments: activeInvestments,
     pendingWithdrawals: pendingWithdrawals,
     referralEarnings: paidReferrals,

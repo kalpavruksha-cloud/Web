@@ -38,6 +38,7 @@ export function ClientDashboardPage() {
   const data = dashboard.data;
   if (!data) return <ErrorState title="Dashboard unavailable" message="The spreadsheet did not return dashboard records." />;
   const pendingRequests = requests.data ? requests.data.filter((row) => String(row.status).toLowerCase().includes("pending")).length : 0;
+  const availableBalance = data.totalWithdrawal !== undefined ? data.totalInvestedAmount - data.totalWithdrawal : data.availableBalance ?? data.walletBalance;
   const allocation = (data.investments ?? []).map((row) => ({ name: row.category || row.plan, value: row.currentValue || row.principalAmount }));
   const growth = (data.recentTransactions ?? []).slice().reverse().map((row) => ({ date: formatDate(row.date), value: row.balance ?? row.credit - row.debit }));
   const client = data.client;
@@ -64,7 +65,7 @@ export function ClientDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <ClientMetric label="Total Invested" value={formatCurrency(data.totalInvestedAmount)} icon={<IndianRupee className="h-5 w-5" />} />
         <ClientMetric label="Portfolio Value" value={formatCurrency(data.currentPortfolioValue)} hint={`${formatCurrency(data.totalReturns)} returns`} icon={<IndianRupee className="h-5 w-5" />} />
-        <ClientMetric label="Available Balance" value={formatCurrency(data.availableBalance ?? data.walletBalance)} hint={`${data.pendingWithdrawals} pending withdrawals`} icon={<WalletCards className="h-5 w-5" />} />
+        <ClientMetric label="Available Balance" value={formatCurrency(availableBalance)} hint={`${data.pendingWithdrawals} pending withdrawals`} icon={<WalletCards className="h-5 w-5" />} />
         <ClientMetric label="Referral Earnings" value={formatCurrency(data.referralEarnings)} hint={requests.isLoading ? "Investment requests loading" : `${pendingRequests} pending investment requests`} icon={<Copy className="h-5 w-5" />} />
       </div>
 
@@ -157,7 +158,7 @@ export function ClientWithdrawalsPage() {
   const [form, setForm] = useState({ amount: "", bankAccount: "", remarks: "", declaration: false });
   if (dashboard.isLoading || withdrawals.isLoading) return <ClientLoading label="Loading withdrawals" />;
   if (withdrawals.error) return <ErrorState title="Withdrawals unavailable" message={withdrawals.error instanceof Error ? withdrawals.error.message : undefined} />;
-  const eligible = dashboard.data?.availableBalance ?? dashboard.data?.walletBalance ?? 0;
+  const eligible = dashboard.data?.totalWithdrawal !== undefined ? dashboard.data.totalInvestedAmount - dashboard.data.totalWithdrawal : dashboard.data?.availableBalance ?? dashboard.data?.walletBalance ?? 0;
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (Number(form.amount) > eligible) { toast({ title: "Amount exceeds eligible balance", type: "error" }); return; }

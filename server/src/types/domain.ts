@@ -147,8 +147,11 @@ export type DashboardSummary = {
   totalInvestedAmount: number;
   currentPortfolioValue: number;
   totalReturns: number;
+  totalPayouts?: number;
+  totalWithdrawal?: number;
   monthlyReturn: number;
   walletBalance: number;
+  availableBalance?: number;
   activeInvestments: number;
   pendingWithdrawals: number;
   referralEarnings: number;

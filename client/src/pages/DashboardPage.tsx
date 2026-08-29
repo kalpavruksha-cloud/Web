@@ -14,6 +14,7 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
   if (error || !data) return <ErrorState message={error instanceof Error ? error.message : "Dashboard data could not be loaded from the spreadsheet."} />;
 
   const adminStats = data.admin;
+  const availableBalance = data.totalWithdrawal !== undefined ? data.totalInvestedAmount - data.totalWithdrawal : data.availableBalance ?? data.walletBalance;
   const allocation = (data.investments ?? []).map((item) => ({ name: item.category || item.plan, value: item.currentValue || item.principalAmount }));
   const growth = (data.recentTransactions ?? []).slice().reverse().map((item) => ({ date: formatDate(item.date), value: item.balance ?? item.credit - item.debit }));
 
@@ -32,7 +33,7 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
           <StatCard label="Total Invested" value={formatCurrency(data.totalInvestedAmount)} icon={<IndianRupee className="h-5 w-5" />} />
           <StatCard label="Portfolio Value" value={formatCurrency(data.currentPortfolioValue)} hint={`${formatCurrency(data.totalReturns)} total returns`} icon={<TrendingUp className="h-5 w-5" />} />
           <StatCard label="Monthly Return" value={formatCurrency(data.monthlyReturn)} hint={`Next payout ${formatDate(data.nextPayoutDate)}`} icon={<CalendarClock className="h-5 w-5" />} />
-          <StatCard label="Wallet Balance" value={formatCurrency(data.walletBalance)} hint={`${data.pendingWithdrawals} pending withdrawals`} icon={<WalletCards className="h-5 w-5" />} />
+          <StatCard label="Available Balance" value={formatCurrency(availableBalance)} hint={`${data.pendingWithdrawals} pending withdrawals`} icon={<WalletCards className="h-5 w-5" />} />
         </div>
       )}
 
