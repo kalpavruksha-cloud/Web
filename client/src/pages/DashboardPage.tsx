@@ -34,10 +34,10 @@ function monthlyPortfolioGrowth(points: PortfolioGrowthPoint[]) {
   return Array.from(byMonth.values()).sort((a, b) => a.order - b.order).map(({ month, value }) => ({ month, value }));
 }
 
-function formatLakhsAxis(value: unknown) {
-  const lakhs = Number(value || 0) / 100000;
-  const display = Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1);
-  return `\u20b9${display}L`;
+function formatThousandsAxis(value: unknown) {
+  const thousands = Number(value || 0) / 1000;
+  const display = Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1);
+  return `\u20b9${display}K`;
 }
 
 export function DashboardPage({ admin = false }: { admin?: boolean }) {
@@ -79,7 +79,7 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
                 <defs><linearGradient id="growth" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#1e7b54" stopOpacity={0.38} /><stop offset="100%" stopColor="#1e7b54" stopOpacity={0.02} /></linearGradient></defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={formatLakhsAxis} tick={{ fontSize: 12 }} />
+                <YAxis tickFormatter={formatThousandsAxis} tick={{ fontSize: 12 }} />
                 <Tooltip formatter={(value) => formatCurrency(Number(value))} labelFormatter={(label) => `Month: ${label}`} />
                 <Area type="monotone" dataKey="value" stroke="#1e7b54" fill="url(#growth)" strokeWidth={3} />
               </AreaChart>

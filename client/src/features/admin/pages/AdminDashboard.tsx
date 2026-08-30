@@ -10,10 +10,10 @@ import { computeAdminMetrics, distribution, monthlySeries, recentActivity, title
 
 const chartColors = ["#08152f", "#153bb7", "#d7ab3d", "#2563eb", "#1e7b54", "#a97a16"];
 
-function formatLakhsAxis(value: unknown) {
-  const lakhs = Number(value || 0) / 100000;
-  const display = Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1);
-  return `\u20b9${display}L`;
+function formatThousandsAxis(value: unknown) {
+  const thousands = Number(value || 0) / 1000;
+  const display = Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1);
+  return `\u20b9${display}K`;
 }
 
 export function AdminDashboard() {
@@ -66,7 +66,7 @@ export function AdminDashboard() {
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <AdminCard>
           <SectionTitle title="Portfolio Growth" subtitle="Net portfolio movement by transaction month" />
-          <ChartBox><AreaChart data={portfolioGrowth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatLakhsAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox>
+          <ChartBox><AreaChart data={portfolioGrowth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatThousandsAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox>
         </AdminCard>
         <AdminCard>
           <SectionTitle title="Portfolio Distribution" subtitle="Current value grouped by plan/category" />

@@ -1,7 +1,6 @@
 import { useState, type FormEvent, type ReactElement, type ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Bell, Copy, Download, ExternalLink, FileText, IndianRupee, LifeBuoy, PlusCircle, Printer, UploadCloud, UserCircle, WalletCards } from "lucide-react";
+import { Bell, Copy, Download, ExternalLink, IndianRupee, Printer, UserCircle, WalletCards } from "lucide-react";
 import { api } from "../../../api/client";
 import { useAction, useResource } from "../../../api/queries";
 import { ErrorState } from "../../../components/State";
@@ -71,10 +70,10 @@ function monthlyPortfolioGrowth(points: PortfolioGrowthPoint[]) {
   return Array.from(byMonth.values()).sort((a, b) => a.order - b.order).map(({ month, value }) => ({ month, value }));
 }
 
-function formatLakhsAxis(value: unknown) {
-  const lakhs = Number(value || 0) / 100000;
-  const display = Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1);
-  return `\u20b9${display}L`;
+function formatThousandsAxis(value: unknown) {
+  const thousands = Number(value || 0) / 1000;
+  const display = Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1);
+  return `\u20b9${display}K`;
 }
 
 export function ClientDashboardPage() {
@@ -105,14 +104,6 @@ export function ClientDashboardPage() {
             {profilePhoto ? <img src={profilePhoto} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover ring-4 ring-white/18 sm:h-20 sm:w-20" /> : <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white/12 ring-4 ring-white/18 sm:h-20 sm:w-20"><UserCircle className="h-9 w-9 sm:h-10 sm:w-10" /></div>}
             <div className="min-w-0"><p className="text-sm font-bold text-gold-100">Client ID {client?.clientId || user?.clientId}</p><h2 className="mt-1 break-words font-display text-2xl font-extrabold leading-tight sm:text-3xl">{client?.fullName || user?.name}</h2><div className="mt-3 flex flex-wrap gap-2"><ClientStatus value={data.kycStatus || client?.kycStatus} /><ClientStatus value={client?.accountStatus || "active"} /></div></div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[520px]">
-            <QuickAction to="/client/add-investment" label="Add Investment" icon={<PlusCircle className="h-4 w-4" />} />
-            <QuickAction to="/client/withdrawals" label="Request Withdrawal" icon={<WalletCards className="h-4 w-4" />} />
-            <QuickAction to="/client/documents" label="Upload KYC" icon={<UploadCloud className="h-4 w-4" />} />
-            <QuickAction to="/client/documents" label="Documents" icon={<FileText className="h-4 w-4" />} />
-            <QuickAction to="/client/transactions" label="Statement" icon={<Download className="h-4 w-4" />} />
-            <QuickAction to="/client/support" label="Contact Support" icon={<LifeBuoy className="h-4 w-4" />} />
-          </div>
         </div>
       </ClientCard>
 
@@ -124,7 +115,7 @@ export function ClientDashboardPage() {
       </div>
 
       <div className="mt-6">
-        <ClientCard><SectionTitle title="Portfolio Growth" subtitle="X-axis shows months and Y-axis shows total portfolio amount in lakhs" />{growth.length ? <ChartBox><AreaChart data={growth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatLakhsAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} labelFormatter={(label) => `Month: ${label}`} /><Area dataKey="value" type="monotone" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox> : <div className="grid min-h-[280px] place-items-center rounded-[18px] border border-dashed border-forest-100 bg-white/55 text-center text-sm font-semibold text-charcoal/62 dark:border-white/10 dark:bg-white/5 dark:text-white/62">No portfolio growth records are available for this client yet.</div>}</ClientCard>
+        <ClientCard><SectionTitle title="Portfolio Growth" subtitle="X-axis shows months and Y-axis shows total portfolio amount in thousands" />{growth.length ? <ChartBox><AreaChart data={growth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatThousandsAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} labelFormatter={(label) => `Month: ${label}`} /><Area dataKey="value" type="monotone" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox> : <div className="grid min-h-[280px] place-items-center rounded-[18px] border border-dashed border-forest-100 bg-white/55 text-center text-sm font-semibold text-charcoal/62 dark:border-white/10 dark:bg-white/5 dark:text-white/62">No portfolio growth records are available for this client yet.</div>}</ClientCard>
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
@@ -181,9 +172,53 @@ export function ClientTransactionsPage() {
     return true;
   });
   const selectClass = "rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm font-semibold dark:border-white/10 dark:bg-white/5";
-  return <ClientPage title="Transactions" actions={<><ClientButton tone="secondary" onClick={() => exportCsv("client-transactions.csv", rows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> CSV</ClientButton><ClientButton tone="secondary" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print</ClientButton></>}><ClientCard className="mb-5"><SectionTitle title="Filters" subtitle="Filter by type, status, and transaction date" /><div className="grid gap-3 md:grid-cols-4"><ClientField label="Type"><select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className={selectClass}><option value="">All types</option>{types.map((type) => <option key={type} value={type}>{statusText(type)}</option>)}</select></ClientField><ClientField label="Status"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={selectClass}><option value="">All statuses</option>{statuses.map((status) => <option key={status} value={status}>{statusText(status)}</option>)}</select></ClientField><ClientField label="From Date"><ClientInput type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></ClientField><ClientField label="To Date"><ClientInput type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></ClientField></div><div className="mt-4"><ClientButton tone="secondary" onClick={() => { setTypeFilter(""); setStatusFilter(""); setFromDate(""); setToDate(""); }}>Clear Filters</ClientButton></div></ClientCard><ClientCard><ClientTable rows={rows} columns={[{ key: "id", header: "Transaction ID", render: (row) => row.id }, { key: "date", header: "Date", render: (row) => formatDate(row.date) }, { key: "type", header: "Type", render: (row) => statusText(row.type) }, { key: "description", header: "Description", render: (row) => row.description }, { key: "credit", header: "Credit", render: (row) => formatCurrency(row.credit) }, { key: "debit", header: "Debit", render: (row) => formatCurrency(row.debit) }, { key: "balance", header: "Balance", render: (row) => formatCurrency(row.balance) }, { key: "reference", header: "Reference", render: (row) => row.reference }, { key: "status", header: "Status", render: (row) => <ClientStatus value={row.status} /> }]} /></ClientCard></ClientPage>;
+  return <ClientPage title="Transactions" actions={<><ClientButton tone="secondary" onClick={() => exportCsv("client-transactions.csv", rows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> CSV</ClientButton><ClientButton tone="secondary" onClick={() => printTransactions(rows)}><Printer className="h-4 w-4" /> Print</ClientButton></>}><ClientCard className="mb-5"><SectionTitle title="Filters" subtitle="Filter by type, status, and transaction date" /><div className="grid gap-3 md:grid-cols-4"><ClientField label="Type"><select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className={selectClass}><option value="">All types</option>{types.map((type) => <option key={type} value={type}>{statusText(type)}</option>)}</select></ClientField><ClientField label="Status"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={selectClass}><option value="">All statuses</option>{statuses.map((status) => <option key={status} value={status}>{statusText(status)}</option>)}</select></ClientField><ClientField label="From Date"><ClientInput type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></ClientField><ClientField label="To Date"><ClientInput type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></ClientField></div><div className="mt-4"><ClientButton tone="secondary" onClick={() => { setTypeFilter(""); setStatusFilter(""); setFromDate(""); setToDate(""); }}>Clear Filters</ClientButton></div></ClientCard><ClientCard><ClientTable rows={rows} pageSize={20} columns={[{ key: "id", header: "Transaction ID", render: (row) => row.id }, { key: "date", header: "Date", render: (row) => formatDate(row.date) }, { key: "type", header: "Type", render: (row) => statusText(row.type) }, { key: "description", header: "Description", render: (row) => row.description }, { key: "credit", header: "Credit", render: (row) => formatCurrency(row.credit) }, { key: "debit", header: "Debit", render: (row) => formatCurrency(row.debit) }, { key: "balance", header: "Balance", render: (row) => formatCurrency(row.balance) }, { key: "reference", header: "Reference", render: (row) => row.reference }, { key: "status", header: "Status", render: (row) => <ClientStatus value={row.status} /> }]} /></ClientCard></ClientPage>;
 }
 
+function printTransactions(rows: Transaction[]) {
+  const printedAt = formatDate(new Date().toISOString());
+  const tableRows = rows.map((row) => `
+    <tr>
+      <td>${escapePrintValue(row.id)}</td>
+      <td>${escapePrintValue(formatDate(row.date))}</td>
+      <td>${escapePrintValue(statusText(row.type))}</td>
+      <td>${escapePrintValue(row.description)}</td>
+      <td class="money">${escapePrintValue(formatCurrency(row.credit))}</td>
+      <td class="money">${escapePrintValue(formatCurrency(row.debit))}</td>
+      <td class="money">${escapePrintValue(formatCurrency(row.balance))}</td>
+      <td>${escapePrintValue(row.reference)}</td>
+      <td>${escapePrintValue(statusText(row.status))}</td>
+    </tr>`).join("");
+  const printWindow = window.open("", "_blank", "width=1100,height=800");
+  if (!printWindow) {
+    window.alert("Please allow pop-ups to print only the transaction statement.");
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(`<!doctype html><html><head><title>Kalpavruksha Transactions</title><style>
+    @page { size: A4 landscape; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #17211d; font-family: Arial, sans-serif; }
+    h1 { margin: 0; color: #0b2f25; font-size: 22px; }
+    p { margin: 6px 0 18px; color: #5a625d; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th { background: #0b2f25; color: #fffaf0; padding: 9px 7px; text-align: left; text-transform: uppercase; }
+    td { border-bottom: 1px solid #dfe8e2; padding: 8px 7px; vertical-align: top; }
+    .money { text-align: right; white-space: nowrap; }
+  </style></head><body><h1>Kalpavruksha Wealth - Transaction Statement</h1><p>Printed ${escapePrintValue(printedAt)}. Showing ${rows.length} filtered transaction records.</p><table><thead><tr><th>Transaction ID</th><th>Date</th><th>Type</th><th>Description</th><th>Credit</th><th>Debit</th><th>Balance</th><th>Reference</th><th>Status</th></tr></thead><tbody>${tableRows || '<tr><td colspan="9">No transactions available for this filter.</td></tr>'}</tbody></table></body></html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  window.setTimeout(() => printWindow.print(), 250);
+}
+
+function escapePrintValue(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 export function AddInvestmentPage() {
   const plans = useResource<InvestmentPlan[]>("client-investment-plans", "/client/investment-plans");
   const requests = useResource<InvestmentRequest[]>("client-investment-requests", "/client/investment-requests");
@@ -370,9 +405,6 @@ function ChartBox({ children }: { children: ReactElement }) {
   return <div className="h-60 sm:h-72"><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>;
 }
 
-function QuickAction({ to, label, icon }: { to: string; label: string; icon: ReactNode }) {
-  return <Link to={to} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-3 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/18 hover:shadow-[0_16px_38px_rgba(0,0,0,0.18)]">{icon}{label}</Link>;
-}
 
 function Info({ label, value }: { label: string; value?: ReactNode }) {
   return <div className="flex flex-col gap-1 border-b border-forest-100 py-2 text-sm last:border-0 dark:border-white/10 sm:flex-row sm:justify-between sm:gap-3"><dt className="text-charcoal/58 dark:text-white/58">{label}</dt><dd className="min-w-0 break-words font-bold text-forest-950 dark:text-ivory sm:text-right">{value ?? "Not available"}</dd></div>;
