@@ -31,6 +31,8 @@ export type Profile = {
   clientId: string;
   fullName: string;
   profilePhotoUrl?: string;
+  profilePhotoFileId?: string;
+  profilePhotoPreviewUrl?: string;
   mobile?: string;
   email?: string;
   dateOfBirth?: string;
@@ -157,6 +159,8 @@ export type DashboardSummary = {
   referralEarnings: number;
   nextPayoutDate?: string;
   recentTransactions: Transaction[];
+  portfolioGrowth?: Array<{ date?: string; value: number; credit?: number; debit?: number; transactionId?: string; investmentId?: string }>;
+  investmentGrowth?: Array<{ date?: string; value: number; credit?: number; debit?: number; transactionId?: string; investmentId?: string }>;
   investments: Investment[];
   documents: ClientDocument[];
   notifications: ClientNotification[];

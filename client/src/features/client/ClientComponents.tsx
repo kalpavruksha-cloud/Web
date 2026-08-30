@@ -227,6 +227,8 @@ export function FileUpload({ label, category, recordId, endpoint, onUploaded }: 
   }, [file]);
 
   function validate(next: File) {
+    const profileUpload = category.toLowerCase() === "profile";
+    if (profileUpload && !["image/jpeg", "image/png"].includes(next.type)) return "Only JPG, JPEG, and PNG images are allowed for profile photos.";
     if (!["application/pdf", "image/jpeg", "image/png"].includes(next.type)) return "Only PDF, JPG, JPEG, and PNG files are allowed.";
     if (next.size > 10 * 1024 * 1024) return "Maximum file size is 10 MB.";
     return "";
@@ -281,7 +283,7 @@ export function FileUpload({ label, category, recordId, endpoint, onUploaded }: 
         <p className="mt-2 text-sm font-semibold">{file ? file.name : "Drag file here or choose a file"}</p>
         <p className="mt-1 text-xs text-charcoal/58 dark:text-white/58">PDF, JPG, JPEG, PNG up to 10 MB</p>
         {previewUrl && <img src={previewUrl} alt="Selected upload preview" className="mx-auto mt-3 h-28 w-28 rounded-lg object-cover" />}
-        <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={change} className="mt-3 text-sm" />
+        <input type="file" accept={category.toLowerCase() === "profile" ? ".jpg,.jpeg,.png,image/jpeg,image/png" : ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"} onChange={change} className="mt-3 text-sm" />
         {error && <ErrorState title="Upload error" message={error} />}
         {success && <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-100">{success}</p>}
         <div className="mt-3 flex flex-wrap justify-center gap-2">
@@ -303,5 +305,3 @@ function ClientNavItem({ item, collapsed, mobile, onClick }: { item: typeof navI
   const active = item.to === "/client" ? location.pathname === "/client" : location.pathname.startsWith(item.to);
   return <Link to={item.to} onClick={onClick} title={collapsed ? item.label : undefined} className={cn("group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold text-white/70 transition hover:bg-white/10 hover:text-white", active && "bg-white text-navy-900 shadow-[0_12px_28px_rgba(215,171,61,0.16)] hover:bg-white hover:text-navy-900", collapsed && "justify-center", mobile && "justify-center rounded-xl px-2 py-2 text-charcoal/70 dark:text-white/70")}><span className={cn("absolute left-0 h-6 w-1 rounded-full bg-gold-400 opacity-0 transition", active && "opacity-100", mobile && "hidden")} /><Icon className="h-5 w-5 shrink-0 transition group-hover:scale-110" />{!collapsed && !mobile && <span className="truncate">{item.label}</span>}{mobile && <span className="sr-only">{item.label}</span>}</Link>;
 }
-
-

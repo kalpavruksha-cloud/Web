@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactElement, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Bell, Copy, Download, ExternalLink, FileText, IndianRupee, LifeBuoy, PlusCircle, Printer, UploadCloud, UserCircle, WalletCards } from "lucide-react";
 import { api } from "../../../api/client";
 import { useAction, useResource } from "../../../api/queries";
@@ -26,8 +26,56 @@ import type { AccountOverview, Agreement, BankDetails, ClientDashboardData, Clie
 import { downloadBase64File, exportCsv, maskLastFour, profileCompletion, statusText } from "../clientUtils";
 import { fallbackFaqs } from "../config/faqs";
 
-const chartColors = ["#08152f", "#153bb7", "#d7ab3d", "#2563eb", "#1e7b54"];
 const documentCategories = ["Aadhaar Card", "PAN Card", "Agreement", "Cancelled Cheque", "Address Proof", "Bank Proof", "Investment Receipt", "Tax Document", "Nominee Proof", "Other"];
+
+type PortfolioGrowthPoint = { date?: string; value: number; credit?: number; debit?: number; transactionId?: string; investmentId?: string };
+
+function profileDriveThumbnail(url: string) {
+  const value = String(url || "").trim();
+  const fileId = value.match(/^drive-file:(.+)$/)?.[1]
+    || value.match(/\/file\/d\/([^/]+)/)?.[1]
+    || value.match(/[?&]id=([^&]+)/)?.[1];
+  return fileId ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w512` : "";
+}
+
+function profileImageSource(profile?: Pick<Profile, "profilePhotoUrl" | "profilePhotoPreviewUrl"> | null) {
+  if (profile?.profilePhotoPreviewUrl) return profile.profilePhotoPreviewUrl;
+  if (!profile?.profilePhotoUrl) return "";
+  const thumbnail = profileDriveThumbnail(profile.profilePhotoUrl);
+  if (thumbnail) return thumbnail;
+  return profile.profilePhotoUrl;
+}
+
+function portfolioMonthLabel(value?: string) {
+  if (!value) return "Current";
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleString("en-IN", { month: "short", year: "2-digit" });
+  return formatDate(value);
+}
+
+function portfolioMonthOrder(value?: string, fallback = 0) {
+  if (!value) return fallback;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+function monthlyPortfolioGrowth(points: PortfolioGrowthPoint[]) {
+  const byMonth = new Map<string, { month: string; value: number; order: number }>();
+  points.forEach((point, index) => {
+    const month = portfolioMonthLabel(point.date);
+    const order = portfolioMonthOrder(point.date, index);
+    const value = Number(point.value || 0);
+    const existing = byMonth.get(month);
+    if (!existing || order >= existing.order) byMonth.set(month, { month, value, order });
+  });
+  return Array.from(byMonth.values()).sort((a, b) => a.order - b.order).map(({ month, value }) => ({ month, value }));
+}
+
+function formatLakhsAxis(value: unknown) {
+  const lakhs = Number(value || 0) / 100000;
+  const display = Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1);
+  return `\u20b9${display}L`;
+}
 
 export function ClientDashboardPage() {
   const { user } = useAuth();
@@ -39,16 +87,22 @@ export function ClientDashboardPage() {
   if (!data) return <ErrorState title="Dashboard unavailable" message="The spreadsheet did not return dashboard records." />;
   const pendingRequests = requests.data ? requests.data.filter((row) => String(row.status).toLowerCase().includes("pending")).length : 0;
   const availableBalance = data.totalWithdrawal !== undefined ? data.totalInvestedAmount - data.totalWithdrawal : data.availableBalance ?? data.walletBalance;
-  const allocation = (data.investments ?? []).map((row) => ({ name: row.category || row.plan, value: row.currentValue || row.principalAmount }));
-  const growth = (data.recentTransactions ?? []).slice().reverse().map((row) => ({ date: formatDate(row.date), value: row.balance ?? row.credit - row.debit }));
+  const rawGrowth = (data.portfolioGrowth?.length
+    ? data.portfolioGrowth
+    : data.investmentGrowth?.length
+      ? data.investmentGrowth
+      : (data.recentTransactions ?? []).slice().reverse().map((row) => ({ date: row.date, value: row.balance ?? row.credit - row.debit }))
+  ).filter((row) => row.date || Number(row.value || 0) !== 0);
+  const growth = monthlyPortfolioGrowth(rawGrowth);
   const client = data.client;
+  const profilePhoto = profileImageSource(client);
 
   return (
     <ClientPage title={`Welcome, ${client?.fullName || user?.name || "Investor"}`} eyebrow={client?.clientId || user?.clientId}>
       <ClientCard className="mb-6 overflow-hidden border-white/10 bg-[radial-gradient(circle_at_88%_0%,rgba(215,171,61,0.36),transparent_22rem),radial-gradient(circle_at_12%_12%,rgba(37,99,235,0.38),transparent_24rem),linear-gradient(135deg,#040b1d,#08152f_48%,#0b2f25)] text-white">
         <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            {client?.profilePhotoUrl ? <img src={client.profilePhotoUrl} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover ring-4 ring-white/18 sm:h-20 sm:w-20" /> : <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white/12 ring-4 ring-white/18 sm:h-20 sm:w-20"><UserCircle className="h-9 w-9 sm:h-10 sm:w-10" /></div>}
+            {profilePhoto ? <img src={profilePhoto} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover ring-4 ring-white/18 sm:h-20 sm:w-20" /> : <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white/12 ring-4 ring-white/18 sm:h-20 sm:w-20"><UserCircle className="h-9 w-9 sm:h-10 sm:w-10" /></div>}
             <div className="min-w-0"><p className="text-sm font-bold text-gold-100">Client ID {client?.clientId || user?.clientId}</p><h2 className="mt-1 break-words font-display text-2xl font-extrabold leading-tight sm:text-3xl">{client?.fullName || user?.name}</h2><div className="mt-3 flex flex-wrap gap-2"><ClientStatus value={data.kycStatus || client?.kycStatus} /><ClientStatus value={client?.accountStatus || "active"} /></div></div>
           </div>
           <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[520px]">
@@ -69,9 +123,8 @@ export function ClientDashboardPage() {
         <ClientMetric label="Referral Earnings" value={formatCurrency(data.referralEarnings)} hint={requests.isLoading ? "Investment requests loading" : `${pendingRequests} pending investment requests`} icon={<Copy className="h-5 w-5" />} />
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <ClientCard><SectionTitle title="Investment Growth" subtitle="Based on your transaction ledger" /><ChartBox><AreaChart data={growth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="date" /><YAxis tickFormatter={(value) => `${Number(value) / 1000}k`} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area dataKey="value" type="monotone" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox></ClientCard>
-        <ClientCard><SectionTitle title="Portfolio Allocation" subtitle="Plan/category allocation" /><ChartBox><PieChart><Pie data={allocation} dataKey="value" nameKey="name" innerRadius={54} outerRadius={92}>{allocation.map((_, index) => <Cell key={index} fill={chartColors[index % chartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatCurrency(Number(value))} /></PieChart></ChartBox></ClientCard>
+      <div className="mt-6">
+        <ClientCard><SectionTitle title="Portfolio Growth" subtitle="X-axis shows months and Y-axis shows total portfolio amount in lakhs" />{growth.length ? <ChartBox><AreaChart data={growth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatLakhsAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} labelFormatter={(label) => `Month: ${label}`} /><Area dataKey="value" type="monotone" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox> : <div className="grid min-h-[280px] place-items-center rounded-[18px] border border-dashed border-forest-100 bg-white/55 text-center text-sm font-semibold text-charcoal/62 dark:border-white/10 dark:bg-white/5 dark:text-white/62">No portfolio growth records are available for this client yet.</div>}</ClientCard>
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
@@ -146,7 +199,7 @@ export function AddInvestmentPage() {
     await mutation.mutateAsync({ method: "post", url: "/client/investment-requests", body: { ...form, amount: Number(form.amount), planId: selected.id, planName: selected.planName } });
     toast({ title: "Investment request submitted", message: "Status is Pending until admin approval.", type: "success" });
   }
-  return <ClientPage title="Add Investment" eyebrow="Create a pending investment request"><div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]"><div className="grid gap-4 md:grid-cols-2">{(plans.data ?? []).map((plan) => <ClientCard key={plan.id} className={selected?.id === plan.id ? "ring-2 ring-gold-400" : ""}><h2 className="font-display text-xl font-extrabold text-forest-950 dark:text-ivory">{plan.planName}</h2><p className="mt-2 text-sm text-charcoal/62 dark:text-white/62">{plan.description}</p><div className="mt-4 grid gap-2 text-sm"><Info label="Category" value={plan.category} /><Info label="ROI" value={plan.returnRate ? `${plan.returnRate}%` : undefined} /><Info label="Duration" value={plan.duration} /><Info label="Min" value={formatCurrency(plan.minimumAmount)} /></div>{plan.termsUrl && <a href={plan.termsUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-forest-700 dark:text-gold-100">Terms <ExternalLink className="h-4 w-4" /></a>}<div className="mt-4"><ClientButton onClick={() => setSelected(plan)}>Select Plan</ClientButton></div></ClientCard>)}</div><ClientCard><SectionTitle title="Submit Request" /><form onSubmit={submit} className="grid gap-3"><Info label="Selected Plan" value={selected?.planName} /><ClientField label="Amount"><ClientInput required type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></ClientField><ClientField label="Payment Mode"><ClientInput value={form.paymentMode} onChange={(e) => setForm({ ...form, paymentMode: e.target.value })} /></ClientField><ClientField label="Payment Reference"><ClientInput required value={form.paymentReference} onChange={(e) => setForm({ ...form, paymentReference: e.target.value })} /></ClientField><ClientField label="Payment Date"><ClientInput required type="date" value={form.paymentDate} onChange={(e) => setForm({ ...form, paymentDate: e.target.value })} /></ClientField><FileUpload label="Upload payment proof" category="Payment Proof" endpoint="/client/documents/upload" onUploaded={(data) => setForm({ ...form, paymentProofUrl: String((data as { fileUrl?: string })?.fileUrl ?? "") })} /><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={form.termsAccepted} onChange={(e) => setForm({ ...form, termsAccepted: e.target.checked })} /> I accept the plan terms</label><ClientButton type="submit" disabled={!selected || !form.termsAccepted || mutation.isPending}>Submit Pending Request</ClientButton></form><SectionTitle title="Request History" /><ClientTable rows={requests.data ?? []} pageSize={4} columns={[{ key: "id", header: "Request", render: (row) => row.requestId }, { key: "plan", header: "Plan", render: (row) => row.planName }, { key: "amount", header: "Amount", render: (row) => formatCurrency(row.amount) }, { key: "status", header: "Status", render: (row) => <ClientStatus value={row.status} /> }]} /></ClientCard></div></ClientPage>;
+  return <ClientPage title="Add Investment" eyebrow="Create a pending investment request"><div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]"><div className="grid gap-4 md:grid-cols-2">{(plans.data ?? []).map((plan) => <ClientCard key={plan.id} className={selected?.id === plan.id ? "ring-2 ring-gold-400" : ""}><h2 className="font-display text-xl font-extrabold text-forest-950 dark:text-ivory">{plan.planName}</h2><p className="mt-2 text-sm text-charcoal/62 dark:text-white/62">{plan.description}</p><div className="mt-4 grid gap-2 text-sm"><Info label="Category" value={plan.category} /><Info label="ROI" value={plan.returnRate ? `${plan.returnRate}%` : undefined} /><Info label="Duration" value={plan.duration || "As per spreadsheet plan"} /><Info label="Min" value={formatCurrency(plan.minimumAmount)} /></div>{plan.termsUrl && <a href={plan.termsUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-forest-700 dark:text-gold-100">Terms <ExternalLink className="h-4 w-4" /></a>}<div className="mt-4"><ClientButton onClick={() => setSelected(plan)}>Select Plan</ClientButton></div></ClientCard>)}</div><ClientCard><SectionTitle title="Submit Request" /><form onSubmit={submit} className="grid gap-3"><Info label="Selected Plan" value={selected?.planName} /><ClientField label="Amount"><ClientInput required type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></ClientField><ClientField label="Payment Mode"><ClientInput value={form.paymentMode} onChange={(e) => setForm({ ...form, paymentMode: e.target.value })} /></ClientField><ClientField label="Payment Reference"><ClientInput required value={form.paymentReference} onChange={(e) => setForm({ ...form, paymentReference: e.target.value })} /></ClientField><ClientField label="Payment Date"><ClientInput required type="date" value={form.paymentDate} onChange={(e) => setForm({ ...form, paymentDate: e.target.value })} /></ClientField><FileUpload label="Upload payment proof" category="Payment Proof" endpoint="/client/documents/upload" onUploaded={(data) => setForm({ ...form, paymentProofUrl: String((data as { fileUrl?: string })?.fileUrl ?? "") })} /><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={form.termsAccepted} onChange={(e) => setForm({ ...form, termsAccepted: e.target.checked })} /> I accept the plan terms</label><ClientButton type="submit" disabled={!selected || !form.termsAccepted || mutation.isPending}>Submit Pending Request</ClientButton></form><SectionTitle title="Request History" /><ClientTable rows={requests.data ?? []} pageSize={4} columns={[{ key: "id", header: "Request", render: (row) => row.requestId }, { key: "plan", header: "Plan", render: (row) => row.planName }, { key: "amount", header: "Amount", render: (row) => formatCurrency(row.amount) }, { key: "status", header: "Status", render: (row) => <ClientStatus value={row.status} /> }]} /></ClientCard></div></ClientPage>;
 }
 
 export function ClientWithdrawalsPage() {
@@ -214,11 +267,13 @@ export function ClientProfilePage() {
   const mutation = useAction<Profile>(["profile", "client-profile"]);
   const { toast } = useToast();
   const [form, setForm] = useState<Record<string, string>>({});
+  const [uploadedPhoto, setUploadedPhoto] = useState("");
   if (profile.isLoading) return <ClientLoading label="Loading profile" />;
   if (profile.error) return <ErrorState title="Profile unavailable" message={profile.error instanceof Error ? profile.error.message : undefined} />;
   const data = profile.data;
+  const profilePhoto = uploadedPhoto || profileImageSource(data);
   async function submit(event: FormEvent) { event.preventDefault(); await mutation.mutateAsync({ method: "put", url: "/client/profile", body: form }); toast({ title: "Profile update submitted", type: "success" }); }
-  return <ClientPage title="Profile" eyebrow={data?.clientId}><div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]"><ClientCard><div className="flex items-center gap-4">{data?.profilePhotoUrl ? <img src={data.profilePhotoUrl} alt="" className="h-24 w-24 rounded-full object-cover" /> : <UserCircle className="h-24 w-24 text-forest-700" />}<div><h2 className="font-display text-2xl font-extrabold">{data?.fullName}</h2><p className="text-sm text-charcoal/62 dark:text-white/62">{data?.clientId}</p><ClientStatus value={data?.kycStatus} /></div></div><div className="mt-5"><FileUpload label="Upload profile photo" category="Profile" endpoint="/client/profile/photo" onUploaded={() => void profile.refetch()} /></div></ClientCard><ClientCard><form onSubmit={submit} className="grid gap-3 md:grid-cols-2"><EditableProfileFields data={data} form={form} setForm={setForm} /><ClientField label="Action"><ClientButton type="submit" disabled={mutation.isPending}>Save Editable Fields</ClientButton></ClientField></form></ClientCard></div></ClientPage>;
+  return <ClientPage title="Profile" eyebrow={data?.clientId}><div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]"><ClientCard><div className="flex items-center gap-4">{profilePhoto ? <img src={profilePhoto} alt="" className="h-24 w-24 rounded-full object-cover" /> : <UserCircle className="h-24 w-24 text-forest-700" />}<div><h2 className="font-display text-2xl font-extrabold">{data?.fullName}</h2><p className="text-sm text-charcoal/62 dark:text-white/62">{data?.clientId}</p><ClientStatus value={data?.kycStatus} /></div></div><div className="mt-5"><FileUpload label="Upload profile photo" category="Profile" endpoint="/client/profile/photo" onUploaded={(payload) => { const nextPhoto = String((payload as { profilePhotoPreviewUrl?: string })?.profilePhotoPreviewUrl ?? ""); if (nextPhoto) setUploadedPhoto(nextPhoto); void profile.refetch(); }} /></div></ClientCard><ClientCard><form onSubmit={submit} className="grid gap-3 md:grid-cols-2"><EditableProfileFields data={data} form={form} setForm={setForm} /><ClientField label="Action"><ClientButton type="submit" disabled={mutation.isPending}>Save Editable Fields</ClientButton></ClientField></form></ClientCard></div></ClientPage>;
 }
 
 export function ClientNotificationsPage() {
@@ -287,15 +342,24 @@ export function HelpSupportPage() {
 export function ClientSettingsPage() {
   const prefs = useResource<ClientPreferences>("client-preferences", "/client/settings");
   const mutation = useAction<ClientPreferences>(["client-preferences"]);
+  const passwordMutation = useAction<{ updated: boolean }>([]);
   const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   const [form, setForm] = useState<ClientPreferences>({});
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   if (prefs.isLoading) return <ClientLoading label="Loading preferences" />;
   if (prefs.error) return <ErrorState title="Settings unavailable" message={prefs.error instanceof Error ? prefs.error.message : undefined} />;
   const current = { ...prefs.data, ...form };
   async function save() { await mutation.mutateAsync({ method: "put", url: "/client/settings", body: current as Record<string, unknown> }); toast({ title: "Preferences saved", type: "success" }); }
-  return <ClientPage title="Settings"><div className="grid gap-6 xl:grid-cols-2"><ClientCard><SectionTitle title="Visual Preferences" /><Info label="Theme" value={theme} /><ClientButton onClick={toggleTheme}>Toggle Theme</ClientButton></ClientCard><ClientCard><SectionTitle title="Notification Preferences" /><Toggle label="Email Notifications" checked={!!current.emailNotifications} onChange={(value) => setForm({ ...form, emailNotifications: value })} /><Toggle label="SMS Notifications" checked={!!current.smsNotifications} onChange={(value) => setForm({ ...form, smsNotifications: value })} /><Toggle label="WhatsApp Notifications" checked={!!current.whatsappNotifications} onChange={(value) => setForm({ ...form, whatsappNotifications: value })} /><ClientField label="Preferred Language"><ClientInput value={current.preferredLanguage ?? "English"} onChange={(e) => setForm({ ...form, preferredLanguage: e.target.value })} /></ClientField><div className="mt-4 flex gap-2"><ClientButton onClick={save}>Save Preferences</ClientButton><ClientButton tone="danger" onClick={() => void logout()}>Logout Current Session</ClientButton></div></ClientCard></div></ClientPage>;
+  async function changePassword(event: FormEvent) {
+    event.preventDefault();
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) { toast({ title: "Passwords do not match", type: "error" }); return; }
+    await passwordMutation.mutateAsync({ method: "put", url: "/client/password", body: passwordForm });
+    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    toast({ title: "Password changed", message: "Use the new password for your next login.", type: "success" });
+  }
+  return <ClientPage title="Settings"><div className="grid gap-6 xl:grid-cols-2"><ClientCard><SectionTitle title="Visual Preferences" /><Info label="Theme" value={theme} /><ClientButton onClick={toggleTheme}>Toggle Theme</ClientButton></ClientCard><ClientCard><SectionTitle title="Notification Preferences" /><Toggle label="Email Notifications" checked={!!current.emailNotifications} onChange={(value) => setForm({ ...form, emailNotifications: value })} /><Toggle label="SMS Notifications" checked={!!current.smsNotifications} onChange={(value) => setForm({ ...form, smsNotifications: value })} /><Toggle label="WhatsApp Notifications" checked={!!current.whatsappNotifications} onChange={(value) => setForm({ ...form, whatsappNotifications: value })} /><ClientField label="Preferred Language"><ClientInput value={current.preferredLanguage ?? "English"} onChange={(e) => setForm({ ...form, preferredLanguage: e.target.value })} /></ClientField><div className="mt-4 flex flex-wrap gap-2"><ClientButton onClick={save} disabled={mutation.isPending}>Save Preferences</ClientButton><ClientButton tone="danger" onClick={() => void logout()}>Logout Current Session</ClientButton></div></ClientCard><ClientCard className="xl:col-span-2"><SectionTitle title="Change Password" subtitle="Updates your spreadsheet login password" /><form onSubmit={changePassword} className="grid gap-3 md:grid-cols-3"><ClientField label="Current Password"><ClientInput required type="password" autoComplete="current-password" value={passwordForm.currentPassword} onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })} /></ClientField><ClientField label="New Password"><ClientInput required type="password" minLength={6} autoComplete="new-password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} /></ClientField><ClientField label="Confirm New Password"><ClientInput required type="password" minLength={6} autoComplete="new-password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} /></ClientField><div className="md:col-span-3"><ClientButton type="submit" disabled={passwordMutation.isPending}>{passwordMutation.isPending ? "Updating..." : "Update Password"}</ClientButton></div></form></ClientCard></div></ClientPage>;
 }
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {

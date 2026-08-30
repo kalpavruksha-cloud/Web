@@ -21,6 +21,7 @@ import {
   idParamSchema,
   bankDetailsSchema,
   clientPreferencesSchema,
+  clientPasswordSchema,
   clientUploadSchema,
   clientWithdrawalCancelSchema,
   investmentSchema,
@@ -74,6 +75,7 @@ apiRouter.post("/client/support", validate(supportRequestSchema), asyncHandler(c
 apiRouter.get("/client/support/:id", validate(idParamSchema), asyncHandler(clientRead("getSupportRequests")));
 apiRouter.get("/client/settings", asyncHandler(clientRead("getClientPreferences")));
 apiRouter.put("/client/settings", validate(clientPreferencesSchema), asyncHandler(clientWrite("updateClientPreferences")));
+apiRouter.put("/client/password", validate(clientPasswordSchema), asyncHandler(clientWrite("changeClientPassword")));
 
 apiRouter.get("/dashboard", asyncHandler(dashboard));
 apiRouter.get("/profile", asyncHandler(getProfile));

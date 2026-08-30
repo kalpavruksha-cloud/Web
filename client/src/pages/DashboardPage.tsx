@@ -1,4 +1,4 @@
-import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Bell, BriefcaseBusiness, CalendarClock, IndianRupee, Landmark, TrendingUp, WalletCards } from "lucide-react";
 import { Card, StatCard } from "../components/Card";
 import { PageHeader } from "../components/PageHeader";
@@ -6,6 +6,39 @@ import { ErrorState, LoadingState } from "../components/State";
 import { useDashboard } from "../api/queries";
 import { formatCurrency, formatDate } from "../utils/format";
 import { useAuth } from "../context/AuthContext";
+
+type PortfolioGrowthPoint = { date?: string; value: number; credit?: number; debit?: number; transactionId?: string; investmentId?: string };
+
+function portfolioMonthLabel(value?: string) {
+  if (!value) return "Current";
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleString("en-IN", { month: "short", year: "2-digit" });
+  return formatDate(value);
+}
+
+function portfolioMonthOrder(value?: string, fallback = 0) {
+  if (!value) return fallback;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+function monthlyPortfolioGrowth(points: PortfolioGrowthPoint[]) {
+  const byMonth = new Map<string, { month: string; value: number; order: number }>();
+  points.forEach((point, index) => {
+    const month = portfolioMonthLabel(point.date);
+    const order = portfolioMonthOrder(point.date, index);
+    const value = Number(point.value || 0);
+    const existing = byMonth.get(month);
+    if (!existing || order >= existing.order) byMonth.set(month, { month, value, order });
+  });
+  return Array.from(byMonth.values()).sort((a, b) => a.order - b.order).map(({ month, value }) => ({ month, value }));
+}
+
+function formatLakhsAxis(value: unknown) {
+  const lakhs = Number(value || 0) / 100000;
+  const display = Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1);
+  return `\u20b9${display}L`;
+}
 
 export function DashboardPage({ admin = false }: { admin?: boolean }) {
   const { user } = useAuth();
@@ -15,8 +48,8 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
 
   const adminStats = data.admin;
   const availableBalance = data.totalWithdrawal !== undefined ? data.totalInvestedAmount - data.totalWithdrawal : data.availableBalance ?? data.walletBalance;
-  const allocation = (data.investments ?? []).map((item) => ({ name: item.category || item.plan, value: item.currentValue || item.principalAmount }));
-  const growth = (data.recentTransactions ?? []).slice().reverse().map((item) => ({ date: formatDate(item.date), value: item.balance ?? item.credit - item.debit }));
+  const rawGrowth = (data.portfolioGrowth?.length ? data.portfolioGrowth : data.investmentGrowth?.length ? data.investmentGrowth : (data.recentTransactions ?? []).slice().reverse().map((item) => ({ date: item.date, value: item.balance ?? item.credit - item.debit }))).filter((item) => item.date || Number(item.value || 0) !== 0);
+  const growth = monthlyPortfolioGrowth(rawGrowth);
 
   return (
     <>
@@ -37,36 +70,23 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
         </div>
       )}
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-1">
         <Card>
-          <h2 className="mb-4 text-lg font-bold text-forest-900 dark:text-ivory">Investment Growth</h2>
+          <h2 className="mb-4 text-lg font-bold text-forest-900 dark:text-ivory">Portfolio Growth</h2>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={growth}>
                 <defs><linearGradient id="growth" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#1e7b54" stopOpacity={0.38} /><stop offset="100%" stopColor="#1e7b54" stopOpacity={0.02} /></linearGradient></defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k`} tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tickFormatter={formatLakhsAxis} tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value) => formatCurrency(Number(value))} labelFormatter={(label) => `Month: ${label}`} />
                 <Area type="monotone" dataKey="value" stroke="#1e7b54" fill="url(#growth)" strokeWidth={3} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </Card>
-        <Card>
-          <h2 className="mb-4 text-lg font-bold text-forest-900 dark:text-ivory">Portfolio Allocation</h2>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={allocation} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={3}>
-                  {allocation.map((_, index) => <Cell key={index} fill={["#14583f", "#1e7b54", "#d7ab3d", "#a97a16", "#6b8f71"][index % 5]} />)}
-                </Pie>
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
+</div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Card>

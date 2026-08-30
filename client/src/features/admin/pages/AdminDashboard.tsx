@@ -10,6 +10,12 @@ import { computeAdminMetrics, distribution, monthlySeries, recentActivity, title
 
 const chartColors = ["#08152f", "#153bb7", "#d7ab3d", "#2563eb", "#1e7b54", "#a97a16"];
 
+function formatLakhsAxis(value: unknown) {
+  const lakhs = Number(value || 0) / 100000;
+  const display = Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1);
+  return `\u20b9${display}L`;
+}
+
 export function AdminDashboard() {
   const dashboard = useDashboard();
   const clients = useResource<Profile[]>("admin-clients", "/clients");
@@ -37,7 +43,7 @@ export function AdminDashboard() {
     notifications: notifications.data ?? []
   };
   const metrics = computeAdminMetrics(data);
-  const investmentGrowth = monthlySeries(data.transactions, (row) => row.date, (row) => row.credit - row.debit);
+  const portfolioGrowth = monthlySeries(data.transactions, (row) => row.date, (row) => row.credit - row.debit);
   const monthlyInvestments = monthlySeries(data.investments, (row) => row.startDate, (row) => row.principalAmount);
   const monthlyWithdrawals = monthlySeries(data.withdrawals, (row) => row.requestDate, (row) => row.amount);
   const registrations = monthlySeries(data.clients, (row) => row.dateOfBirth, () => 1);
@@ -59,8 +65,8 @@ export function AdminDashboard() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <AdminCard>
-          <SectionTitle title="Investment Growth" subtitle="Net credit minus debit by transaction month" />
-          <ChartBox><AreaChart data={investmentGrowth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={(value) => `${Number(value) / 1000}k`} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox>
+          <SectionTitle title="Portfolio Growth" subtitle="Net portfolio movement by transaction month" />
+          <ChartBox><AreaChart data={portfolioGrowth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatLakhsAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox>
         </AdminCard>
         <AdminCard>
           <SectionTitle title="Portfolio Distribution" subtitle="Current value grouped by plan/category" />

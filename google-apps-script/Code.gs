@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_29_DASHBOARD_BALANCE_FIX_V13";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_30_PORTFOLIO_MONTHS_PHOTO_PASSWORD_V16";
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -78,6 +78,7 @@ var ACTIONS = {
   createSupportRequest: createSupportRequest,
   getClientPreferences: getClientPreferences,
   updateClientPreferences: updateClientPreferences,
+  changeClientPassword: changeClientPassword,
   uploadDriveFile: uploadDriveFile,
   getSecureFile: getSecureFile,
   logClientActivity: logClientActivity
@@ -355,6 +356,7 @@ function dashboard(payload) {
   var allDashboardRows = isAdmin ? readModule(adminPayload, ["DASHBOARD", "Dashboard"], mapDashboard, false) : [];
   var investments = getInvestments(payload);
   var transactions = getTransactions(payload);
+  var sortedTransactions = sortRowsByDate(transactions);
   var withdrawals = getWithdrawals(payload);
   var referrals = getReferrals(payload);
   var documents = getDocuments(payload);
@@ -372,6 +374,7 @@ function dashboard(payload) {
   var pendingWithdrawals = withdrawals.filter(function(row) { return row.status === "pending"; }).length;
   var client = clientId ? getProfile(payload) : null;
   var activeInvestments = investments.filter(function(row) { return row.status === "active"; }).length;
+  var portfolioGrowth = buildPortfolioGrowth(sortedTransactions, investments, sourceDashboardRows);
   var response = {
     client: client,
     totalInvestedAmount: totalInvested,
@@ -386,7 +389,9 @@ function dashboard(payload) {
     pendingWithdrawals: pendingWithdrawals,
     referralEarnings: paidReferrals,
     nextPayoutDate: "",
-    recentTransactions: transactions.slice(-8).reverse(),
+    recentTransactions: sortedTransactions.slice(-8).reverse(),
+    portfolioGrowth: portfolioGrowth,
+    investmentGrowth: portfolioGrowth,
     investments: investments,
     documents: documents.slice(-6).reverse(),
     notifications: notifications.slice(-6).reverse(),
@@ -453,7 +458,7 @@ function updateClient(payload) {
 
 function getProfile(payload) {
   var rows = readModule(payload, ["CLIENTS", "Client", "Clients", "Profile"], mapProfile, true);
-  return rows[0] || null;
+  return rows[0] ? attachProfilePhotoPreview(rows[0], payload) : null;
 }
 
 function updateProfile(payload) {
@@ -477,7 +482,7 @@ function updateInvestment(payload) {
 }
 
 function getTransactions(payload) {
-  return readModule(payload, ["TRANSACTIONS", "Transaction", "Transactions", "Ledger"], mapTransaction, true);
+  return readModule(payload, ["Transaction_Register", "Transaction Register", "Raw_Transactions", "Raw Transactions", "TRANSACTIONS", "Transaction", "Transactions", "Ledger"], mapTransaction, true);
 }
 
 function getTransaction(payload) {
@@ -727,7 +732,7 @@ function getInvestmentPlans(payload) {
       minimumAmount: number(first(row, ["Minimum Amount", "Min Amount", "Min"])),
       maximumAmount: number(first(row, ["Maximum Amount", "Max Amount", "Max"])),
       returnRate: number(first(row, ["Return Rate", "ROI"])),
-      duration: first(row, ["Duration", "Tenure"]),
+      duration: cleanString(first(row, ["Duration", "Tenure", "Duration Text", "Duration/Term", "Term", "Period", "Lock-in Period", "Lock In Period", "Plan Duration", "Investment Duration"])),
       payoutFrequency: first(row, ["Payout Frequency", "Frequency"]),
       riskCategory: first(row, ["Risk Category", "Risk"]),
       description: first(row, ["Description", "Notes"]),
@@ -874,10 +879,12 @@ function uploadProfilePhoto(payload) {
     ClientId: payload.clientId,
     "Client ID": payload.clientId,
     "Profile Photo URL": upload.fileUrl,
-    ProfilePhotoUrl: upload.fileUrl
+    ProfilePhotoUrl: upload.fileUrl,
+    "Profile Photo File ID": upload.fileId,
+    ProfilePhotoFileId: upload.fileId
   });
   logClientActivity(clonePayload(payload, { actionName: "uploadProfilePhoto", recordId: payload.clientId }));
-  return upload;
+  return clonePayload(upload, { profilePhotoPreviewUrl: driveImageDataUrl(upload.fileId) });
 }
 
 function removeProfilePhoto(payload) {
@@ -885,12 +892,56 @@ function removeProfilePhoto(payload) {
     ClientId: payload.clientId,
     "Client ID": payload.clientId,
     "Profile Photo URL": "",
-    ProfilePhotoUrl: ""
+    ProfilePhotoUrl: "",
+    "Profile Photo File ID": "",
+    ProfilePhotoFileId: ""
   });
   logClientActivity(clonePayload(payload, { actionName: "removeProfilePhoto", recordId: payload.clientId }));
   return { removed: true };
 }
 
+function changeClientPassword(payload) {
+  requireFields(payload, ["clientId", "currentPassword", "newPassword"]);
+  if (cleanString(payload.newPassword).length < 6) throw coded("WEAK_PASSWORD", "New password must be at least 6 characters");
+  var spreadsheet = getSpreadsheet(payload);
+  var sheet = requireSheet(spreadsheet, ["CLIENT_CREDENTIALS", "Credentials", "Users"]);
+  ensureHeaders(sheet, ["ClientId (Login ID)", "Password", "LastPasswordChange"]);
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0].map(String);
+  var loginIndex = findHeaderIndex(headers, ["ClientId (Login ID)", "Login ID", "LoginId", "User ID", "UserId", "ClientId", "Client ID", "CLIENT_ID"]);
+  var passwordIndex = findHeaderIndex(headers, passwordHeaders());
+  var changedIndex = findHeaderIndex(headers, ["LastPasswordChange", "Last Password Change", "Password Updated At"]);
+  if (loginIndex < 0 || passwordIndex < 0) throw coded("MISSING_COLUMN", "CLIENT_CREDENTIALS requires login ID and Password columns");
+  var targetRow = -1;
+  for (var i = 1; i < values.length; i++) {
+    if (normalizeLogin(values[i][loginIndex]) === normalizeLogin(payload.clientId)) targetRow = i + 1;
+  }
+  if (targetRow < 0) throw coded("CREDENTIAL_NOT_FOUND", "No CLIENT_CREDENTIALS row was found for this client");
+  var storedPassword = values[targetRow - 1][passwordIndex];
+  if (normalizePassword(storedPassword) !== normalizePassword(payload.currentPassword)) throw coded("PASSWORD_MISMATCH", "Current password is incorrect");
+  sheet.getRange(targetRow, passwordIndex + 1).setValue(cleanString(payload.newPassword));
+  if (changedIndex >= 0) sheet.getRange(targetRow, changedIndex + 1).setValue(new Date());
+  syncClientPasswordColumn(payload, cleanString(payload.newPassword));
+  audit(payload, "changeClientPassword", "CLIENT_CREDENTIALS", payload.clientId);
+  return { updated: true, clientId: payload.clientId };
+}
+
+function syncClientPasswordColumn(payload, password) {
+  var sheet = findSheet(getSpreadsheet(payload), ["CLIENTS", "Client", "Clients", "Profile"]);
+  if (!sheet) return;
+  var values = sheet.getDataRange().getValues();
+  if (!values.length) return;
+  var headers = values[0].map(String);
+  var clientIdIndex = findHeaderIndex(headers, ["ClientId", "Client ID", "CLIENT_ID", "ClientId (Login ID)"]);
+  var passwordIndex = findHeaderIndex(headers, passwordHeaders());
+  if (clientIdIndex < 0 || passwordIndex < 0) return;
+  for (var i = 1; i < values.length; i++) {
+    if (normalizeLogin(values[i][clientIdIndex]) === normalizeLogin(payload.clientId)) {
+      sheet.getRange(i + 1, passwordIndex + 1).setValue(password);
+      return;
+    }
+  }
+}
 function getFaqs(payload) {
   var sheet = findSheet(getSpreadsheet(payload), ["FAQ", "FAQs"]);
   if (!sheet) return [];
@@ -1085,7 +1136,8 @@ function mapProfile(row) {
   return {
     clientId: String(first(row, ["ClientId", "Client ID", "CLIENT_ID", "clientId"]) || ""),
     fullName: String(first(row, ["Full Name", "Client Name", "Name"]) || ""),
-    profilePhotoUrl: first(row, ["Profile Photo URL", "Photo URL"]),
+    profilePhotoUrl: profilePhotoUrlFromRow(row),
+    profilePhotoFileId: first(row, ["Profile Photo File ID", "ProfilePhotoFileId", "Photo File ID", "GoogleDriveFileId", "Drive File ID"]),
     mobile: first(row, ["Mobile", "Phone"]),
     email: first(row, ["Email"]),
     dateOfBirth: first(row, ["Date of Birth", "DOB"]),
@@ -1124,17 +1176,21 @@ function mapInvestment(row) {
 }
 
 function mapTransaction(row) {
+  var credit = transactionAmount(row, "credit");
+  var debit = transactionAmount(row, "debit");
+  var balanceRaw = first(row, ["Balance", "Running Balance", "Closing Balance", "Net Balance"]);
   return {
-    id: String(first(row, ["TxId", "Transaction ID", "Txn ID", "ID"]) || ""),
-    clientId: String(first(row, ["ClientId", "Client ID", "CLIENT_ID"]) || ""),
-    date: first(row, ["Date"]),
-    type: normalizeStatus(first(row, ["Type", "Transaction Type"])),
-    description: first(row, ["Description", "Particulars"]),
-    credit: transactionAmount(row, "credit"),
-    debit: transactionAmount(row, "debit"),
-    balance: number(first(row, ["Balance"])),
-    reference: first(row, ["Reference", "Payment Reference"]),
-    status: normalizeStatus(first(row, ["Status"]))
+    id: String(first(row, ["TxId", "Trx ID", "Transaction ID", "Txn ID", "TxnId", "ID"]) || ""),
+    clientId: String(first(row, ["ClientId", "Client ID", "CLIENT_ID", "Client"]) || ""),
+    date: first(row, ["Date", "Transaction Date"]),
+    type: normalizeStatus(first(row, ["Type", "Transaction Type", "Transaction"])),
+    description: first(row, ["Description", "Particulars", "Narration", "Remarks"]),
+    credit: credit,
+    debit: debit,
+    balance: balanceRaw === "" ? undefined : number(balanceRaw),
+    reference: first(row, ["Reference", "Payment Reference", "UTR", "Ref No", "Ref"]),
+    status: normalizeStatus(first(row, ["Status"]) || "completed"),
+    netAmount: credit - debit
   };
 }
 
@@ -1558,6 +1614,101 @@ function sum(rows, field) {
   return rows.reduce(function(total, row) { return total + number(row[field]); }, 0);
 }
 
+function buildPortfolioGrowth(transactions, investments, dashboardRows) {
+  var points = [];
+  var running = 0;
+  transactions.forEach(function(row) {
+    var credit = number(row.credit);
+    var debit = number(row.debit);
+    if (row.balance !== undefined && row.balance !== null && row.balance !== "") {
+      running = number(row.balance);
+    } else {
+      running += credit - debit;
+    }
+    if (row.date || running || credit || debit) {
+      points.push({ date: row.date || "", value: running, credit: credit, debit: debit, transactionId: row.id || "" });
+    }
+  });
+  if (points.length) return compactGrowthPoints(points);
+
+  var investmentRunning = 0;
+  sortRowsByDate(investments).forEach(function(row) {
+    investmentRunning += number(row.principalAmount);
+    var value = number(row.currentValue) || investmentRunning;
+    if (row.startDate || value) points.push({ date: row.startDate || row.maturityDate || "", value: value, investmentId: row.id || "" });
+  });
+  if (points.length) return compactGrowthPoints(points);
+
+  dashboardRows.forEach(function(row) {
+    var value = number(row.currentPortfolioValue) || number(row.totalInvestedAmount);
+    if (value) points.push({ date: new Date().toISOString(), value: value });
+  });
+  return compactGrowthPoints(points);
+}
+
+function compactGrowthPoints(points) {
+  if (points.length <= 18) return points;
+  return points.slice(points.length - 18);
+}
+
+function sortRowsByDate(rows) {
+  return (rows || []).slice().sort(function(a, b) {
+    return dateMillis(a.date || a.startDate || a.requestDate || a.uploadDate) - dateMillis(b.date || b.startDate || b.requestDate || b.uploadDate);
+  });
+}
+
+function dateMillis(value) {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  var parsed = new Date(value).getTime();
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+function attachProfilePhotoPreview(profile, payload) {
+  if (!profile) return profile;
+  var fileId = latestProfilePhotoFileId(profile, payload);
+  if (!fileId) return profile;
+  var preview = driveImageDataUrl(fileId);
+  return preview ? clonePayload(profile, { profilePhotoFileId: fileId, profilePhotoPreviewUrl: preview }) : clonePayload(profile, { profilePhotoFileId: fileId });
+}
+
+function latestProfilePhotoFileId(profile, payload) {
+  var fileId = profile.profilePhotoFileId || extractDriveFileId(profile.profilePhotoUrl);
+  if (fileId || !payload || !payload.clientId) return fileId;
+  try {
+    var profileDocs = getDocuments(payload).filter(function(doc) {
+      var type = normalizeText(doc.type || doc.name || "");
+      return normalizeText(doc.clientId) === normalizeText(payload.clientId)
+        && normalizeStatus(doc.status) !== "archived"
+        && (type.indexOf("profile") >= 0 || type.indexOf("photo") >= 0 || type.indexOf("image") >= 0);
+    });
+    if (!profileDocs.length) return "";
+    var sorted = sortRowsByDate(profileDocs);
+    var latest = sorted[sorted.length - 1];
+    return latest.fileId || extractDriveFileId(latest.driveUrl);
+  } catch (error) {
+    return "";
+  }
+}
+
+function profilePhotoUrlFromRow(row) {
+  var direct = first(row, ["Profile Photo URL", "ProfilePhotoUrl", "Photo URL", "PhotoUrl", "Profile Image URL", "Image URL", "Photo"]);
+  if (direct) return direct;
+  var fileId = first(row, ["Profile Photo File ID", "ProfilePhotoFileId", "Photo File ID", "GoogleDriveFileId", "Drive File ID"]);
+  return fileId ? "drive-file:" + cleanString(fileId) : "";
+}
+
+function driveImageDataUrl(fileId) {
+  try {
+    if (!fileId) return "";
+    var blob = DriveApp.getFileById(fileId).getBlob();
+    var mimeType = blob.getContentType();
+    if (String(mimeType).indexOf("image/") !== 0) return "";
+    return "data:" + mimeType + ";base64," + Utilities.base64Encode(blob.getBytes());
+  } catch (error) {
+    return "";
+  }
+}
 function clonePayload(payload, extra) {
   var next = {};
   Object.keys(payload || {}).forEach(function(key) { next[key] = payload[key]; });
@@ -1566,11 +1717,22 @@ function clonePayload(payload, extra) {
 }
 
 function transactionAmount(row, side) {
-  var explicit = side === "credit" ? first(row, ["Credit"]) : first(row, ["Debit"]);
-  if (explicit !== "") return number(explicit);
-  var type = normalizeStatus(first(row, ["Type", "Transaction Type"]));
-  var amount = number(first(row, ["Amount"]));
-  if (side === "credit") return ["credit", "deposit", "payout", "referral", "bonus", "interest"].indexOf(type) >= 0 ? amount : 0;
+  var aliases = side === "credit"
+    ? ["Credit", "Amount Credit", "Cr", "Payout", "Interest", "Referral", "Bonus"]
+    : ["Debit", "Amount Debit", "Dr", "Withdrawal", "Withdrawn Amount", "Fee", "Charge"];
+  var total = 0;
+  var found = false;
+  aliases.forEach(function(alias) {
+    var value = first(row, [alias]);
+    if (value !== "") {
+      total += number(value);
+      found = true;
+    }
+  });
+  if (found) return total;
+  var type = normalizeStatus(first(row, ["Type", "Transaction Type", "Transaction"]));
+  var amount = number(first(row, ["Amount", "Transaction Amount", "Value"]));
+  if (side === "credit") return ["credit", "deposit", "investment", "payout", "referral", "bonus", "interest"].indexOf(type) >= 0 ? amount : 0;
   return ["debit", "withdrawal", "fee", "charge"].indexOf(type) >= 0 ? amount : 0;
 }
 
@@ -1602,7 +1764,7 @@ function leftPad(value, length, char) {
 }
 
 function number(value) {
-  var parsed = Number(String(value || 0).replace(/[₹,\s%]/g, ""));
+  var parsed = Number(String(value || 0).replace(/[Ã¢â€šÂ¹,\s%]/g, ""));
   return isNaN(parsed) ? 0 : parsed;
 }
 
