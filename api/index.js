@@ -2,7 +2,7 @@ const { randomUUID } = require("node:crypto");
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec";
 const DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-const DEPLOYMENT_MARKER = "vercel-native-api-2026-08-26-login-status-fix-v3";
+const DEPLOYMENT_MARKER = "vercel-native-api-2026-08-30-password-profile-chart-v4";
 
 let jwtModulePromise;
 
@@ -165,7 +165,8 @@ async function proxyRoute(req, path, user, env, requestId) {
     ["GET", /^\/client\/support\/([^/]+)$/, "getSupportRequests"],
     ["POST", /^\/client\/support$/, "createSupportRequest"],
     ["GET", /^\/client\/settings$/, "getClientPreferences"],
-    ["PUT", /^\/client\/settings$/, "updateClientPreferences"]
+    ["PUT", /^\/client\/settings$/, "updateClientPreferences"],
+    ["PUT", /^\/client\/password$/, "changeClientPassword"]
   ];
 
   for (const [verb, pattern, action] of clientRoutes) {
@@ -549,5 +550,3 @@ function normalizeUrl(value) {
 function stripTags(value) {
   return String(value).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
-
-
