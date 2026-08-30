@@ -22,8 +22,8 @@ const envSchema = z.object({
   CORS_ALLOWED_ORIGINS: z.string().default("http://localhost:5173,http://localhost:3000"),
   APPS_SCRIPT_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
   LOG_LEVEL: z.string().default("info"),
-  SUPPORT_EMAIL: z.string().default("support@kalpavrukshawealth.com"),
-  SUPPORT_PHONE: z.string().default("+91 00000 00000"),
+  SUPPORT_EMAIL: z.string().default("info@kalpavrukshawealth.com"),
+  SUPPORT_PHONE: z.string().default("+916366636226"),
   SUPPORT_WHATSAPP_URL: z.string().url().optional()
 });
 
@@ -71,8 +71,8 @@ function fallbackEnv(): z.infer<typeof envSchema> {
     CORS_ALLOWED_ORIGINS: process.env.CORS_ALLOWED_ORIGINS || process.env.CLIENT_URL || "http://localhost:5173,http://localhost:3000",
     APPS_SCRIPT_TIMEOUT_MS: Number(process.env.APPS_SCRIPT_TIMEOUT_MS || 60000),
     LOG_LEVEL: process.env.LOG_LEVEL || "info",
-    SUPPORT_EMAIL: process.env.SUPPORT_EMAIL || "support@kalpavrukshawealth.com",
-    SUPPORT_PHONE: process.env.SUPPORT_PHONE || "+91 00000 00000",
+    SUPPORT_EMAIL: process.env.SUPPORT_EMAIL || "info@kalpavrukshawealth.com",
+    SUPPORT_PHONE: process.env.SUPPORT_PHONE || "+916366636226",
     SUPPORT_WHATSAPP_URL: emptyToUndefined(process.env.SUPPORT_WHATSAPP_URL)
   };
 }

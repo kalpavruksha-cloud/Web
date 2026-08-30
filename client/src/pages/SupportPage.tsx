@@ -1,4 +1,4 @@
-import { Mail, MessageCircle, Phone } from "lucide-react";
+import { Clock, Mail, MessageCircle, Phone } from "lucide-react";
 import { Card } from "../components/Card";
 import { PageHeader } from "../components/PageHeader";
 
@@ -6,10 +6,11 @@ export function SupportPage() {
   return (
     <>
       <PageHeader title="Support" eyebrow="Kalpavruksha Wealth assistance" />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card><Mail className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">Email</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">support@kalpavrukshawealth.com</p></Card>
-        <Card><Phone className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">Phone</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">Use your registered mobile number for account-specific requests.</p></Card>
-        <Card><MessageCircle className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">WhatsApp</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">Configured by deployment environment when approved for production.</p></Card>
+      <div className="grid gap-6 lg:grid-cols-4">
+        <Card><Mail className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">Email</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">info@kalpavrukshawealth.com</p></Card>
+        <Card><Phone className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">Phone</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">+916366636226</p></Card>
+        <Card><MessageCircle className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">WhatsApp</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">+916366636226</p></Card>
+        <Card><Clock className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">Business Hours</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">9 PM to 6 PM, Monday to Saturday</p></Card>
       </div>
       <Card className="mt-6">
         <form className="grid gap-4">

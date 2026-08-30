@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import type { ApiResponse, PortalSettings } from "../types/domain";
 
 const DEFAULT_MESSAGE = "Hello Kalpavruksha Wealth, I need support with my portal account.";
+const APPROVED_WHATSAPP_NUMBER = "916366636226";
 
 export function WhatsAppChat() {
   const { user } = useAuth();
@@ -62,7 +63,7 @@ export function WhatsAppChat() {
               <p className="mt-2 leading-6 text-charcoal/68 dark:text-white/68">
                 {whatsapp.ready
                   ? "Tap below to open WhatsApp with a prepared support message."
-                  : "The chat button is integrated. Add the approved WhatsApp number in Vercel or portal settings to activate it."}
+                  : "WhatsApp support is ready for Kalpavruksha Wealth clients."}
               </p>
               <button
                 type="button"
@@ -91,21 +92,22 @@ export function WhatsAppChat() {
 }
 
 function resolveWhatsApp(settings?: PortalSettings, clientId?: string) {
-  const configuredUrl = firstString(settings, ["supportWhatsappUrl", "supportWhatsAppUrl", "SUPPORT_WHATSAPP_URL", "whatsappUrl", "WHATSAPP_URL"]) || import.meta.env.VITE_WHATSAPP_URL;
-  const configuredNumber = firstString(settings, ["supportWhatsappNumber", "supportWhatsAppNumber", "SUPPORT_WHATSAPP_NUMBER", "whatsappNumber", "WHATSAPP_NUMBER"]) || import.meta.env.VITE_WHATSAPP_NUMBER;
+  const configuredNumber = import.meta.env.VITE_WHATSAPP_NUMBER || APPROVED_WHATSAPP_NUMBER || firstString(settings, ["supportWhatsappNumber", "supportWhatsAppNumber", "SUPPORT_WHATSAPP_NUMBER", "whatsappNumber", "WHATSAPP_NUMBER"]);
+  const configuredUrl = import.meta.env.VITE_WHATSAPP_URL || firstString(settings, ["supportWhatsappUrl", "supportWhatsAppUrl", "SUPPORT_WHATSAPP_URL", "whatsappUrl", "WHATSAPP_URL"]);
   const baseMessage = import.meta.env.VITE_WHATSAPP_DEFAULT_MESSAGE || DEFAULT_MESSAGE;
   const message = clientId ? `${baseMessage}\nClient ID: ${clientId}` : baseMessage;
   const encodedMessage = encodeURIComponent(message);
+
+  const rawDigits = String(configuredNumber ?? "").replace(/\D/g, "");
+  const digits = rawDigits.length === 10 ? `91${rawDigits}` : rawDigits;
+  if (digits) return { ready: true, url: `https://wa.me/${digits}?text=${encodedMessage}` };
 
   if (configuredUrl) {
     const separator = configuredUrl.includes("?") ? "&" : "?";
     return { ready: true, url: `${configuredUrl}${separator}text=${encodedMessage}` };
   }
 
-  const rawDigits = String(configuredNumber ?? "").replace(/\D/g, "");
-  const digits = rawDigits.length === 10 ? `91${rawDigits}` : rawDigits;
-  if (!digits) return { ready: false, url: "" };
-  return { ready: true, url: `https://wa.me/${digits}?text=${encodedMessage}` };
+  return { ready: false, url: "" };
 }
 
 function firstString(settings: PortalSettings | undefined, keys: string[]) {

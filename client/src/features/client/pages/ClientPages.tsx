@@ -27,6 +27,13 @@ import { fallbackFaqs } from "../config/faqs";
 
 const documentCategories = ["Aadhaar Card", "PAN Card", "Agreement", "Cancelled Cheque", "Address Proof", "Bank Proof", "Investment Receipt", "Tax Document", "Nominee Proof", "Other"];
 
+const supportContactDetails = {
+  phone: "+916366636226",
+  email: "info@kalpavrukshawealth.com",
+  whatsapp: "+916366636226",
+  businessHours: "9 PM to 6 PM, Monday to Saturday"
+};
+
 type PortfolioGrowthPoint = { date?: string; value: number; credit?: number; debit?: number; transactionId?: string; investmentId?: string };
 
 function profileDriveThumbnail(url: string) {
@@ -364,14 +371,13 @@ export function FaqPage() {
 
 export function HelpSupportPage() {
   const support = useResource<SupportTicket[]>("client-support", "/client/support");
-  const settings = useResource<Record<string, string>>("client-public-settings", "/settings");
   const mutation = useAction<SupportTicket>(["client-support"]);
   const { toast } = useToast();
   const [form, setForm] = useState({ subject: "", category: "Account", priority: "normal" as "low" | "normal" | "high", message: "", attachmentUrl: "" });
   if (support.isLoading) return <ClientLoading label="Loading support" />;
   if (support.error) return <ErrorState title="Support unavailable" message={support.error instanceof Error ? support.error.message : undefined} />;
   async function submit(event: FormEvent) { event.preventDefault(); await mutation.mutateAsync({ method: "post", url: "/client/support", body: form }); toast({ title: "Support ticket created", type: "success" }); }
-  return <ClientPage title="Help & Support"><div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]"><ClientCard><SectionTitle title="Contact" /><Info label="Phone" value={settings.data?.supportPhone || settings.data?.SUPPORT_PHONE} /><Info label="Email" value={settings.data?.supportEmail || settings.data?.SUPPORT_EMAIL} /><Info label="WhatsApp" value={settings.data?.supportWhatsapp || settings.data?.SUPPORT_WHATSAPP_URL} /><Info label="Business Hours" value={settings.data?.businessHours || "As configured by Kalpavruksha Wealth"} /></ClientCard><ClientCard><SectionTitle title="Create Ticket" /><form onSubmit={submit} className="grid gap-3"><ClientField label="Subject"><ClientInput required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></ClientField><ClientField label="Category"><ClientInput value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></ClientField><ClientField label="Message"><ClientInput required value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} /></ClientField><FileUpload label="Optional support attachment" category="Support" endpoint="/client/documents/upload" onUploaded={(data) => setForm({ ...form, attachmentUrl: String((data as { fileUrl?: string })?.fileUrl ?? "") })} /><ClientButton type="submit" disabled={mutation.isPending}>Submit Ticket</ClientButton></form></ClientCard></div><ClientCard className="mt-6"><SectionTitle title="Ticket History" /><ClientTable rows={support.data ?? []} columns={[{ key: "id", header: "Ticket", render: (row) => row.ticketId }, { key: "subject", header: "Subject", render: (row) => row.subject }, { key: "priority", header: "Priority", render: (row) => <ClientStatus value={row.priority} /> }, { key: "status", header: "Status", render: (row) => <ClientStatus value={row.status} /> }, { key: "response", header: "Admin Response", render: (row) => row.adminResponse }]} /></ClientCard></ClientPage>;
+  return <ClientPage title="Help & Support"><div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]"><ClientCard><SectionTitle title="Contact" /><Info label="Phone" value={supportContactDetails.phone} /><Info label="Email" value={supportContactDetails.email} /><Info label="WhatsApp" value={supportContactDetails.whatsapp} /><Info label="Business Hours" value={supportContactDetails.businessHours} /></ClientCard><ClientCard><SectionTitle title="Create Ticket" /><form onSubmit={submit} className="grid gap-3"><ClientField label="Subject"><ClientInput required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></ClientField><ClientField label="Category"><ClientInput value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></ClientField><ClientField label="Message"><ClientInput required value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} /></ClientField><FileUpload label="Optional support attachment" category="Support" endpoint="/client/documents/upload" onUploaded={(data) => setForm({ ...form, attachmentUrl: String((data as { fileUrl?: string })?.fileUrl ?? "") })} /><ClientButton type="submit" disabled={mutation.isPending}>Submit Ticket</ClientButton></form></ClientCard></div><ClientCard className="mt-6"><SectionTitle title="Ticket History" /><ClientTable rows={support.data ?? []} columns={[{ key: "id", header: "Ticket", render: (row) => row.ticketId }, { key: "subject", header: "Subject", render: (row) => row.subject }, { key: "priority", header: "Priority", render: (row) => <ClientStatus value={row.priority} /> }, { key: "status", header: "Status", render: (row) => <ClientStatus value={row.status} /> }, { key: "response", header: "Admin Response", render: (row) => row.adminResponse }]} /></ClientCard></ClientPage>;
 }
 
 export function ClientSettingsPage() {
