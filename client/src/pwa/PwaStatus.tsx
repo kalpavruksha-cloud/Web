@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useIsFetching, useIsMutating, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
-import { Download, RefreshCw, RotateCw, WifiOff, X } from "lucide-react";
+import { Download, RotateCw, WifiOff, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
-import { cn } from "../utils/cn";
 import { useStandaloneMode } from "./useStandaloneMode";
 
 type BeforeInstallPromptEvent = Event & {
@@ -26,9 +25,6 @@ export function PwaStatus() {
   const [lastSynced, setLastSynced] = useState(() => localStorage.getItem(LAST_SYNC_KEY));
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent>();
   const [appPanel, setAppPanel] = useState<"download" | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [pullDistance, setPullDistance] = useState(0);
-  const pullDistanceRef = useRef(0);
   const showAppAction = !loading && !user && ["/", "/login", "/admin-login", "/register"].includes(location.pathname);
 
   useEffect(() => {
@@ -80,47 +76,6 @@ export function PwaStatus() {
     };
   }, []);
 
-  useEffect(() => {
-    let startY = 0;
-    let active = false;
-
-    function touchStart(event: TouchEvent) {
-      if (window.scrollY > 0 || event.touches.length !== 1) return;
-      startY = event.touches[0].clientY;
-      active = true;
-    }
-
-    function touchMove(event: TouchEvent) {
-      if (!active) return;
-      const distance = Math.max(event.touches[0].clientY - startY, 0);
-      const nextDistance = Math.min(distance, 96);
-      pullDistanceRef.current = nextDistance;
-      setPullDistance(nextDistance);
-    }
-
-    function touchEnd() {
-      if (!active) return;
-      active = false;
-      if (pullDistanceRef.current > 68) {
-        setRefreshing(true);
-        void queryClient.invalidateQueries().finally(() => {
-          window.setTimeout(() => setRefreshing(false), 450);
-        });
-      }
-      pullDistanceRef.current = 0;
-      setPullDistance(0);
-    }
-
-    window.addEventListener("touchstart", touchStart, { passive: true });
-    window.addEventListener("touchmove", touchMove, { passive: true });
-    window.addEventListener("touchend", touchEnd);
-    return () => {
-      window.removeEventListener("touchstart", touchStart);
-      window.removeEventListener("touchmove", touchMove);
-      window.removeEventListener("touchend", touchEnd);
-    };
-  }, [queryClient]);
-
   const lastSyncText = useMemo(() => {
     if (!lastSynced) return "Not synced yet";
     return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(lastSynced));
@@ -142,18 +97,6 @@ export function PwaStatus() {
 
   return (
     <>
-      <AnimatePresence>
-        {(pullDistance > 8 || refreshing) && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: Math.min(pullDistance / 2, 34) }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed left-1/2 top-3 z-[70] -translate-x-1/2 rounded-full border border-white/60 bg-white/90 px-4 py-2 text-xs font-extrabold text-forest-900 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/90 dark:text-ivory lg:hidden"
-          >
-            <span className="inline-flex items-center gap-2"><RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} /> {refreshing ? "Refreshing live records" : "Pull to refresh"}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="fixed inset-x-3 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-[60] grid gap-2 pointer-events-none lg:bottom-4 lg:left-auto lg:right-4 lg:w-96">
         <AnimatePresence>

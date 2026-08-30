@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v8-bigger-icon-active-whatsapp";
+const CACHE_VERSION = "kalpavruksha-pwa-v9-refreshless-fast-load";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 

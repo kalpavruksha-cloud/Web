@@ -10,7 +10,7 @@ export function SupportPage() {
         <Card><Mail className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">Email</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">info@kalpavrukshawealth.com</p></Card>
         <Card><Phone className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">Phone</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">+916366636226</p></Card>
         <Card><MessageCircle className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">WhatsApp</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">+916366636226</p></Card>
-        <Card><Clock className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">Business Hours</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">9 PM to 6 PM, Monday to Saturday</p></Card>
+        <Card><Clock className="h-6 w-6 text-forest-700" /><h2 className="mt-3 font-bold">Business Hours</h2><p className="mt-1 text-sm text-charcoal/70 dark:text-white/70">9 AM to 9 PM, Monday to Saturday</p></Card>
       </div>
       <Card className="mt-6">
         <form className="grid gap-4">

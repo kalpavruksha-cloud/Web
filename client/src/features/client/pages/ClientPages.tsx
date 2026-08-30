@@ -31,7 +31,7 @@ const supportContactDetails = {
   phone: "+916366636226",
   email: "info@kalpavrukshawealth.com",
   whatsapp: "+916366636226",
-  businessHours: "9 PM to 6 PM, Monday to Saturday"
+  businessHours: "9 AM to 9 PM, Monday to Saturday"
 };
 
 type PortfolioGrowthPoint = { date?: string; value: number; credit?: number; debit?: number; transactionId?: string; investmentId?: string };

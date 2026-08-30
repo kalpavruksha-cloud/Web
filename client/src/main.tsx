@@ -15,11 +15,11 @@ import "./styles/index.css";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 15_000,
-      gcTime: 10 * 60_000,
-      refetchOnWindowFocus: true,
+      staleTime: 2 * 60_000,
+      gcTime: 30 * 60_000,
+      refetchOnWindowFocus: false,
       refetchOnReconnect: true,
-      retry: 1
+      retry: false
     },
     mutations: {
       networkMode: "online",
