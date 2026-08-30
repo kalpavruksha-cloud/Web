@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v9-refreshless-fast-load";
+const CACHE_VERSION = "kalpavruksha-pwa-v10-disable-native-overscroll-refresh";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 

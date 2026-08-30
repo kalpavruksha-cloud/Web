@@ -27,6 +27,14 @@ body {
     linear-gradient(135deg, #fbfaf4 0%, #f5f8fb 42%, #eef5f1 100%);
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  min-height: 100vh;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
 #root:empty {
@@ -59,6 +67,8 @@ textarea {
 html {
   scroll-behavior: smooth;
   background: #fbfaf4;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
 ::selection {
@@ -90,7 +100,8 @@ textarea:focus {
 @media (display-mode: standalone) {
   body {
     min-height: 100svh;
-    overscroll-behavior-y: contain;
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
   }
 }
 
