@@ -1,7 +1,12 @@
 import { motion } from "framer-motion";
 import { Building2, Gem, Handshake, Landmark, Leaf, LineChart, MapPin, ShieldCheck, Sparkles, UtensilsCrossed } from "lucide-react";
-import kalpavrukshaWealthLogo from "../assets/kalpavruksha-wealth-logo.png";
+import kalpavrukshaWealthLogo from "../assets/group-kalpavruksha-wealth.png";
+import kalpavrukshaRealEstateLogo from "../assets/group-kalpavruksha-real-estate.png";
 import kvConstructionsLogo from "../assets/kv-constructions-logo.png";
+import kalpavrukshaDevelopersLogo from "../assets/group-kalpavruksha-developers.png";
+import kalpavrukshaDevelopersAltLogo from "../assets/group-kalpavruksha-developers-alt.png";
+import rudrakshEnterprisesLogo from "../assets/group-rudraksh-enterprises.png";
+import brindavanRestoLogo from "../assets/group-brindavan-resto.png";
 
 const companies = [
   {
@@ -9,38 +14,42 @@ const companies = [
     category: "Wealth Management",
     description: "Disciplined investment guidance, client servicing, portfolio visibility, and long-term wealth stewardship.",
     icon: LineChart,
-    logo: kalpavrukshaWealthLogo
+    logos: [kalpavrukshaWealthLogo]
   },
   {
     name: "Kalpavruksha Real Estate",
     category: "Property Advisory",
     description: "Real estate opportunities, land advisory, and property-led growth across carefully selected markets.",
-    icon: MapPin
+    icon: MapPin,
+    logos: [kalpavrukshaRealEstateLogo]
   },
   {
     name: "KV Constructions",
     category: "Construction",
     description: "Construction execution with a focus on durability, practical design, and accountable project delivery.",
     icon: Building2,
-    logo: kvConstructionsLogo
+    logos: [kvConstructionsLogo]
   },
   {
     name: "Kalpavruksha Developers",
     category: "Development",
     description: "Development initiatives built around location intelligence, transparent planning, and lasting asset value.",
-    icon: Landmark
+    icon: Landmark,
+    logos: [kalpavrukshaDevelopersLogo, kalpavrukshaDevelopersAltLogo]
   },
   {
     name: "Rudraksh Enterprises",
     category: "Enterprise",
     description: "Business operations and enterprise initiatives that support the wider Kalpavruksha growth ecosystem.",
-    icon: Gem
+    icon: Gem,
+    logos: [rudrakshEnterprisesLogo]
   },
   {
     name: "Brindavan Resto",
     category: "Hospitality",
     description: "Hospitality experiences shaped around warmth, consistency, local taste, and dependable service.",
-    icon: UtensilsCrossed
+    icon: UtensilsCrossed,
+    logos: [brindavanRestoLogo]
   }
 ];
 
@@ -73,17 +82,20 @@ export function AboutUsPage() {
             </p>
           </div>
           <div className="rounded-[26px] border border-white/10 bg-white/8 p-5 shadow-glass backdrop-blur-xl">
-            <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-gold-100">Brand Direction</p>
+            <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-gold-100">Group Identity</p>
             <div className="mt-5 grid gap-3">
-              {["Wealth with clarity", "Property with confidence", "Construction with accountability", "Hospitality with warmth"].map((item, index) => (
+              {companies.slice(0, 4).map((company, index) => (
                 <motion.div
-                  key={item}
+                  key={company.name}
                   initial={{ opacity: 0, x: 18 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.15 + index * 0.08 }}
-                  className="rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm font-bold text-white/86"
+                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm font-bold text-white/86"
                 >
-                  {item}
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gold-100/12 text-gold-100">
+                    <company.icon className="h-4 w-4" />
+                  </span>
+                  <span className="truncate">{company.name}</span>
                 </motion.div>
               ))}
             </div>
@@ -119,7 +131,7 @@ export function AboutUsPage() {
             <h2 className="mt-2 font-display text-2xl font-extrabold text-navy-900 dark:text-ivory sm:text-3xl">A professional ecosystem under one brand standard</h2>
           </div>
           <p className="max-w-xl text-sm leading-7 text-charcoal/62 dark:text-white/62">
-            Official logo placements are now active for Kalpavruksha Wealth and KV Constructions. The remaining company cards are ready for their logos when you provide them.
+            Official logos are now placed for the Kalpavruksha group companies, with each brand highlighted in a premium portal-ready presentation.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -134,30 +146,28 @@ export function AboutUsPage() {
                 className="group relative overflow-hidden rounded-[22px] border border-forest-100/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(246,249,245,0.78))] p-5 shadow-glass transition hover:-translate-y-1 hover:border-gold-300/70 hover:shadow-premium dark:border-white/10 dark:bg-white/8"
               >
                 <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-[44px] bg-gold-100/28 transition group-hover:bg-gold-100/40" />
-                {company.logo ? (
-                  <div className="relative grid h-28 place-items-center rounded-[24px] border border-gold-300/35 bg-[radial-gradient(circle_at_80%_0%,rgba(215,171,61,0.18),transparent_11rem),linear-gradient(135deg,#020717,#08152f_55%,#0b2f25)] px-5 py-4 shadow-glow">
-                    <img src={company.logo} alt={`${company.name} logo`} className="max-h-20 w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.28)]" />
+                <div className="relative grid min-h-32 gap-3 rounded-[24px] border border-gold-300/35 bg-[radial-gradient(circle_at_80%_0%,rgba(215,171,61,0.22),transparent_11rem),linear-gradient(135deg,#020717,#08152f_55%,#0b2f25)] px-5 py-4 shadow-glow">
+                  {company.logos.map((logo, logoIndex) => (
+                    <img
+                      key={`${company.name}-${logoIndex}`}
+                      src={logo}
+                      alt={logoIndex === 0 ? `${company.name} logo` : `${company.name} alternate logo`}
+                      className="mx-auto max-h-20 w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.32)]"
+                    />
+                  ))}
+                </div>
+                <div className="relative mt-4 flex items-start gap-4">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] border border-gold-300/50 bg-[linear-gradient(135deg,#040b1d,#0b2f25)] text-gold-100 shadow-glow">
+                    <Icon className="h-6 w-6" />
                   </div>
-                ) : (
-                  <div className="relative flex items-start gap-4">
-                    <div className="grid h-16 w-16 shrink-0 place-items-center rounded-[20px] border border-gold-300/50 bg-[linear-gradient(135deg,#040b1d,#0b2f25)] text-gold-100 shadow-glow">
-                      <Icon className="h-8 w-8" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-gold-700 dark:text-gold-100">{company.category}</p>
-                      <h3 className="mt-2 font-display text-xl font-extrabold leading-tight text-navy-900 dark:text-ivory">{company.name}</h3>
-                    </div>
-                  </div>
-                )}
-                {company.logo && (
-                  <div className="relative mt-4">
+                  <div className="min-w-0">
                     <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-gold-700 dark:text-gold-100">{company.category}</p>
                     <h3 className="mt-2 font-display text-xl font-extrabold leading-tight text-navy-900 dark:text-ivory">{company.name}</h3>
                   </div>
-                )}
+                </div>
                 <p className="relative mt-4 text-sm leading-7 text-charcoal/66 dark:text-white/66">{company.description}</p>
                 <div className="relative mt-5 rounded-2xl border border-dashed border-gold-300/70 bg-gold-100/20 px-4 py-3 text-xs font-extrabold uppercase tracking-[0.16em] text-forest-900 dark:bg-white/6 dark:text-gold-100">
-                  {company.logo ? "Official logo attached" : "Logo space reserved"}
+                  Official logo attached
                 </div>
               </motion.article>
             );
