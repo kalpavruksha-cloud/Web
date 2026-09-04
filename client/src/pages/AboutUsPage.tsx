@@ -103,6 +103,32 @@ export function AboutUsPage() {
         </div>
       </motion.section>
 
+      <section className="rounded-[24px] border border-gold-300/45 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(255,250,235,0.9))] p-4 shadow-premium backdrop-blur-xl dark:border-gold-100/20 dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(248,237,200,0.88))] sm:p-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {companies.map((company, index) => (
+            <motion.div
+              key={`${company.name}-logo-wall`}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05, duration: 0.32 }}
+              className="grid min-h-32 place-items-center rounded-[20px] border border-gold-300/35 bg-white px-4 py-5 shadow-[0_18px_42px_rgba(4,11,29,0.10)]"
+            >
+              <div className="grid w-full gap-3">
+                {company.logos.map((logo, logoIndex) => (
+                  <img
+                    key={`${company.name}-logo-wall-${logoIndex}`}
+                    src={logo}
+                    alt={logoIndex === 0 ? `${company.name} logo` : `${company.name} alternate logo`}
+                    className="mx-auto block max-h-24 w-full max-w-[18rem] object-contain"
+                    loading="eager"
+                  />
+                ))}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-3">
         {values.map((value, index) => {
           const Icon = value.icon;
@@ -146,13 +172,13 @@ export function AboutUsPage() {
                 className="group relative overflow-hidden rounded-[22px] border border-forest-100/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(246,249,245,0.78))] p-5 shadow-glass transition hover:-translate-y-1 hover:border-gold-300/70 hover:shadow-premium dark:border-white/10 dark:bg-white/8"
               >
                 <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-[44px] bg-gold-100/28 transition group-hover:bg-gold-100/40" />
-                <div className="relative grid min-h-32 gap-3 rounded-[24px] border border-gold-300/35 bg-[radial-gradient(circle_at_80%_0%,rgba(215,171,61,0.22),transparent_11rem),linear-gradient(135deg,#020717,#08152f_55%,#0b2f25)] px-5 py-4 shadow-glow">
+                <div className="relative grid min-h-36 gap-3 rounded-[24px] border border-gold-300/45 bg-[radial-gradient(circle_at_82%_0%,rgba(215,171,61,0.18),transparent_12rem),linear-gradient(135deg,#ffffff,#fff8dc_58%,#f7f1df)] px-5 py-5 shadow-[0_18px_42px_rgba(4,11,29,0.12)]">
                   {company.logos.map((logo, logoIndex) => (
                     <img
                       key={`${company.name}-${logoIndex}`}
                       src={logo}
                       alt={logoIndex === 0 ? `${company.name} logo` : `${company.name} alternate logo`}
-                      className="mx-auto max-h-20 w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.32)]"
+                      className="mx-auto block max-h-24 w-full max-w-[19rem] object-contain drop-shadow-[0_10px_22px_rgba(4,11,29,0.18)]"
                     />
                   ))}
                 </div>
