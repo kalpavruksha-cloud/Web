@@ -145,13 +145,13 @@ export function AboutUsPage() {
                 className="group relative overflow-hidden rounded-[22px] border border-forest-100/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(246,249,245,0.78))] p-5 shadow-glass transition hover:-translate-y-1 hover:border-gold-300/70 hover:shadow-premium dark:border-white/10 dark:bg-white/8"
               >
                 <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-[44px] bg-gold-100/28 transition group-hover:bg-gold-100/40" />
-                <div className="relative grid min-h-36 gap-3 rounded-[24px] border border-gold-300/45 bg-[radial-gradient(circle_at_82%_0%,rgba(215,171,61,0.18),transparent_12rem),linear-gradient(135deg,#ffffff,#fff8dc_58%,#f7f1df)] px-5 py-5 shadow-[0_18px_42px_rgba(4,11,29,0.12)]">
+                <div className="relative grid min-h-36 gap-3 rounded-[24px] border border-gold-300/45 bg-[radial-gradient(circle_at_82%_0%,rgba(215,171,61,0.24),transparent_12rem),linear-gradient(135deg,#040b1d,#08152f_54%,#0b2f25)] px-5 py-5 shadow-[0_22px_52px_rgba(4,11,29,0.24)]">
                   {company.logos.map((logo, logoIndex) => (
                     <img
                       key={`${company.name}-${logoIndex}`}
                       src={logo}
                       alt={logoIndex === 0 ? `${company.name} logo` : `${company.name} alternate logo`}
-                      className="mx-auto block max-h-24 w-full max-w-[19rem] object-contain drop-shadow-[0_10px_22px_rgba(4,11,29,0.18)]"
+                      className="mx-auto block max-h-24 w-full max-w-[19rem] object-contain drop-shadow-[0_12px_24px_rgba(215,171,61,0.18)]"
                     />
                   ))}
                 </div>
@@ -165,7 +165,7 @@ export function AboutUsPage() {
                   </div>
                 </div>
                 <p className="relative mt-4 text-sm leading-7 text-charcoal/66 dark:text-white/66">{company.description}</p>
-                <div className="relative mt-5 rounded-2xl border border-dashed border-gold-300/70 bg-gold-100/20 px-4 py-3 text-xs font-extrabold uppercase tracking-[0.16em] text-forest-900 dark:bg-white/6 dark:text-gold-100">
+                <div className="relative mt-5 rounded-2xl border border-dashed border-gold-300/70 bg-[linear-gradient(135deg,rgba(4,11,29,0.92),rgba(11,47,37,0.88))] px-4 py-3 text-xs font-extrabold uppercase tracking-[0.16em] text-gold-100 shadow-inner">
                   Official logo attached
                 </div>
               </motion.article>
