@@ -14,7 +14,7 @@ import type {
   Withdrawal
 } from "../types/domain";
 
-const LIVE_DATA_STALE_MS = 2 * 60_000;
+const LIVE_DATA_STALE_MS = 5 * 60_000;
 const SESSION_REFETCH_MS = 5 * 60_000;
 
 const RELATED_QUERY_KEYS: Record<string, string[]> = {
@@ -53,20 +53,21 @@ export function useSession() {
       return response.data.data.user as User;
     },
     retry: false,
-    refetchInterval: SESSION_REFETCH_MS
+    refetchInterval: SESSION_REFETCH_MS,
+    refetchOnMount: false
   });
 }
 
 export function useDashboard() {
-  return useQuery({ queryKey: ["dashboard"], queryFn: () => getData<DashboardSummary>("/dashboard"), staleTime: LIVE_DATA_STALE_MS });
+  return useQuery({ queryKey: ["dashboard"], queryFn: () => getData<DashboardSummary>("/dashboard"), staleTime: LIVE_DATA_STALE_MS, placeholderData: (previousData) => previousData, refetchOnMount: false });
 }
 
 export function useProfile() {
-  return useQuery({ queryKey: ["profile"], queryFn: () => getData<Profile>("/profile"), staleTime: LIVE_DATA_STALE_MS });
+  return useQuery({ queryKey: ["profile"], queryFn: () => getData<Profile>("/profile"), staleTime: LIVE_DATA_STALE_MS, placeholderData: (previousData) => previousData, refetchOnMount: false });
 }
 
 export function useResource<T>(name: string, path: string, params?: Record<string, unknown>) {
-  return useQuery({ queryKey: [name, params], queryFn: () => getData<T>(path, params), staleTime: LIVE_DATA_STALE_MS, placeholderData: (previousData) => previousData });
+  return useQuery({ queryKey: [name, params], queryFn: () => getData<T>(path, params), staleTime: LIVE_DATA_STALE_MS, placeholderData: (previousData) => previousData, refetchOnMount: false });
 }
 
 export function useAction<T>(invalidate: string[]) {

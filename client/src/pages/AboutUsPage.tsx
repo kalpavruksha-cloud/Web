@@ -4,7 +4,6 @@ import kalpavrukshaWealthLogo from "../assets/group-kalpavruksha-wealth.png";
 import kalpavrukshaRealEstateLogo from "../assets/group-kalpavruksha-real-estate.png";
 import kvConstructionsLogo from "../assets/kv-constructions-logo.png";
 import kalpavrukshaDevelopersLogo from "../assets/group-kalpavruksha-developers.png";
-import kalpavrukshaDevelopersAltLogo from "../assets/group-kalpavruksha-developers-alt.png";
 import rudrakshEnterprisesLogo from "../assets/group-rudraksh-enterprises.png";
 import brindavanRestoLogo from "../assets/group-brindavan-resto.png";
 
@@ -35,7 +34,7 @@ const companies = [
     category: "Development",
     description: "Development initiatives built around location intelligence, transparent planning, and lasting asset value.",
     icon: Landmark,
-    logos: [kalpavrukshaDevelopersLogo, kalpavrukshaDevelopersAltLogo]
+    logos: [kalpavrukshaDevelopersLogo]
   },
   {
     name: "Rudraksh Enterprises",
@@ -102,32 +101,6 @@ export function AboutUsPage() {
           </div>
         </div>
       </motion.section>
-
-      <section className="rounded-[24px] border border-gold-300/45 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(255,250,235,0.9))] p-4 shadow-premium backdrop-blur-xl dark:border-gold-100/20 dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(248,237,200,0.88))] sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {companies.map((company, index) => (
-            <motion.div
-              key={`${company.name}-logo-wall`}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05, duration: 0.32 }}
-              className="grid min-h-32 place-items-center rounded-[20px] border border-gold-300/35 bg-white px-4 py-5 shadow-[0_18px_42px_rgba(4,11,29,0.10)]"
-            >
-              <div className="grid w-full gap-3">
-                {company.logos.map((logo, logoIndex) => (
-                  <img
-                    key={`${company.name}-logo-wall-${logoIndex}`}
-                    src={logo}
-                    alt={logoIndex === 0 ? `${company.name} logo` : `${company.name} alternate logo`}
-                    className="mx-auto block max-h-24 w-full max-w-[18rem] object-contain"
-                    loading="eager"
-                  />
-                ))}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
 
       <section className="grid gap-4 md:grid-cols-3">
         {values.map((value, index) => {

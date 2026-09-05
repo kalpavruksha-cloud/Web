@@ -1,13 +1,14 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactElement, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Download, ExternalLink, Eye, FileText, Plus, Printer, RefreshCw, Save } from "lucide-react";
+import { Activity, BarChart3, Download, ExternalLink, Eye, FileText, IndianRupee, PieChart as PieChartIcon, Plus, Printer, RefreshCw, Save, TrendingUp, WalletCards } from "lucide-react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAction, useDashboard, useResource } from "../../../api/queries";
 import { ErrorState } from "../../../components/State";
 import { useToast } from "../../../context/ToastContext";
 import type { ClientDocument, ClientNotification, Investment, PortalSettings, Profile, Referral, SpreadsheetSchema, Transaction, Withdrawal } from "../../../types/domain";
 import { formatCurrency, formatDate } from "../../../utils/format";
 import { AdminCard, AdminLoading, AdminPage, AdminTable, CommandButton, Field, Input, Select, StatusBadge } from "../AdminComponents";
-import { computeAdminMetrics, exportCsv, isStatus, recentActivity, title } from "../adminUtils";
+import { computeAdminMetrics, distribution, exportCsv, isStatus, monthlySeries, recentActivity, title } from "../adminUtils";
 
 export function AdminClients() {
   const { data, isLoading, error } = useResource<Profile[]>("admin-clients", "/clients");
@@ -308,17 +309,119 @@ export function AdminNotifications() {
 }
 
 export function AdminReports() {
-  const reports = useResource<Record<string, unknown>>("admin-reports", "/reports");
-  if (reports.isLoading) return <AdminLoading label="Loading reports" />;
-  if (reports.error) return <ErrorState title="Reports unavailable" message={reports.error instanceof Error ? reports.error.message : undefined} />;
-  const entries = Object.entries(reports.data ?? {});
-  return <AdminPage title="Reports and Analytics" actions={<CommandButton tone="secondary" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print</CommandButton>}>
-    <div className="grid gap-5 lg:grid-cols-2">
-      {["investmentSummary", "transactionStatement", "withdrawalReport", "referralReport", "portfolioReport", "kycReport", "monthlyReturnReport"].map((key) => {
-        const value = entries.find(([name]) => name === key)?.[1];
-        const rows = Array.isArray(value) ? value : value ? [value] : [];
-        return <AdminCard key={key}><SectionTitle title={title(key.replace(/([A-Z])/g, " $1"))} /><div className="mb-3"><CommandButton tone="secondary" onClick={() => exportCsv(`${key}.csv`, rows as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> Export CSV</CommandButton></div><pre className="max-h-72 overflow-auto rounded-lg bg-forest-50 p-3 text-xs dark:bg-black/20">{JSON.stringify(value ?? "Not available from spreadsheet", null, 2)}</pre></AdminCard>;
-      })}
+  const dashboard = useDashboard();
+  const clients = useResource<Profile[]>("admin-clients", "/clients");
+  const investments = useResource<Investment[]>("admin-investments", "/investments");
+  const transactions = useResource<Transaction[]>("admin-transactions", "/transactions");
+  const withdrawals = useResource<Withdrawal[]>("admin-withdrawals", "/withdrawals");
+  const documents = useResource<ClientDocument[]>("admin-documents", "/documents");
+  const referrals = useResource<Referral[]>("admin-referrals", "/referrals");
+  const notifications = useResource<ClientNotification[]>("admin-notifications", "/notifications");
+  const queries = [dashboard, clients, investments, transactions, withdrawals, documents, referrals, notifications];
+  const hardLoading = queries.some((query) => query.isLoading && !query.data);
+  const error = queries.find((query) => query.error && !query.data)?.error;
+
+  if (hardLoading) return <AdminLoading label="Preparing live analytics" />;
+  if (error) return <ErrorState title="Reports unavailable" message={error instanceof Error ? error.message : undefined} />;
+
+  const data = {
+    dashboard: dashboard.data,
+    clients: clients.data ?? [],
+    investments: investments.data ?? [],
+    transactions: transactions.data ?? [],
+    withdrawals: withdrawals.data ?? [],
+    documents: documents.data ?? [],
+    referrals: referrals.data ?? [],
+    notifications: notifications.data ?? []
+  };
+  const metrics = computeAdminMetrics(data);
+  const investmentByMonth = monthlySeries(data.investments, (row) => row.startDate, (row) => row.principalAmount);
+  const portfolioByCategory = distribution(data.investments, (row) => row.category || row.plan, (row) => row.currentValue || row.principalAmount).filter((row) => row.value > 0);
+  const monthlyReturns = monthlySeries(data.investments, (row) => row.startDate || row.maturityDate, (row) => row.monthlyReturn ?? 0);
+  const withdrawalByStatus = distribution(data.withdrawals, (row) => row.status, (row) => row.amount || 1).filter((row) => row.value > 0);
+  const transactionFlow = monthlySeries(data.transactions, (row) => row.date, (row) => row.credit - row.debit);
+  const recentTransactions = [...data.transactions].sort((a, b) => sortableDateValue(b.date) - sortableDateValue(a.date)).slice(0, 8);
+  const recentWithdrawals = [...data.withdrawals].sort((a, b) => sortableDateValue(b.requestDate) - sortableDateValue(a.requestDate)).slice(0, 8);
+  const investmentRows = data.investments.map((row) => ({
+    investmentId: row.id,
+    clientId: row.clientId,
+    plan: row.plan,
+    category: row.category,
+    principalAmount: row.principalAmount,
+    currentValue: row.currentValue || row.principalAmount,
+    monthlyReturn: row.monthlyReturn || 0,
+    status: row.status
+  }));
+  const withdrawalRows = data.withdrawals.map((row) => ({
+    requestId: row.id,
+    clientId: row.clientId,
+    amount: row.amount,
+    status: row.status,
+    requestDate: row.requestDate,
+    paymentReference: row.paymentReference
+  }));
+  const portfolioRows = portfolioByCategory.map((row) => ({ category: row.name, value: row.value }));
+  const monthlyReturnRows = monthlyReturns.map((row) => ({ month: row.month, monthlyReturn: row.value }));
+
+  return <AdminPage title="Reports and Analytics" eyebrow="Visual reports generated from live spreadsheet records" actions={<CommandButton tone="secondary" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print</CommandButton>}>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <ReportMetricCard label="Investment Summary" value={formatCurrency(metrics.totalInvestment)} hint={`${data.investments.length} investment records`} icon={<IndianRupee className="h-5 w-5" />} />
+      <ReportMetricCard label="Withdrawal Report" value={formatCurrency(data.withdrawals.reduce((total, row) => total + row.amount, 0))} hint={`${metrics.pendingWithdrawals} pending approvals`} icon={<WalletCards className="h-5 w-5" />} />
+      <ReportMetricCard label="Portfolio Report" value={formatCurrency(metrics.portfolioValue)} hint={`${metrics.activeInvestments} active investments`} icon={<PieChartIcon className="h-5 w-5" />} />
+      <ReportMetricCard label="Monthly Return Report" value={formatCurrency(metrics.monthlyPayout)} hint="Expected monthly payout" icon={<TrendingUp className="h-5 w-5" />} />
+    </div>
+
+    <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <ReportPanel title="Investment Summary" subtitle="Month-wise principal deployed from the Investment sheet" action={<CommandButton tone="secondary" onClick={() => exportCsv("investment-summary.csv", investmentRows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> Export</CommandButton>}>
+        {investmentByMonth.length ? <ReportChartBox><BarChart data={investmentByMonth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatCompactRupeeAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Bar dataKey="value" fill="#14583f" radius={[9, 9, 0, 0]} /></BarChart></ReportChartBox> : <ReportEmpty label="No investment dates returned by spreadsheet." />}
+      </ReportPanel>
+      <ReportPanel title="Portfolio Report" subtitle="Current portfolio value grouped by category or plan" action={<CommandButton tone="secondary" onClick={() => exportCsv("portfolio-report.csv", portfolioRows)}><Download className="h-4 w-4" /> Export</CommandButton>}>
+        {portfolioByCategory.length ? <ReportChartBox><PieChart><Pie data={portfolioByCategory} dataKey="value" nameKey="name" innerRadius={58} outerRadius={102} paddingAngle={4}>{portfolioByCategory.map((_, index) => <Cell key={index} fill={reportChartColors[index % reportChartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatCurrency(Number(value))} /></PieChart></ReportChartBox> : <ReportEmpty label="No portfolio category data returned by spreadsheet." />}
+      </ReportPanel>
+    </div>
+
+    <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <ReportPanel title="Withdrawal Report" subtitle="Approved, pending, rejected, and paid withdrawal movement" action={<CommandButton tone="secondary" onClick={() => exportCsv("withdrawal-report.csv", withdrawalRows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> Export</CommandButton>}>
+        {withdrawalByStatus.length ? <ReportChartBox small><PieChart><Pie data={withdrawalByStatus} dataKey="value" nameKey="name" outerRadius={82} paddingAngle={4}>{withdrawalByStatus.map((_, index) => <Cell key={index} fill={reportChartColors[index % reportChartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatCurrency(Number(value))} /></PieChart></ReportChartBox> : <ReportEmpty label="No withdrawal records returned by spreadsheet." />}
+      </ReportPanel>
+      <ReportPanel title="Monthly Return Report" subtitle="Monthly returns grouped by available investment dates" action={<CommandButton tone="secondary" onClick={() => exportCsv("monthly-return-report.csv", monthlyReturnRows)}><Download className="h-4 w-4" /> Export</CommandButton>}>
+        {monthlyReturns.length ? <ReportChartBox small><AreaChart data={monthlyReturns}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatCompactRupeeAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#d7ab3d" fill="#d7ab3d33" strokeWidth={3} /></AreaChart></ReportChartBox> : <ReportEmpty label="No monthly return values returned by spreadsheet." />}
+      </ReportPanel>
+    </div>
+
+    <div className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+      <ReportPanel title="Transaction Flow" subtitle="Credit minus debit by month across transaction records">
+        {transactionFlow.length ? <ReportChartBox small><AreaChart data={transactionFlow}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatCompactRupeeAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#153bb7" fill="#153bb733" strokeWidth={3} /></AreaChart></ReportChartBox> : <ReportEmpty label="No dated transaction flow returned by spreadsheet." />}
+      </ReportPanel>
+      <ReportPanel title="Report Health" subtitle="Records available for admin analysis">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <MiniStat label="Clients" value={data.clients.length} />
+          <MiniStat label="Investments" value={data.investments.length} />
+          <MiniStat label="Transactions" value={data.transactions.length} />
+          <MiniStat label="Withdrawals" value={data.withdrawals.length} />
+        </div>
+      </ReportPanel>
+    </div>
+
+    <div className="mt-6 grid gap-6 xl:grid-cols-2">
+      <ReportPanel title="Recent Transactions" subtitle="Newest ledger entries used in reports">
+        <AdminTable rows={recentTransactions} pageSize={4} columns={[
+          { key: "id", header: "Tx ID", render: (row) => row.id },
+          { key: "date", header: "Date", render: (row) => formatDate(row.date) },
+          { key: "client", header: "Client", render: (row) => row.clientId },
+          { key: "type", header: "Type", render: (row) => title(row.type) },
+          { key: "amount", header: "Net", render: (row) => formatCurrency(row.credit - row.debit) }
+        ]} />
+      </ReportPanel>
+      <ReportPanel title="Recent Withdrawals" subtitle="Latest withdrawal workflow records">
+        <AdminTable rows={recentWithdrawals} pageSize={4} columns={[
+          { key: "id", header: "Request", render: (row) => row.id },
+          { key: "date", header: "Date", render: (row) => formatDate(row.requestDate) },
+          { key: "client", header: "Client", render: (row) => row.clientId },
+          { key: "amount", header: "Amount", render: (row) => formatCurrency(row.amount) },
+          { key: "status", header: "Status", render: (row) => <StatusBadge value={row.status} /> }
+        ]} />
+      </ReportPanel>
     </div>
   </AdminPage>;
 }
@@ -394,6 +497,68 @@ export function AdminDashboardAlias() {
   return <AdminPage title="Admin Summary"><AdminCard><pre>{JSON.stringify(metrics, null, 2)}</pre></AdminCard></AdminPage>;
 }
 
+const reportChartColors = ["#08152f", "#14583f", "#1e7b54", "#d7ab3d", "#153bb7", "#a97a16"];
+
+function ReportMetricCard({ label, value, hint, icon }: { label: string; value: string; hint: string; icon: ReactNode }) {
+  return <AdminCard className="relative overflow-hidden">
+    <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-[42px] bg-gold-100/24" />
+    <div className="relative flex items-start justify-between gap-4">
+      <div>
+        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-gold-700 dark:text-gold-100">{label}</p>
+        <p className="mt-3 font-display text-2xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{value}</p>
+        <p className="mt-1 text-sm font-semibold text-charcoal/58 dark:text-white/58">{hint}</p>
+      </div>
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-[linear-gradient(135deg,#040b1d,#14583f)] text-gold-100 shadow-glow">{icon}</span>
+    </div>
+  </AdminCard>;
+}
+
+function ReportPanel({ title: panelTitle, subtitle, action, children }: { title: string; subtitle: string; action?: ReactNode; children: ReactNode }) {
+  return <AdminCard className="overflow-hidden">
+    <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+      <div>
+        <p className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.2em] text-gold-700 dark:text-gold-100"><Activity className="h-4 w-4" /> Live report</p>
+        <h2 className="mt-2 font-display text-xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{panelTitle}</h2>
+        <p className="mt-1 text-sm leading-6 text-charcoal/60 dark:text-white/60">{subtitle}</p>
+      </div>
+      {action}
+    </div>
+    {children}
+  </AdminCard>;
+}
+
+function ReportChartBox({ children, small = false }: { children: ReactElement; small?: boolean }) {
+  return <div className={small ? "h-56 sm:h-64" : "h-72 sm:h-80"}><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>;
+}
+
+function ReportEmpty({ label }: { label: string }) {
+  return <div className="grid min-h-56 place-items-center rounded-[22px] border border-dashed border-gold-300/60 bg-gold-100/16 p-6 text-center">
+    <div>
+      <BarChart3 className="mx-auto h-9 w-9 text-gold-700 dark:text-gold-100" />
+      <p className="mt-3 text-sm font-bold text-charcoal/64 dark:text-white/64">{label}</p>
+    </div>
+  </div>;
+}
+
+function MiniStat({ label, value }: { label: string; value: number }) {
+  return <div className="rounded-[18px] border border-forest-100/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.88),rgba(246,249,245,0.78))] p-4 shadow-sm dark:border-white/10 dark:bg-white/7">
+    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-gold-700 dark:text-gold-100">{label}</p>
+    <p className="mt-2 font-display text-2xl font-extrabold text-navy-900 dark:text-ivory">{value}</p>
+  </div>;
+}
+
+function formatCompactRupeeAxis(value: unknown) {
+  const amount = Number(value || 0);
+  if (Math.abs(amount) >= 100000) return `₹${(amount / 100000).toFixed(amount % 100000 === 0 ? 0 : 1)}L`;
+  if (Math.abs(amount) >= 1000) return `₹${(amount / 1000).toFixed(amount % 1000 === 0 ? 0 : 1)}K`;
+  return `₹${amount}`;
+}
+
+function sortableDateValue(value?: string) {
+  if (!value) return 0;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
 function SectionTitle({ title }: { title: string }) {
   return <h2 className="mb-4 font-display text-lg font-extrabold text-forest-950 dark:text-ivory">{title}</h2>;
 }

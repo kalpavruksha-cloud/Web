@@ -66,10 +66,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_8%_0%,rgba(215,171,61,0.16),transparent_28rem),radial-gradient(circle_at_88%_6%,rgba(37,99,235,0.12),transparent_30rem),linear-gradient(135deg,#fbfaf4_0%,#f5f8fb_46%,#eef7f0_100%)] text-charcoal dark:bg-[linear-gradient(135deg,#040b1d_0%,#071733_48%,#0b201a_100%)] dark:text-white">
-      <aside className={cn("no-print fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#ffffff,#f7f9ff_48%,#eef7f0)] px-3 pb-4 pt-2 shadow-[24px_0_70px_rgba(4,11,29,0.12)] backdrop-blur-xl transition-[width,transform] duration-300 ease-out dark:bg-[linear-gradient(180deg,#040b1d,#08152f_46%,#0b2f25)]", !standaloneApp && "lg:flex", collapsed ? "w-24" : "w-72")}>
+      <aside className={cn("no-print fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#040b1d,#08152f_45%,#0b2f25)] px-3 pb-4 pt-2 text-white shadow-[24px_0_70px_rgba(4,11,29,0.28)] transition-[width,transform] duration-300 ease-out", !standaloneApp && "lg:flex", collapsed ? "w-24" : "w-72")}>
         <div className="flex items-center justify-between gap-3">
           <Logo compact={collapsed} variant="portal" />
-          <button aria-label="Collapse admin sidebar" onClick={() => setCollapsed((value) => !value)} className="rounded-2xl border border-navy-100/70 bg-white/82 p-2 text-navy-900 shadow-sm hover:border-gold-400/60 dark:border-white/10 dark:bg-white/8 dark:text-gold-100">
+          <button aria-label="Collapse admin sidebar" onClick={() => setCollapsed((value) => !value)} className="rounded-2xl border border-white/10 bg-white/10 p-2 text-gold-100 shadow-sm hover:bg-white/15">
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
         </div>
@@ -79,10 +79,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {mobileOpen && <button aria-label="Close admin menu" className={cn("fixed inset-0 z-40 bg-black/35", !standaloneApp && "lg:hidden")} onClick={() => setMobileOpen(false)} />}
-      <aside className={cn("no-print fixed inset-y-0 left-0 z-50 flex w-[19rem] max-w-[88vw] flex-col overflow-hidden border-r border-forest-100 bg-white px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(0.5rem+env(safe-area-inset-top))] shadow-2xl transition-transform duration-300 ease-out dark:border-white/10 dark:bg-charcoal", !standaloneApp && "lg:hidden", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
+      <aside className={cn("no-print fixed inset-y-0 left-0 z-50 flex w-[19rem] max-w-[88vw] flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#040b1d,#08152f_45%,#0b2f25)] px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(0.5rem+env(safe-area-inset-top))] text-white shadow-2xl transition-transform duration-300 ease-out", !standaloneApp && "lg:hidden", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1"><Logo variant="portal" mobile /></div>
-          <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="mt-1 shrink-0 rounded-xl border border-forest-100 bg-white/85 p-2 text-navy-900 shadow-sm dark:border-white/10 dark:bg-white/8 dark:text-white"><ChevronLeft className="h-5 w-5" /></button>
+          <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="mt-1 shrink-0 rounded-xl border border-white/10 bg-white/10 p-2 text-gold-100 shadow-sm hover:bg-white/15"><ChevronLeft className="h-5 w-5" /></button>
         </div>
         <nav className="mt-2 grid min-h-0 flex-1 gap-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(215,171,61,0.55)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gold-300/55">
           {navItems.map((item) => <AdminNavItem key={item.to} item={item} onClick={() => setMobileOpen(false)} />)}
@@ -266,8 +266,8 @@ function AdminNavItem({ item, collapsed, onClick }: { item: typeof navItems[numb
       onClick={onClick}
       title={collapsed ? item.label : undefined}
       className={cn(
-        "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold text-charcoal/68 transition hover:bg-navy-50 hover:text-navy-900 dark:text-white/68 dark:hover:bg-white/10 dark:hover:text-white",
-        active && "bg-[linear-gradient(135deg,#08152f,#153bb7)] text-white shadow-[0_12px_28px_rgba(21,59,183,0.22)] hover:text-white dark:bg-gold-100 dark:text-forest-950",
+        "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold text-white/70 transition hover:bg-white/10 hover:text-white",
+        active && "bg-white text-navy-900 shadow-[0_12px_28px_rgba(215,171,61,0.16)] hover:bg-white hover:text-navy-900",
         collapsed && "justify-center"
       )}
     >
@@ -281,5 +281,3 @@ function AdminNavItem({ item, collapsed, onClick }: { item: typeof navItems[numb
 export function AdminLoading({ label = "Loading live admin records" }: { label?: string }) {
   return <main className="grid min-h-[60vh] place-items-center"><LoadingState label={label} /></main>;
 }
-
-
