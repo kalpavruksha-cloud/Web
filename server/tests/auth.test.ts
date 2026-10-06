@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 
 beforeAll(() => {
@@ -6,6 +6,11 @@ beforeAll(() => {
   process.env.APPS_SCRIPT_URL = "https://script.google.com/macros/s/test/exec";
   process.env.SPREADSHEET_ID = "spreadsheet_test_id_12345";
   process.env.JWT_SECRET = "test_secret_that_is_long_enough_for_jwt_testing";
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("auth and role protection", () => {
@@ -29,5 +34,18 @@ describe("auth and role protection", () => {
     const response = await request(createApp()).get("/api/system/health");
     expect(response.status).toBe(503);
     expect(response.body.data.appsScriptConnectivity).toBe("reachable");
+  });
+
+  it("returns a gateway timeout rather than invalid credentials when login times out", async () => {
+    const { appsScriptService } = await import("../src/services/appsScriptService.js");
+    vi.spyOn(appsScriptService, "login").mockResolvedValue({
+      success: false, message: "Spreadsheet request timed out", data: null,
+      error: { code: "APPS_SCRIPT_TIMEOUT", details: "The spreadsheet service took too long to respond." },
+      meta: { timestamp: new Date().toISOString(), requestId: "timeout-test" }
+    });
+    const { createApp } = await import("../src/app.js");
+    const response = await request(createApp()).post("/api/auth/login").send({ identifier: "test", password: "test-password" });
+    expect(response.status).toBe(504);
+    expect(response.body.error.code).toBe("APPS_SCRIPT_TIMEOUT");
   });
 });

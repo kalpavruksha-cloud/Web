@@ -27,18 +27,28 @@ export class AppsScriptService {
     const method = options.method ?? "POST";
     const attempts = method === "GET" && options.retryRead ? 2 : 1;
     let lastError: unknown;
+    const controller = new AbortController();
+    // Read retries share one deadline instead of multiplying the browser's wait.
+    const timeout = setTimeout(() => controller.abort(), env.APPS_SCRIPT_TIMEOUT_MS);
 
-    for (let attempt = 1; attempt <= attempts; attempt += 1) {
-      try {
-        return await this.performCall<T>(action, method, options);
-      } catch (error) {
-        lastError = error;
-        logger.warn({ err: error, action, requestId: options.requestId, attempt }, "Apps Script call failed");
+    try {
+      for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+          return await this.performCall<T>(action, method, options, controller.signal);
+        } catch (error) {
+          lastError = error;
+          logger.warn({ err: error, action, requestId: options.requestId, attempt }, "Apps Script call failed");
+          if (controller.signal.aborted) {
+            return fail("APPS_SCRIPT_TIMEOUT", "The spreadsheet service took too long to respond. Check the latest status before trying again.", "Spreadsheet request timed out", options.requestId) as APIResponse<T>;
+          }
+        }
       }
-    }
 
-    const details = lastError instanceof Error ? lastError.message : "Unable to reach Apps Script";
-    return fail("APPS_SCRIPT_UNAVAILABLE", details, "Apps Script unavailable", options.requestId) as APIResponse<T>;
+      const details = lastError instanceof Error ? lastError.message : "Unable to reach Apps Script";
+      return fail("APPS_SCRIPT_UNAVAILABLE", details, "Apps Script unavailable", options.requestId) as APIResponse<T>;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async health(requestId: string) {
@@ -84,36 +94,29 @@ export class AppsScriptService {
     return this.call<T>(action, { requestId, method, body: payload, retryRead });
   }
 
-  private async performCall<T>(action: string, method: "GET" | "POST", options: CallOptions): Promise<APIResponse<T>> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), env.APPS_SCRIPT_TIMEOUT_MS);
+  private async performCall<T>(action: string, method: "GET" | "POST", options: CallOptions, signal: AbortSignal): Promise<APIResponse<T>> {
+    let { response, parsed } = await this.fetchAndParse<T>(action, method, options, signal, "params");
 
-    try {
-      let { response, parsed } = await this.fetchAndParse<T>(action, method, options, controller.signal, "params");
-
-      if (isInvalidHtml(parsed) && method === "GET") {
-        logger.warn({ action, requestId: options.requestId, firstError: parsed.error }, "Apps Script returned HTML; retrying with payload query transport");
-        ({ response, parsed } = await this.fetchAndParse<T>(action, method, options, controller.signal, "payload"));
-      }
-
-      if (!response.ok) {
-        return fail("APPS_SCRIPT_HTTP_ERROR", `Apps Script returned HTTP ${response.status}`, "Operation failed", options.requestId) as APIResponse<T>;
-      }
-
-      if (typeof parsed.success === "boolean") {
-        return {
-          success: parsed.success,
-          message: parsed.message ?? (parsed.success ? "Operation completed" : "Operation failed"),
-          data: parsed.data ?? null,
-          error: normalizeUpstreamError(parsed.error),
-          meta: parsed.meta ?? { timestamp: new Date().toISOString(), requestId: options.requestId }
-        };
-      }
-
-      return fail("INVALID_APPS_SCRIPT_RESPONSE", "Apps Script returned JSON without a success flag", "Operation failed", options.requestId) as APIResponse<T>;
-    } finally {
-      clearTimeout(timeout);
+    if (isInvalidHtml(parsed) && method === "GET") {
+      logger.warn({ action, requestId: options.requestId, firstError: parsed.error }, "Apps Script returned HTML; retrying with payload query transport");
+      ({ response, parsed } = await this.fetchAndParse<T>(action, method, options, signal, "payload"));
     }
+
+    if (!response.ok) {
+      return fail("APPS_SCRIPT_HTTP_ERROR", `Apps Script returned HTTP ${response.status}`, "Operation failed", options.requestId) as APIResponse<T>;
+    }
+
+    if (typeof parsed.success === "boolean") {
+      return {
+        success: parsed.success,
+        message: parsed.message ?? (parsed.success ? "Operation completed" : "Operation failed"),
+        data: parsed.data ?? null,
+        error: normalizeUpstreamError(parsed.error),
+        meta: parsed.meta ?? { timestamp: new Date().toISOString(), requestId: options.requestId }
+      };
+    }
+
+    return fail("INVALID_APPS_SCRIPT_RESPONSE", "Apps Script returned JSON without a success flag", "Operation failed", options.requestId) as APIResponse<T>;
   }
 
   private async fetchAndParse<T>(

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v10-disable-native-overscroll-refresh";
+const CACHE_VERSION = "kalpavruksha-pwa-v11-request-timeout-budget";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 

@@ -3,10 +3,11 @@ import type { ApiResponse } from "../types/domain";
 
 const baseURL = resolveBaseURL();
 
+// Leave room for the backend's bounded spreadsheet request and network overhead.
 export const api = axios.create({
   baseURL,
   withCredentials: true,
-  timeout: 15000,
+  timeout: 75000,
   headers: { "Content-Type": "application/json" }
 });
 
@@ -14,7 +15,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const payload = error.response?.data as ApiResponse<unknown> | undefined;
-    const message = payload?.error?.details || payload?.message || error.message || "Unable to reach the portal API";
+    const timedOut = axios.isAxiosError(error) && ["ECONNABORTED", "ETIMEDOUT"].includes(error.code ?? "");
+    const timeoutMessage = error.config?.method === "get"
+      ? "The portal is taking longer than expected to respond. Please try again shortly."
+      : "The request took too long to respond. Check the latest status before submitting it again.";
+    const message = payload?.error?.details || payload?.message || (timedOut ? timeoutMessage : error.message) || "Unable to reach the portal API";
     return Promise.reject(new Error(message));
   }
 );

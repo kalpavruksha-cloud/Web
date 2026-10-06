@@ -49,6 +49,12 @@ Vercel project settings:
 
 The root `vercel.json` contains these settings and React SPA rewrites.
 
+The browser waits up to 75 seconds. Vercel allows the API function to run for 60
+seconds; the Apps Script request is capped at 55 seconds so timeout errors can
+return as JSON before Vercel terminates the function. The separate Express server
+uses a 60-second total budget, including safe read retries. Writes are never
+automatically retried on timeout. These are maximum limits, not loading delays.
+
 Set these Vercel environment variables:
 
 ```env
@@ -59,7 +65,7 @@ SPREADSHEET_ID=19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI
 JWT_SECRET=generate_a_new_secure_32_plus_character_secret
 JWT_EXPIRES_IN=8h
 CORS_ALLOWED_ORIGINS=https://your-vercel-domain.vercel.app
-APPS_SCRIPT_TIMEOUT_MS=15000
+APPS_SCRIPT_TIMEOUT_MS=60000
 LOG_LEVEL=info
 SUPPORT_EMAIL=support@kalpavrukshawealth.com
 SUPPORT_PHONE=+91 00000 00000

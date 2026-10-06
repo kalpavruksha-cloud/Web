@@ -288,7 +288,7 @@ export function ClientDocumentsPage() {
   async function downloadDocument(row: ClientDocument) {
     setDownloadingId(row.id);
     try {
-      const response = await api.get(`/client/documents/${encodeURIComponent(row.id)}/download`, { timeout: 60000 });
+      const response = await api.get(`/client/documents/${encodeURIComponent(row.id)}/download`);
       const payload = response.data as { success: boolean; message?: string; data?: { fileName?: string; mimeType?: string; base64Data?: string }; error?: { details?: string } };
       if (!payload.success || !payload.data?.base64Data) throw new Error(payload.error?.details || payload.message || "Document download failed");
       downloadBase64File(payload.data.fileName || row.fileName || row.name || "kalpavruksha-document", payload.data.mimeType || row.mimeType || "application/octet-stream", payload.data.base64Data);

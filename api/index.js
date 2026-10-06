@@ -2,7 +2,7 @@ const { randomUUID } = require("node:crypto");
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec";
 const DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-const DEPLOYMENT_MARKER = "vercel-native-api-2026-08-30-password-profile-chart-v4";
+const DEPLOYMENT_MARKER = "vercel-native-api-2026-10-06-timeout-budget-v5";
 
 let jwtModulePromise;
 
@@ -308,6 +308,9 @@ async function callAppsScript(env, action, body, requestId, method = "POST") {
       return fail("INVALID_APPS_SCRIPT_RESPONSE", `Apps Script did not return valid JSON. HTTP ${response.status}; body: ${stripTags(text).slice(0, 800)}`, "Operation failed", requestId);
     }
   } catch (error) {
+    if (init.signal.aborted) {
+      return fail("APPS_SCRIPT_TIMEOUT", "The spreadsheet service took too long to respond. Check the latest status before trying again.", "Spreadsheet request timed out", requestId);
+    }
     return fail("APPS_SCRIPT_UNAVAILABLE", error instanceof Error ? error.message : "Unable to reach Apps Script", "Apps Script unavailable", requestId);
   }
 }
@@ -373,9 +376,10 @@ function getEnv() {
 }
 
 function resolveTimeoutMs() {
-  const configured = Number(process.env.APPS_SCRIPT_TIMEOUT_MS || 28000);
-  if (!Number.isFinite(configured) || configured <= 0) return 28000;
-  return Math.min(Math.max(configured, 25000), 29000);
+  const configured = Number(process.env.APPS_SCRIPT_TIMEOUT_MS || 55000);
+  if (!Number.isFinite(configured) || configured <= 0) return 55000;
+  // Return a JSON error before the 60-second Vercel function limit.
+  return Math.min(Math.max(configured, 25000), 55000);
 }
 function environmentDiagnostics() {
   const names = ["JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET", "VERCEL_JWT_SECRET"];
@@ -467,7 +471,7 @@ function isActiveAccountStatus(value) {
   return ["active", "enabled", "approved"].includes(normalizeStatusValue(value));
 }
 function send(res, status, body) {
-  res.statusCode = status;
+  res.statusCode = body.error?.code === "APPS_SCRIPT_TIMEOUT" ? 504 : status;
   res.setHeader("content-type", "application/json; charset=utf-8");
   res.end(JSON.stringify(body));
 }
