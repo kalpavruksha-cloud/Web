@@ -2,7 +2,7 @@ const { randomUUID } = require("node:crypto");
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec";
 const DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-const DEPLOYMENT_MARKER = "vercel-native-api-2026-10-06-google-response-recovery-v6";
+const DEPLOYMENT_MARKER = "vercel-native-api-2026-10-06-google-response-recovery-v7";
 
 let jwtModulePromise;
 
@@ -395,7 +395,7 @@ function resolveTimeoutMs() {
   const configured = Number(process.env.APPS_SCRIPT_TIMEOUT_MS || 55000);
   if (!Number.isFinite(configured) || configured <= 0) return 55000;
   // Return a JSON error before the 60-second Vercel function limit.
-  return Math.min(Math.max(configured, 25000), 55000);
+  return Math.min(Math.max(configured, 45000), 55000);
 }
 function environmentDiagnostics() {
   const names = ["JWT_SECRET", "PORTAL_JWT_SECRET", "KALPAVRUKSHA_JWT_SECRET", "AUTH_SECRET", "VERCEL_JWT_SECRET"];

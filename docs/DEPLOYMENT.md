@@ -51,7 +51,8 @@ The root `vercel.json` contains these settings and React SPA rewrites.
 
 The browser waits up to 75 seconds. Vercel allows the API function to run for 60
 seconds; the Apps Script request is capped at 55 seconds so timeout errors can
-return as JSON before Vercel terminates the function. The separate Express server
+return as JSON before Vercel terminates the function. Legacy shorter Vercel
+timeout settings are raised to 45 seconds to allow response recovery. The separate Express server
 uses a 60-second total budget, including safe read retries. Writes are never
 automatically retried on timeout. These are maximum limits, not loading delays.
 

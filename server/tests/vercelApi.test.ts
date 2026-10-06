@@ -40,6 +40,14 @@ describe("Vercel API timeout budget", () => {
     expect(timeout).toHaveBeenCalledWith(55000);
   });
 
+  it("raises a legacy short timeout to leave room for Google response recovery", async () => {
+    vi.stubEnv("APPS_SCRIPT_TIMEOUT_MS", "1500");
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ success: true, data: {} }))));
+    await request(createServer(handler)).get("/api/system/health");
+    expect(timeout).toHaveBeenCalledWith(45000);
+  });
+
   it("returns a JSON 504 for login timeouts without retrying credentials", async () => {
     const controller = new AbortController();
     vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
