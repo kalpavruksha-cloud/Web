@@ -67,4 +67,38 @@ describe("Apps Script request deadline", () => {
     expect(result.error?.code).toBe("APPS_SCRIPT_UNAVAILABLE");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("recovers login from a transient 404 without placing credentials in the URL", async () => {
+    const { appsScriptService } = await import("../src/services/appsScriptService.js");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("<html>Page Not Found</html>", { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { user: { role: "client" } } })));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await appsScriptService.login("test-user", "test-password", "login-recovery");
+    expect(result.success).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(new URL(String(url)).searchParams.has("password")).toBe(false);
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body).password).toBe("test-password");
+  });
+
+  it("does not expose a persistent Google HTML error", async () => {
+    const { appsScriptService } = await import("../src/services/appsScriptService.js");
+    const fetchMock = vi.fn(async () => new Response("<html>window['ppConfig'] = {}; Page Not Found</html>", { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await appsScriptService.login("test-user", "test-password", "persistent-error");
+    expect(result.error?.code).toBe("APPS_SCRIPT_DEPLOYMENT_UNAVAILABLE");
+    expect(JSON.stringify(result)).not.toMatch(/ppConfig|<html>/);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a legacy mutation transported through GET", async () => {
+    const { appsScriptService } = await import("../src/services/appsScriptService.js");
+    const fetchMock = vi.fn(async () => new Response("<html>Error</html>", { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await appsScriptService.call("updateProfile", { requestId: "legacy-write", method: "GET", retryRead: true });
+    expect(result.success).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

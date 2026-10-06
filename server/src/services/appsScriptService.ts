@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 import type { APIResponse, DashboardSummary, PortalSettings, SpreadsheetSchema, User } from "../types/domain.js";
@@ -14,7 +15,6 @@ type CallOptions = {
 type UpstreamDiagnostics = {
   status: number;
   contentType: string;
-  bodyPreview: string;
 };
 
 type ParsedCall<T> = {
@@ -25,8 +25,8 @@ type ParsedCall<T> = {
 export class AppsScriptService {
   async call<T>(action: string, options: CallOptions): Promise<APIResponse<T>> {
     const method = options.method ?? "POST";
-    const attempts = method === "GET" && options.retryRead ? 2 : 1;
-    let lastError: unknown;
+    const canRetry = isRetryableAppsScriptAction(action) && (options.retryRead || action === "login" || action === "health");
+    const attempts = canRetry ? 2 : 1;
     const controller = new AbortController();
     // Read retries share one deadline instead of multiplying the browser's wait.
     const timeout = setTimeout(() => controller.abort(), env.APPS_SCRIPT_TIMEOUT_MS);
@@ -34,9 +34,12 @@ export class AppsScriptService {
     try {
       for (let attempt = 1; attempt <= attempts; attempt += 1) {
         try {
-          return await this.performCall<T>(action, method, options, controller.signal);
+          const transport = method === "GET" && attempt > 1 ? "payload" : "params";
+          const result = await this.performCall<T>(action, method, options, controller.signal, transport);
+          const retryable = ["APPS_SCRIPT_DEPLOYMENT_UNAVAILABLE", "APPS_SCRIPT_HTTP_ERROR", "INVALID_APPS_SCRIPT_RESPONSE"].includes(result.error?.code ?? "");
+          if (attempt < attempts && retryable) continue;
+          return result;
         } catch (error) {
-          lastError = error;
           logger.warn({ err: error, action, requestId: options.requestId, attempt }, "Apps Script call failed");
           if (controller.signal.aborted) {
             return fail("APPS_SCRIPT_TIMEOUT", "The spreadsheet service took too long to respond. Check the latest status before trying again.", "Spreadsheet request timed out", options.requestId) as APIResponse<T>;
@@ -44,8 +47,7 @@ export class AppsScriptService {
         }
       }
 
-      const details = lastError instanceof Error ? lastError.message : "Unable to reach Apps Script";
-      return fail("APPS_SCRIPT_UNAVAILABLE", details, "Apps Script unavailable", options.requestId) as APIResponse<T>;
+      return fail("APPS_SCRIPT_UNAVAILABLE", "Unable to reach the spreadsheet service. Please try again shortly.", "Apps Script unavailable", options.requestId) as APIResponse<T>;
     } finally {
       clearTimeout(timeout);
     }
@@ -77,7 +79,7 @@ export class AppsScriptService {
   login(identifier: string, password: string, requestId: string, expectedRole?: "client" | "admin") {
     return this.call<{ user: User }>("login", {
       requestId,
-      method: "GET",
+      method: "POST",
       body: { identifier, password, expectedRole }
     });
   }
@@ -94,19 +96,10 @@ export class AppsScriptService {
     return this.call<T>(action, { requestId, method, body: payload, retryRead });
   }
 
-  private async performCall<T>(action: string, method: "GET" | "POST", options: CallOptions, signal: AbortSignal): Promise<APIResponse<T>> {
-    let { response, parsed } = await this.fetchAndParse<T>(action, method, options, signal, "params");
+  private async performCall<T>(action: string, method: "GET" | "POST", options: CallOptions, signal: AbortSignal, transport: "params" | "payload"): Promise<APIResponse<T>> {
+    const { parsed } = await this.fetchAndParse<T>(action, method, options, signal, transport);
 
-    if (isInvalidHtml(parsed) && method === "GET") {
-      logger.warn({ action, requestId: options.requestId, firstError: parsed.error }, "Apps Script returned HTML; retrying with payload query transport");
-      ({ response, parsed } = await this.fetchAndParse<T>(action, method, options, signal, "payload"));
-    }
-
-    if (!response.ok) {
-      return fail("APPS_SCRIPT_HTTP_ERROR", `Apps Script returned HTTP ${response.status}`, "Operation failed", options.requestId) as APIResponse<T>;
-    }
-
-    if (typeof parsed.success === "boolean") {
+    if (parsed && typeof parsed.success === "boolean") {
       return {
         success: parsed.success,
         message: parsed.message ?? (parsed.success ? "Operation completed" : "Operation failed"),
@@ -116,7 +109,7 @@ export class AppsScriptService {
       };
     }
 
-    return fail("INVALID_APPS_SCRIPT_RESPONSE", "Apps Script returned JSON without a success flag", "Operation failed", options.requestId) as APIResponse<T>;
+    return fail("INVALID_APPS_SCRIPT_RESPONSE", "The spreadsheet service returned an unexpected response. Please try again shortly or contact support.", "Spreadsheet service unavailable", options.requestId) as APIResponse<T>;
   }
 
   private async fetchAndParse<T>(
@@ -127,11 +120,14 @@ export class AppsScriptService {
     transport: "params" | "payload"
   ): Promise<ParsedCall<T>> {
     const url = new URL(env.APPS_SCRIPT_URL);
+    url.searchParams.set("_portalRequest", randomUUID());
     const payload = { action, spreadsheetId: env.SPREADSHEET_ID, requestId: options.requestId, ...(options.body ?? {}) };
     const init: RequestInit = {
       method,
       signal,
-      headers: { "Content-Type": "application/json", "X-Request-ID": options.requestId }
+      cache: "no-store",
+      redirect: "follow",
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-cache", "X-Request-ID": options.requestId }
     };
 
     if (transport === "payload") {
@@ -155,9 +151,13 @@ export class AppsScriptService {
     const text = await response.text();
     const diagnostics = {
       status: response.status,
-      contentType: response.headers.get("content-type") ?? "unknown",
-      bodyPreview: preview(text)
+      contentType: response.headers.get("content-type") ?? "unknown"
     };
+    if (!response.ok) {
+      logger.warn({ ...diagnostics, action, requestId: options.requestId }, "Apps Script HTTP error");
+      const code = response.status === 404 ? "APPS_SCRIPT_DEPLOYMENT_UNAVAILABLE" : "APPS_SCRIPT_HTTP_ERROR";
+      return { response, parsed: fail(code, "The spreadsheet connection is unavailable. Please try again shortly or contact support.", "Spreadsheet service unavailable", options.requestId) as APIResponse<T> };
+    }
     return { response, parsed: this.parseJson<T>(text, options.requestId, action, diagnostics) };
   }
 
@@ -165,32 +165,19 @@ export class AppsScriptService {
     try {
       return JSON.parse(text) as APIResponse<T>;
     } catch {
-      const isHtml = /html/i.test(diagnostics.contentType) || /^<!doctype html|^<html/i.test(text.trim());
-      const details = isHtml
-        ? `Google Apps Script returned an HTML error page for action "${action}". Redeploy the latest Code.gs as a Web App with Execute as: Me and access for the backend, then update APPS_SCRIPT_URL if the deployment URL changed. Google message: ${diagnostics.bodyPreview}`
-        : `Apps Script did not return valid JSON. HTTP ${diagnostics.status}; content-type ${diagnostics.contentType}; body: ${diagnostics.bodyPreview}`;
+      logger.warn({ ...diagnostics, action, requestId }, "Apps Script did not return JSON");
       return fail(
         "INVALID_APPS_SCRIPT_RESPONSE",
-        details,
-        "Operation failed",
+        "The spreadsheet service returned an unexpected response. Please try again shortly or contact support.",
+        "Spreadsheet service unavailable",
         requestId
       ) as APIResponse<T>;
     }
   }
 }
 
-function preview(text: string) {
-  const compact = text.replace(/\s+/g, " ").trim();
-  const googleMessage = compact.match(/<div[^>]*class=["']errorMessage["'][^>]*>(.*?)<\/div>/i)?.[1];
-  return stripTags(googleMessage || compact).slice(0, 1500);
-}
-
-function stripTags(value: string) {
-  return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function isInvalidHtml<T>(response: APIResponse<T>) {
-  return response.error?.code === "INVALID_APPS_SCRIPT_RESPONSE" && /html/i.test(response.error.details);
+function isRetryableAppsScriptAction(action: string) {
+  return /^get[A-Z]/.test(action) || ["health", "schema", "dashboard", "login"].includes(action);
 }
 
 function normalizeUpstreamError(error: unknown) {

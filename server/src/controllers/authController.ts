@@ -10,7 +10,8 @@ export async function login(req: Request, res: Response) {
   const upstream = await appsScriptService.login(identifier, password, req.requestId, expectedRole);
 
   if (!upstream.success || !upstream.data?.user) {
-    const status = upstream.error?.code === "APPS_SCRIPT_TIMEOUT" ? 504 : upstream.error?.code === "APPS_SCRIPT_UNAVAILABLE" ? 503 : 401;
+    const unavailable = ["APPS_SCRIPT_UNAVAILABLE", "APPS_SCRIPT_DEPLOYMENT_UNAVAILABLE", "APPS_SCRIPT_HTTP_ERROR", "INVALID_APPS_SCRIPT_RESPONSE"].includes(upstream.error?.code ?? "");
+    const status = upstream.error?.code === "APPS_SCRIPT_TIMEOUT" ? 504 : unavailable ? 503 : 401;
     res.status(status).json(fail(upstream.error?.code ?? "LOGIN_FAILED", upstream.error?.details ?? "Invalid credentials", "Login failed", req.requestId));
     return;
   }

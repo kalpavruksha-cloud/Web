@@ -56,12 +56,62 @@ describe("Vercel API timeout budget", () => {
   });
 
   it("preserves invalid-credential handling", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
       success: false, data: null, error: { code: "INVALID_CREDENTIALS", details: "Invalid credentials" }
-    }))));
+    })));
+    vi.stubGlobal("fetch", fetchMock);
     const response = await request(createServer(handler)).post("/api/auth/login").send({ identifier: "test", password: "wrong-password" });
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("INVALID_CREDENTIALS");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers from a transient Google login 404 using a fresh POST", async () => {
+    const user = { id: "test-user", name: "Test User", role: "client", status: "active", clientId: "TEST0001" };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("<html>Page Not Found window['ppConfig'] = {};</html>", { status: 404, headers: { "content-type": "text/html" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { user }, error: null })));
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await request(createServer(handler)).post("/api/auth/login").send({ identifier: "test-user", password: "test-password" });
+    expect(response.status).toBe(200);
+    expect(response.body.data.user.role).toBe("client");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstUrl = new URL(String(fetchMock.mock.calls[0][0]));
+    const secondUrl = new URL(String(fetchMock.mock.calls[1][0]));
+    expect(firstUrl.searchParams.has("identifier")).toBe(false);
+    expect(firstUrl.searchParams.has("password")).toBe(false);
+    expect(firstUrl.searchParams.get("_portalRequest")).not.toBe(secondUrl.searchParams.get("_portalRequest"));
+    expect(fetchMock.mock.calls[0][1].method).toBe("POST");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).password).toBe("test-password");
+  });
+
+  it("returns a safe service error for a persistent Google 404", async () => {
+    const fetchMock = vi.fn(async () => new Response("<html>Page Not Found window['ppConfig'] = {};</html>", { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await request(createServer(handler)).post("/api/auth/login").send({ identifier: "test-user", password: "test-password" });
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe("APPS_SCRIPT_DEPLOYMENT_UNAVAILABLE");
+    expect(JSON.stringify(response.body)).not.toMatch(/ppConfig|<html>|Page Not Found/);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("recovers from an HTML response for a safe read", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("<html>Error</html>", { headers: { "content-type": "text/html" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { appsScript: "ok" }, error: null })));
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await request(createServer(handler)).get("/api/system/health");
+    expect(response.status).toBe(200);
+    expect(response.body.data.upstream.data.appsScript).toBe("ok");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not repeat registration after an HTTP or HTML failure", async () => {
+    const fetchMock = vi.fn(async () => new Response("<html>Page Not Found</html>", { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await request(createServer(handler)).post("/api/auth/register").send({ fullName: "Test", password: "test-password" });
+    expect(response.status).toBe(503);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it.each(["client", "admin"])("preserves %s login, role and authenticated data access", async (role) => {

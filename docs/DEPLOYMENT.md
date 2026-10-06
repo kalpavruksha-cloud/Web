@@ -55,6 +55,14 @@ return as JSON before Vercel terminates the function. The separate Express serve
 uses a 60-second total budget, including safe read retries. Writes are never
 automatically retried on timeout. These are maximum limits, not loading delays.
 
+Login credentials are sent to Apps Script in a JSON POST body. Login and safe
+reads can retry once when Google returns a transient HTTP/HTML error, within the
+same deadline. Every attempt uses a fresh request nonce and disables HTTP caching.
+Credential rejection responses are not retried, and mutations are never retried,
+including legacy mutations transported by GET. Raw Google error pages are kept
+out of client responses. This transport fix does not require a new Apps Script
+deployment when the existing deployment already supports `doPost`.
+
 Set these Vercel environment variables:
 
 ```env

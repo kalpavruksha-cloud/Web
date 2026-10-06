@@ -2,7 +2,7 @@ const { randomUUID } = require("node:crypto");
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec";
 const DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-const DEPLOYMENT_MARKER = "vercel-native-api-2026-10-06-timeout-budget-v5";
+const DEPLOYMENT_MARKER = "vercel-native-api-2026-10-06-google-response-recovery-v6";
 
 let jwtModulePromise;
 
@@ -70,7 +70,7 @@ module.exports = async function handler(req, res) {
         identifier: body.identifier,
         password: body.password,
         expectedRole: body.expectedRole
-      }, requestId, "GET");
+      }, requestId, "POST");
 
       if (!upstream.success || !upstream.data || !upstream.data.user) {
         send(res, 401, fail(upstream.error?.code || "LOGIN_FAILED", upstream.error?.details || "Invalid credentials", "Login failed", requestId));
@@ -280,39 +280,55 @@ async function callAppsScript(env, action, body, requestId, method = "POST") {
   }
 
   const payload = { action, spreadsheetId: env.spreadsheetId, requestId, ...(body || {}) };
-  const url = new URL(env.appsScriptUrl);
-  const init = {
-    method,
-    headers: { "Content-Type": "application/json", "X-Request-ID": requestId },
-    signal: AbortSignal.timeout(env.timeoutMs)
-  };
+  const signal = AbortSignal.timeout(env.timeoutMs);
+  const attempts = isRetryableAppsScriptAction(action) ? 2 : 1;
 
-  if (method === "GET") {
-    Object.entries(payload).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
-    });
-  } else {
-    init.body = JSON.stringify(payload);
-    url.searchParams.set("action", action);
-  }
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const url = new URL(env.appsScriptUrl);
+    // Obtain a fresh Google Content Service redirect on each attempt.
+    url.searchParams.set("_portalRequest", randomUUID());
+    const init = {
+      method, signal, cache: "no-store", redirect: "follow",
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-cache", "X-Request-ID": requestId }
+    };
 
-  try {
-    const response = await fetch(url, init);
-    const text = await response.text();
+    if (method === "GET") {
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
+      });
+    } else {
+      init.body = JSON.stringify(payload);
+      url.searchParams.set("action", action);
+    }
+
     try {
-      const parsed = JSON.parse(text);
-      return typeof parsed.success === "boolean"
-        ? parsed
-        : fail("INVALID_APPS_SCRIPT_RESPONSE", "Apps Script returned JSON without a success flag", "Operation failed", requestId);
-    } catch {
-      return fail("INVALID_APPS_SCRIPT_RESPONSE", `Apps Script did not return valid JSON. HTTP ${response.status}; body: ${stripTags(text).slice(0, 800)}`, "Operation failed", requestId);
+      const response = await fetch(url, init);
+      const text = await response.text();
+      if (!response.ok) {
+        console.warn("APPS_SCRIPT_HTTP_ERROR", { action, requestId, attempt, status: response.status });
+        if (attempt < attempts && [404, 408, 429, 500, 502, 503, 504].includes(response.status)) continue;
+        const code = response.status === 404 ? "APPS_SCRIPT_DEPLOYMENT_UNAVAILABLE" : "APPS_SCRIPT_HTTP_ERROR";
+        return fail(code, "The spreadsheet connection is unavailable. Please try again shortly or contact support.", "Spreadsheet service unavailable", requestId);
+      }
+      let parsed;
+      try { parsed = JSON.parse(text); } catch { /* Google may return an HTML error instead of the action result. */ }
+      if (parsed && typeof parsed.success === "boolean") return parsed;
+      console.warn("INVALID_APPS_SCRIPT_RESPONSE", { action, requestId, attempt, status: response.status, contentType: response.headers.get("content-type") });
+      if (attempt < attempts) continue;
+      return fail("INVALID_APPS_SCRIPT_RESPONSE", "The spreadsheet service returned an unexpected response. Please try again shortly or contact support.", "Spreadsheet service unavailable", requestId);
+    } catch (error) {
+      if (signal.aborted) {
+        return fail("APPS_SCRIPT_TIMEOUT", "The spreadsheet service took too long to respond. Check the latest status before trying again.", "Spreadsheet request timed out", requestId);
+      }
+      console.warn("APPS_SCRIPT_UNAVAILABLE", { action, requestId, attempt, error: error instanceof Error ? error.name : "UnknownError" });
+      if (attempt < attempts) continue;
+      return fail("APPS_SCRIPT_UNAVAILABLE", "Unable to reach the spreadsheet service. Please try again shortly.", "Apps Script unavailable", requestId);
     }
-  } catch (error) {
-    if (init.signal.aborted) {
-      return fail("APPS_SCRIPT_TIMEOUT", "The spreadsheet service took too long to respond. Check the latest status before trying again.", "Spreadsheet request timed out", requestId);
-    }
-    return fail("APPS_SCRIPT_UNAVAILABLE", error instanceof Error ? error.message : "Unable to reach Apps Script", "Apps Script unavailable", requestId);
   }
+}
+
+function isRetryableAppsScriptAction(action) {
+  return /^get[A-Z]/.test(action) || ["health", "schema", "dashboard", "login"].includes(action);
 }
 
 async function authenticate(req, env) {
@@ -471,7 +487,9 @@ function isActiveAccountStatus(value) {
   return ["active", "enabled", "approved"].includes(normalizeStatusValue(value));
 }
 function send(res, status, body) {
-  res.statusCode = body.error?.code === "APPS_SCRIPT_TIMEOUT" ? 504 : status;
+  const code = body.error?.code;
+  const unavailable = ["APPS_SCRIPT_UNAVAILABLE", "APPS_SCRIPT_DEPLOYMENT_UNAVAILABLE", "APPS_SCRIPT_HTTP_ERROR", "INVALID_APPS_SCRIPT_RESPONSE"].includes(code);
+  res.statusCode = code === "APPS_SCRIPT_TIMEOUT" ? 504 : unavailable ? 503 : status;
   res.setHeader("content-type", "application/json; charset=utf-8");
   res.end(JSON.stringify(body));
 }
@@ -549,8 +567,4 @@ function isUrl(value) {
 
 function normalizeUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
-}
-
-function stripTags(value) {
-  return String(value).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
