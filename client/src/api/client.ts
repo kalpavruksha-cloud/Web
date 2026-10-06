@@ -24,8 +24,8 @@ api.interceptors.response.use(
   }
 );
 
-export async function getData<T>(url: string, params?: Record<string, unknown>) {
-  const response = await api.get<ApiResponse<T>>(url, { params });
+export async function getData<T>(url: string, params?: Record<string, unknown>, signal?: AbortSignal) {
+  const response = await api.get<ApiResponse<T>>(url, { params, signal });
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error?.details ?? response.data.message);
   }

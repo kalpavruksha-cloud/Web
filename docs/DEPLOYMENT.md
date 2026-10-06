@@ -7,6 +7,27 @@
 - Frontend local URL: `http://localhost:5173`
 - Backend local URL: `http://localhost:8080/api`
 
+## Admin Dashboard Upgrade (V17)
+
+The dashboard and analytics now use one shared `/api/dashboard` snapshot instead
+of eight overlapping module requests. This upgrade requires both the web release
+and the updated `google-apps-script/Code.gs` deployment:
+
+1. Replace the entire Apps Script editor's `Code.gs` with the repository file.
+2. Save, then open Deploy > Manage deployments > Edit (pencil).
+3. Select Version > New version, then Deploy. Keep Execute as: Me and the existing access configuration.
+4. Keep the existing deployment URL to avoid changing Vercel environment variables.
+5. Open the existing `/exec?action=deploymentTest` URL. The marker must be
+   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_06_ADMIN_SNAPSHOT_V17`.
+6. After the GitHub-triggered Vercel deployment succeeds, reload the portal and sign in as admin.
+
+The admin dashboard should make a single `/api/dashboard` request for its records,
+with full collections in `data.adminData`. Client responses never include this field.
+The spreadsheet is opened once and each required tab is read once per dashboard
+request. Read caches are discarded even on failure; there is no cross-request
+business-data cache. Until Apps Script is upgraded, the web release uses a bounded
+two-request compatibility path after retrieving the legacy summary.
+
 ## GitHub Preparation
 
 Do not commit real environment files. The repository ignores:

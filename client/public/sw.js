@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v11-request-timeout-budget";
+const CACHE_VERSION = "kalpavruksha-pwa-v12-admin-snapshot";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 

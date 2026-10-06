@@ -122,6 +122,16 @@ export type ClientNotification = {
 
 export type PortalSettings = Record<string, string | number | boolean | null | undefined>;
 
+export type AdminDashboardRecords = {
+  clients: Profile[];
+  investments: Investment[];
+  transactions: Transaction[];
+  withdrawals: Withdrawal[];
+  documents: ClientDocument[];
+  referrals: Referral[];
+  notifications: ClientNotification[];
+};
+
 export type DashboardSummary = {
   client?: Profile;
   totalInvestedAmount: number;
@@ -144,6 +154,7 @@ export type DashboardSummary = {
   notifications: ClientNotification[];
   kycStatus?: string;
   agreementStatus?: string;
+  adminData?: AdminDashboardRecords;
   admin?: {
     totalClients: number;
     activeClients: number;

@@ -75,10 +75,10 @@ export function useAction<T>(invalidate: string[]) {
   return useMutation({
     mutationFn: ({ method, url, body }: { method: "post" | "put" | "delete"; url: string; body?: Record<string, unknown> }) => sendData<T>(method, url, body),
     onMutate: async () => {
-      await Promise.all(invalidate.map((key) => queryClient.cancelQueries({ queryKey: [key] })));
+      await Promise.all([...invalidate, "admin-overview"].map((key) => queryClient.cancelQueries({ queryKey: [key] })));
     },
     onSuccess: () => {
-      const keys = Array.from(new Set([...invalidate, "dashboard", ...invalidate.flatMap((key) => RELATED_QUERY_KEYS[key] ?? [])]));
+      const keys = Array.from(new Set([...invalidate, "dashboard", "admin-overview", ...invalidate.flatMap((key) => RELATED_QUERY_KEYS[key] ?? [])]));
       keys.forEach((key) => void queryClient.invalidateQueries({ queryKey: [key] }));
     }
   });

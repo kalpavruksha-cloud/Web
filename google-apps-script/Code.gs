@@ -1,5 +1,6 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_08_30_PORTFOLIO_MONTHS_PHOTO_PASSWORD_V16";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_06_ADMIN_SNAPSHOT_V17";
+var DASHBOARD_READ_CONTEXT = null;
 
 var REQUIRED_SHEETS = [
   "CLIENT_CREDENTIALS",
@@ -349,11 +350,22 @@ function registerClient(payload) {
 }
 
 function dashboard(payload) {
+  var previousContext = DASHBOARD_READ_CONTEXT;
+  DASHBOARD_READ_CONTEXT = { spreadsheets: {}, sheets: {}, values: {} };
+  try {
+    return buildDashboardSnapshot(payload);
+  } finally {
+    // Keep spreadsheet rows within this request, never across clients or writes.
+    DASHBOARD_READ_CONTEXT = previousContext;
+  }
+}
+
+function buildDashboardSnapshot(payload) {
   var isAdmin = payload.role === "admin";
   var clientId = isAdmin ? "" : String(payload.clientId || "");
   var dashboardRows = readModule(payload, ["DASHBOARD", "Dashboard"], mapDashboard, true);
   var adminPayload = isAdmin ? clonePayload(payload, { role: "admin" }) : null;
-  var allDashboardRows = isAdmin ? readModule(adminPayload, ["DASHBOARD", "Dashboard"], mapDashboard, false) : [];
+  var allDashboardRows = isAdmin ? dashboardRows : [];
   var investments = getInvestments(payload);
   var transactions = getTransactions(payload);
   var sortedTransactions = sortRowsByDate(transactions);
@@ -416,6 +428,15 @@ function dashboard(payload) {
       pendingKyc: allKycRows.length ? allKycRows.filter(function(row) { return row.kycStatus !== "verified"; }).length : clients.filter(function(row) { return row.kycStatus !== "verified"; }).length,
       activeInvestments: activeInvestments,
       referralLiabilities: sum(referrals, "rewardAmount") - paidReferrals
+    };
+    response.adminData = {
+      clients: clients,
+      investments: investments,
+      transactions: transactions,
+      withdrawals: withdrawals,
+      documents: documents,
+      referrals: referrals,
+      notifications: notifications
     };
   }
   return response;
@@ -1400,7 +1421,11 @@ function normalizeRole(value) {
 function getSpreadsheet(payload) {
   var id = payload.spreadsheetId || PropertiesService.getScriptProperties().getProperty("SPREADSHEET_ID") || DEFAULT_SPREADSHEET_ID;
   if (!id) throw coded("MISSING_SPREADSHEET_ID", "Spreadsheet ID is required");
-  return SpreadsheetApp.openById(id);
+  if (!DASHBOARD_READ_CONTEXT) return SpreadsheetApp.openById(id);
+  if (!DASHBOARD_READ_CONTEXT.spreadsheets[id]) {
+    DASHBOARD_READ_CONTEXT.spreadsheets[id] = SpreadsheetApp.openById(id);
+  }
+  return DASHBOARD_READ_CONTEXT.spreadsheets[id];
 }
 
 function bankPayload(payload, status) {
@@ -1518,7 +1543,14 @@ function sanitizeName(value) {
 
 function findSheet(spreadsheet, names) {
   var normalized = names.map(normalizeKey);
-  var sheets = spreadsheet.getSheets();
+  var sheets;
+  if (DASHBOARD_READ_CONTEXT) {
+    var spreadsheetId = spreadsheet.getId();
+    if (!DASHBOARD_READ_CONTEXT.sheets[spreadsheetId]) DASHBOARD_READ_CONTEXT.sheets[spreadsheetId] = spreadsheet.getSheets();
+    sheets = DASHBOARD_READ_CONTEXT.sheets[spreadsheetId];
+  } else {
+    sheets = spreadsheet.getSheets();
+  }
   for (var i = 0; i < sheets.length; i++) {
     if (normalized.indexOf(normalizeKey(sheets[i].getName())) >= 0) return sheets[i];
   }
@@ -1532,14 +1564,14 @@ function requireSheet(spreadsheet, names) {
 }
 
 function readRows(sheet) {
-  var values = sheet.getDataRange().getValues();
+  var values = readDashboardSheetValues(sheet);
   if (values.length < 2) return [];
   var headers = values[0].map(String);
   return rowsToObjects(headers, values.slice(1));
 }
 
 function readRowsForClient(sheet, clientId) {
-  var values = sheet.getDataRange().getValues();
+  var values = readDashboardSheetValues(sheet);
   if (values.length < 2) return [];
   var headers = values[0].map(String);
   var clientIndex = findHeaderIndex(headers, ["ClientId", "Client ID", "CLIENT_ID", "clientId", "client_id", "KWM ID", "KWMID", "Login ID", "LoginId"]);
@@ -1548,6 +1580,13 @@ function readRowsForClient(sheet, clientId) {
   return rowsToObjects(headers, values.slice(1).filter(function(row) {
     return normalizeText(row[clientIndex]) === wanted;
   }));
+}
+
+function readDashboardSheetValues(sheet) {
+  if (!DASHBOARD_READ_CONTEXT) return sheet.getDataRange().getValues();
+  var key = String(sheet.getSheetId());
+  if (!DASHBOARD_READ_CONTEXT.values[key]) DASHBOARD_READ_CONTEXT.values[key] = sheet.getDataRange().getValues();
+  return DASHBOARD_READ_CONTEXT.values[key];
 }
 
 function rowsToObjects(headers, rows) {

@@ -1,12 +1,11 @@
-import { Activity, Bell, IndianRupee, Landmark, ShieldCheck, TrendingUp, Users, WalletCards } from "lucide-react";
+import { Activity, Bell, IndianRupee, Landmark, RefreshCw, ShieldCheck, TrendingUp, Users, WalletCards } from "lucide-react";
 import type { ReactElement } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useDashboard, useResource } from "../../../api/queries";
 import { ErrorState } from "../../../components/State";
-import type { ClientDocument, ClientNotification, Investment, Profile, Referral, Transaction, Withdrawal } from "../../../types/domain";
 import { formatCurrency, formatDate } from "../../../utils/format";
 import { AdminCard, AdminLoading, AdminPage, AdminTable, MetricCard, StatusBadge } from "../AdminComponents";
 import { computeAdminMetrics, distribution, monthlySeries, recentActivity, title } from "../adminUtils";
+import { useAdminOverview } from "../useAdminOverview";
 
 const chartColors = ["#08152f", "#153bb7", "#d7ab3d", "#2563eb", "#1e7b54", "#a97a16"];
 
@@ -17,31 +16,10 @@ function formatThousandsAxis(value: unknown) {
 }
 
 export function AdminDashboard() {
-  const dashboard = useDashboard();
-  const clients = useResource<Profile[]>("admin-clients", "/clients");
-  const investments = useResource<Investment[]>("admin-investments", "/investments");
-  const transactions = useResource<Transaction[]>("admin-transactions", "/transactions");
-  const withdrawals = useResource<Withdrawal[]>("admin-withdrawals", "/withdrawals");
-  const documents = useResource<ClientDocument[]>("admin-documents", "/documents");
-  const referrals = useResource<Referral[]>("admin-referrals", "/referrals");
-  const notifications = useResource<ClientNotification[]>("admin-notifications", "/notifications");
-
-  const loading = [dashboard, clients, investments, transactions, withdrawals, documents, referrals, notifications].some((query) => query.isLoading);
-  const error = [dashboard, clients, investments, transactions, withdrawals, documents, referrals, notifications].find((query) => query.error)?.error;
-
-  if (loading) return <AdminLoading />;
-  if (error) return <ErrorState title="Unable to load admin dashboard" message={error instanceof Error ? error.message : "The spreadsheet API did not return admin records."} />;
-
-  const data = {
-    dashboard: dashboard.data,
-    clients: clients.data ?? [],
-    investments: investments.data ?? [],
-    transactions: transactions.data ?? [],
-    withdrawals: withdrawals.data ?? [],
-    documents: documents.data ?? [],
-    referrals: referrals.data ?? [],
-    notifications: notifications.data ?? []
-  };
+  const overview = useAdminOverview();
+  if (overview.isPending) return <AdminLoading />;
+  if (!overview.data) return <div><ErrorState title="Unable to load admin dashboard" message={overview.error instanceof Error ? overview.error.message : "The spreadsheet API did not return admin records."} /><button type="button" onClick={() => void overview.refetch()} disabled={overview.isFetching} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-forest-800 px-4 py-2 text-sm font-semibold text-white"><RefreshCw className="h-4 w-4" />Retry</button></div>;
+  const data = overview.data;
   const metrics = computeAdminMetrics(data);
   const portfolioGrowth = monthlySeries(data.transactions, (row) => row.date, (row) => row.credit - row.debit);
   const monthlyInvestments = monthlySeries(data.investments, (row) => row.startDate, (row) => row.principalAmount);
@@ -52,6 +30,7 @@ export function AdminDashboard() {
 
   return (
     <AdminPage title="Admin Dashboard" eyebrow="Cumulative live view from Google Spreadsheet">
+      {overview.error && <ErrorState title="Dashboard refresh failed" message="The last loaded dashboard is shown. The latest spreadsheet data could not be retrieved." />}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Total Clients" value={String(metrics.totalClients)} hint={`${metrics.activeClients} active, ${metrics.inactiveClients} inactive`} icon={<Users className="h-5 w-5" />} />
         <MetricCard label="Verified KYC" value={String(metrics.verifiedKyc)} hint={`${metrics.pendingKyc} pending`} icon={<ShieldCheck className="h-5 w-5" />} tone="gold" />

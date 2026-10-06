@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Activity, BarChart3, Download, ExternalLink, Eye, FileText, IndianRupee, PieChart as PieChartIcon, Plus, Printer, RefreshCw, Save, TrendingUp, WalletCards } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAction, useDashboard, useResource } from "../../../api/queries";
+import { useAdminOverview } from "../useAdminOverview";
 import { ErrorState } from "../../../components/State";
 import { useToast } from "../../../context/ToastContext";
 import type { ClientDocument, ClientNotification, Investment, PortalSettings, Profile, Referral, SpreadsheetSchema, Transaction, Withdrawal } from "../../../types/domain";
@@ -309,31 +310,10 @@ export function AdminNotifications() {
 }
 
 export function AdminReports() {
-  const dashboard = useDashboard();
-  const clients = useResource<Profile[]>("admin-clients", "/clients");
-  const investments = useResource<Investment[]>("admin-investments", "/investments");
-  const transactions = useResource<Transaction[]>("admin-transactions", "/transactions");
-  const withdrawals = useResource<Withdrawal[]>("admin-withdrawals", "/withdrawals");
-  const documents = useResource<ClientDocument[]>("admin-documents", "/documents");
-  const referrals = useResource<Referral[]>("admin-referrals", "/referrals");
-  const notifications = useResource<ClientNotification[]>("admin-notifications", "/notifications");
-  const queries = [dashboard, clients, investments, transactions, withdrawals, documents, referrals, notifications];
-  const hardLoading = queries.some((query) => query.isLoading && !query.data);
-  const error = queries.find((query) => query.error && !query.data)?.error;
-
-  if (hardLoading) return <AdminLoading label="Preparing live analytics" />;
-  if (error) return <ErrorState title="Reports unavailable" message={error instanceof Error ? error.message : undefined} />;
-
-  const data = {
-    dashboard: dashboard.data,
-    clients: clients.data ?? [],
-    investments: investments.data ?? [],
-    transactions: transactions.data ?? [],
-    withdrawals: withdrawals.data ?? [],
-    documents: documents.data ?? [],
-    referrals: referrals.data ?? [],
-    notifications: notifications.data ?? []
-  };
+  const overview = useAdminOverview();
+  if (overview.isPending) return <AdminLoading label="Preparing live analytics" />;
+  if (!overview.data) return <ErrorState title="Reports unavailable" message={overview.error instanceof Error ? overview.error.message : undefined} />;
+  const data = overview.data;
   const metrics = computeAdminMetrics(data);
   const investmentByMonth = monthlySeries(data.investments, (row) => row.startDate, (row) => row.principalAmount);
   const portfolioByCategory = distribution(data.investments, (row) => row.category || row.plan, (row) => row.currentValue || row.principalAmount).filter((row) => row.value > 0);

@@ -1,5 +1,22 @@
 # Google Apps Script Integration
 
+## Admin Dashboard Performance Update (V17)
+
+The updated dashboard returns the existing totals and all admin chart/table
+records in one `adminData` snapshot. It opens the spreadsheet once and reads each
+required tab once per dashboard request. These rows are not cached between
+requests, and client responses never contain `adminData`.
+
+To enable the single-request dashboard, replace the existing script with the
+complete `Code.gs` in this directory, then use **Deploy > Manage deployments >
+Edit > Version: New version > Deploy**. Keep the existing deployment and URL.
+Check `?action=deploymentTest` for marker
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_06_ADMIN_SNAPSHOT_V17`.
+
+Until that deployment is updated, the web portal loads the summary first and
+limits legacy collection requests to two at a time. The optimized Apps Script
+version must be deployed to eliminate these extra requests fully.
+
 The configured Web App URL is:
 
 `https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec`
