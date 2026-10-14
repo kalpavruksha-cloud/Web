@@ -24,7 +24,7 @@ export type AdminCollections = {
 
 export function computeAdminMetrics(data: AdminCollections) {
   const activeClients = data.clients.filter((row) => isStatus(row.accountStatus, "active")).length;
-  const verifiedKyc = data.clients.filter((row) => isStatus(row.kycStatus, "verified")).length;
+  const verifiedKyc = data.dashboard?.admin?.verifiedKyc ?? data.clients.filter((row) => isStatus(row.kycStatus, "verified")).length;
   const totalInvestment = data.dashboard?.admin?.totalInvestment ?? sum(data.investments, "principalAmount");
   const portfolioValue = data.dashboard?.admin?.portfolioValue ?? (sum(data.investments, "currentValue") || totalInvestment);
   const monthlyPayout = data.dashboard?.admin?.monthlyPayoutAmount ?? sum(data.investments, "monthlyReturn");
@@ -40,6 +40,10 @@ export function computeAdminMetrics(data: AdminCollections) {
     totalInvestment,
     portfolioValue,
     monthlyPayout,
+    estimatedMonthlyPayout: data.dashboard?.admin?.estimatedMonthlyPayout ?? null,
+    totalPayouts: data.dashboard?.admin?.totalPayoutAmount ?? data.dashboard?.totalPayouts ?? null,
+    netInvestment: data.dashboard?.admin?.netInvestment ?? (data.dashboard?.totalWithdrawal !== undefined ? totalInvestment - data.dashboard.totalWithdrawal : null),
+    pendingWithdrawalAmount: data.dashboard?.admin?.pendingWithdrawalAmount ?? sum(data.withdrawals.filter((row) => isStatus(row.status, "pending")), "amount"),
     pendingWithdrawals: data.withdrawals.filter((row) => isStatus(row.status, "pending")).length,
     approvedWithdrawals: data.withdrawals.filter((row) => isStatus(row.status, "approved")).length,
     paidWithdrawals: data.withdrawals.filter((row) => isStatus(row.status, "paid")).length,

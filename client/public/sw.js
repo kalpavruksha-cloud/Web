@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v12-admin-snapshot";
+const CACHE_VERSION = "kalpavruksha-pwa-v13-admin-financial-analytics";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 

@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_06_ADMIN_SNAPSHOT_V17";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_14_ADMIN_ANALYTICS_V18";
 var DASHBOARD_READ_CONTEXT = null;
 
 var REQUIRED_SHEETS = [
@@ -415,20 +415,37 @@ function buildDashboardSnapshot(payload) {
     var allKycRows = readModule(adminPayload || payload, ["KYC"], function(row) {
       return {
         clientId: String(first(row, ["ClientId", "Client ID", "CLIENT_ID"]) || ""),
-        kycStatus: normalizeStatus(first(row, ["KYCStatus", "KYC Status", "KYC"]) || "pending")
+        kycStatus: normalizeStatus(first(row, ["KYCStatus", "KYC Status", "KYC", "Verification Status", "Status"]) || "pending")
       };
     }, false);
+    var analytics = buildAdminFinancialAnalytics(investments, transactions, withdrawals, totalInvested, new Date());
+    var kycByClient = {};
+    allKycRows.forEach(function(row) { kycByClient[normalizeText(row.clientId)] = row.kycStatus; });
+    var verifiedKyc = clients.filter(function(row) {
+      return (kycByClient[normalizeText(row.clientId)] || row.kycStatus) === "verified";
+    }).length;
+    var actualWithdrawal = hasDashboardRows ? totalWithdrawal : analytics.completedWithdrawalTotal;
+    response.availableBalance = totalInvested - actualWithdrawal;
+    response.totalWithdrawal = actualWithdrawal;
     response.admin = {
       totalClients: clients.length,
       activeClients: clients.filter(function(row) { return row.accountStatus === "active"; }).length,
       totalInvestment: totalInvested,
       portfolioValue: currentValue,
       monthlyPayoutAmount: monthlyReturn,
+      estimatedMonthlyPayout: analytics.estimatedMonthlyPayout,
+      payoutEstimateMissingRecords: analytics.payoutEstimateMissingRecords,
+      totalPayoutAmount: hasDashboardRows ? totalPayout : analytics.recordedPayoutTotal,
+      totalWithdrawalAmount: actualWithdrawal,
+      netInvestment: totalInvested - actualWithdrawal,
+      pendingWithdrawalAmount: sum(withdrawals.filter(function(row) { return row.status === "pending"; }), "amount"),
+      verifiedKyc: verifiedKyc,
       pendingWithdrawals: pendingWithdrawals,
-      pendingKyc: allKycRows.length ? allKycRows.filter(function(row) { return row.kycStatus !== "verified"; }).length : clients.filter(function(row) { return row.kycStatus !== "verified"; }).length,
+      pendingKyc: clients.length - verifiedKyc,
       activeInvestments: activeInvestments,
       referralLiabilities: sum(referrals, "rewardAmount") - paidReferrals
     };
+    response.adminAnalytics = analytics;
     response.adminData = {
       clients: clients,
       investments: investments,
@@ -440,6 +457,143 @@ function buildDashboardSnapshot(payload) {
     };
   }
   return response;
+}
+
+function adminCalendarDay(value) {
+  if (value === undefined || value === null || value === "") return "";
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return "";
+    return new Date(value.getTime() + 19800000).toISOString().slice(0, 10);
+  }
+  var text = cleanString(value);
+  var iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  var indian = text.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+  if (iso || indian) {
+    var year = Number(iso ? iso[1] : indian[3]);
+    var month = Number(iso ? iso[2] : indian[2]);
+    var day = Number(iso ? iso[3] : indian[1]);
+    var date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return "";
+    return date.toISOString().slice(0, 10);
+  }
+  if (typeof value === "number") {
+    return value > 59 && value < 100000 ? new Date((Math.floor(value) - 25569) * 86400000).toISOString().slice(0, 10) : "";
+  }
+  var parsed = new Date(text);
+  return isNaN(parsed.getTime()) ? "" : adminCalendarDay(parsed);
+}
+
+function buildAdminFinancialAnalytics(investments, transactions, withdrawals, totalInvested, now) {
+  var today = adminCalendarDay(now);
+  var month = today.slice(0, 7);
+  var monthStart = month + "-01";
+  var monthEnd = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0)).toISOString().slice(0, 10);
+  var warnings = [];
+  var completed = transactions.filter(function(row) {
+    return ["completed", "posted", "paid", "success", "successful", "settled"].indexOf(row.status) >= 0;
+  });
+  var investmentLedger = completed.filter(function(row) {
+    return ["investment", "deposit", "investment_credit", "capital_investment", "add_investment"].indexOf(row.type) >= 0;
+  });
+  var withdrawalLedger = completed.filter(function(row) {
+    return ["withdrawal", "withdrawal_paid", "withdrawal_debit", "redemption"].indexOf(row.type) >= 0;
+  });
+  var paidWithdrawals = withdrawals.filter(function(row) { return row.status === "paid"; });
+  var investmentSource = investmentLedger.length ? "transaction_ledger" : "investment_records";
+  var withdrawalSource = withdrawalLedger.length ? "transaction_ledger" : "paid_withdrawals";
+  var investmentPoints = investmentLedger.length ? investmentLedger.map(function(row) {
+    return { date: row.date, amount: Math.max(row.credit - row.debit, 0) };
+  }) : investments.filter(function(row) {
+    return ["active", "closed", "matured", "completed"].indexOf(row.status) >= 0;
+  }).map(function(row) { return { date: row.startDate, amount: row.principalAmount }; });
+  var withdrawalPoints = withdrawalLedger.length ? withdrawalLedger.map(function(row) {
+    return { date: row.date, amount: Math.max(row.debit - row.credit, 0) };
+  }) : paidWithdrawals.map(function(row) {
+    return { date: row.paymentDate, amount: row.amount };
+  });
+  var investmentDays = adminDailyAmounts(investmentPoints, today, "investment", warnings);
+  var withdrawalDays = adminDailyAmounts(withdrawalPoints, today, "paid withdrawal", warnings);
+  var eligible = investments.filter(function(row) {
+    var start = adminCalendarDay(row.startDate);
+    var maturity = adminCalendarDay(row.maturityDate);
+    var nextPayout = adminCalendarDay(row.nextPayoutDate);
+    return row.status === "active" && (!start || start <= monthEnd) && (!maturity || maturity >= monthStart)
+      && (!nextPayout || nextPayout.slice(0, 7) === month);
+  });
+  var missing = 0;
+  var estimate = 0;
+  eligible.forEach(function(row) {
+    if (typeof row.monthlyReturn !== "number" || !isFinite(row.monthlyReturn) || row.monthlyReturn < 0
+      || (row.payoutFrequency && ["monthly", "month", "every_month"].indexOf(row.payoutFrequency) < 0)) {
+      missing += 1;
+    } else {
+      estimate += row.monthlyReturn;
+    }
+  });
+  if (!investments.length && totalInvested > 0) {
+    missing += 1;
+    warnings.push("Investment payout terms are missing for the recorded invested balance.");
+  }
+  if (missing) warnings.push("The current-month payout estimate is unavailable because payout amounts or frequency are missing or unsupported. Generic ROI is not assumed to be monthly or annual.");
+  var payoutLedger = completed.filter(function(row) {
+    return ["payout", "interest", "interest_credit", "monthly_return", "monthly_payout"].indexOf(row.type) >= 0;
+  });
+  var payoutDays = adminDailyAmounts(payoutLedger.map(function(row) {
+    return { date: row.date, amount: Math.max(row.credit - row.debit, 0) };
+  }), today, "payout", warnings);
+  return {
+    asOf: now.toISOString(), currentYear: Number(today.slice(0, 4)), currentMonth: Number(today.slice(5, 7)),
+    investmentSource: investmentSource, withdrawalSource: withdrawalSource,
+    investmentMonths: adminMonthlyAmounts(investmentDays), withdrawalMonths: adminMonthlyAmounts(withdrawalDays),
+    payoutMonths: adminMonthlyAmounts(payoutDays),
+    withdrawalDays: withdrawalDays, warnings: warnings,
+    estimatedMonthlyPayout: missing ? null : Math.round(estimate * 100) / 100,
+    payoutEstimateMissingRecords: missing,
+    completedWithdrawalTotal: withdrawalLedger.length ? sum(withdrawalLedger, "debit") - sum(withdrawalLedger, "credit") : sum(paidWithdrawals, "amount"),
+    recordedPayoutTotal: sum(payoutLedger, "credit") - sum(payoutLedger, "debit")
+  };
+}
+
+function adminDailyAmounts(points, today, label, warnings) {
+  var totals = {};
+  var invalid = 0;
+  points.forEach(function(row) {
+    var day = adminCalendarDay(row.date);
+    if (!day) { invalid += 1; return; }
+    if (day > today || row.amount <= 0) return;
+    totals[day] = (totals[day] || 0) + row.amount;
+  });
+  if (invalid) warnings.push(String(invalid) + " " + label + " records have missing or invalid dates and are excluded from the dated charts.");
+  return Object.keys(totals).sort().map(function(day) { return { date: day, amount: Math.round(totals[day] * 100) / 100 }; });
+}
+
+function adminMonthlyAmounts(days) {
+  var totals = {};
+  days.forEach(function(row) {
+    var month = row.date.slice(0, 7);
+    totals[month] = (totals[month] || 0) + row.amount;
+  });
+  return Object.keys(totals).sort().map(function(month) { return { month: month, amount: Math.round(totals[month] * 100) / 100 }; });
+}
+
+function mapAdminInvestment(row) {
+  var result = mapInvestment(row);
+  result.principalAmount = number(first(row, ["Principal Amount", "Amount", "Invested Amount", "Investment Amount"]));
+  result.startDate = adminCalendarDay(first(row, ["Start Date", "Investment Date", "Invested Date", "Date"]));
+  result.maturityDate = adminCalendarDay(result.maturityDate);
+  result.nextPayoutDate = adminCalendarDay(first(row, ["Next Payout Date", "Scheduled Payout Date"]));
+  result.payoutFrequency = normalizeOptionalStatus(first(row, ["Payout Frequency", "Payment Frequency"]));
+  var explicitMonthly = first(row, ["Monthly Return", "Monthly Payout", "Monthly Interest", "Monthly Payout Amount"]);
+  var monthlyText = String(explicitMonthly).replace(/[\u20b9,\s]/g, "");
+  var parsedMonthly = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(monthlyText) ? Number(monthlyText) : NaN;
+  result.monthlyReturn = isFinite(parsedMonthly) ? parsedMonthly : undefined;
+  return result;
+}
+
+function mapAdminWithdrawal(row) {
+  var result = mapWithdrawal(row);
+  result.paymentDate = adminCalendarDay(first(row, ["Payment Date", "Paid Date", "Withdrawal Date", "Paid On"]));
+  return result;
 }
 
 function getClients(payload) {
@@ -487,7 +641,7 @@ function updateProfile(payload) {
 }
 
 function getInvestments(payload) {
-  return readModule(payload, ["Investment_Master", "Investment Master", "INVESTMENT_PLANS", "Investment", "Investments"], mapInvestment, true);
+  return readModule(payload, ["Investment_Master", "Investment Master", "INVESTMENT_PLANS", "Investment", "Investments"], payload.role === "admin" ? mapAdminInvestment : mapInvestment, true);
 }
 
 function getInvestment(payload) {
@@ -515,7 +669,7 @@ function createTransaction(payload) {
 }
 
 function getWithdrawals(payload) {
-  return readModule(payload, ["Withdrawals", "Withdrawal"], mapWithdrawal, true);
+  return readModule(payload, ["Withdrawals", "Withdrawal"], payload.role === "admin" ? mapAdminWithdrawal : mapWithdrawal, true);
 }
 
 function createWithdrawal(payload) {
@@ -543,12 +697,14 @@ function markWithdrawalPaid(payload) {
 }
 
 function updateWithdrawalStatus(payload, status) {
-  return updateRecord(payload, ["Withdrawals", "Withdrawal"], "Withdrawal ID", payload.id, {
+  var updates = {
     Status: status,
     "Approval Date": new Date(),
     "Payment Reference": payload.paymentReference,
     "Admin Remarks": payload.adminRemarks
-  });
+  };
+  if (status === "paid") updates["Payment Date"] = new Date();
+  return updateRecord(payload, ["Withdrawals", "Withdrawal"], "Withdrawal ID", payload.id, updates);
 }
 
 function getReferrals(payload) {

@@ -1,6 +1,33 @@
 # Google Apps Script Integration
 
-## Admin Dashboard Performance Update (V17)
+## Admin Financial Analytics Update (V18)
+
+Dashboard and Reports share the same `admin` totals and `adminAnalytics` series.
+This includes net investment, current-month estimated payout, total recorded
+payouts, pending withdrawal amount, KYC counts, and dated investment/paid-withdrawal
+charts. All calculations run inside the existing dashboard request, without
+additional spreadsheet reads or a persistent data cache.
+
+Replace the complete `Code.gs` and deploy **New version** on the existing deployment.
+Verify `?action=deploymentTest` returns
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_14_ADMIN_ANALYTICS_V18`.
+The V18 web release explicitly flags unavailable analytics until this deployment
+is updated. Do not change the deployment URL unless necessary.
+
+Payout estimates require an explicit monetary `Monthly Return`, `Monthly Payout`,
+`Monthly Interest`, or `Monthly Payout Amount` column on the investment records.
+The script does not guess whether generic ROI is monthly, annual, or a decimal
+percentage. Active investments overlapping the current India calendar month are
+eligible; an explicit Next Payout Date restricts the estimate to that month.
+Unsupported frequency or missing terms produce a warning and an unavailable
+estimate, not a fabricated zero. This is an estimate, not a payment instruction.
+
+Completed withdrawal ledger entries are preferred for withdrawal charts. If there
+are no such entries, paid withdrawal records require a Payment Date/Paid Date.
+Mark Paid now records Payment Date. Existing undated paid records are flagged and
+are not assigned an invented payment month.
+
+## Single-Request Dashboard
 
 The updated dashboard returns the existing totals and all admin chart/table
 records in one `adminData` snapshot. It opens the spreadsheet once and reads each
@@ -11,7 +38,7 @@ To enable the single-request dashboard, replace the existing script with the
 complete `Code.gs` in this directory, then use **Deploy > Manage deployments >
 Edit > Version: New version > Deploy**. Keep the existing deployment and URL.
 Check `?action=deploymentTest` for marker
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_06_ADMIN_SNAPSHOT_V17`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_14_ADMIN_ANALYTICS_V18`.
 
 Until that deployment is updated, the web portal loads the summary first and
 limits legacy collection requests to two at a time. The optimized Apps Script

@@ -60,6 +60,8 @@ export type Investment = {
   maturityDate?: string;
   returnRate?: number;
   monthlyReturn?: number;
+  nextPayoutDate?: string;
+  payoutFrequency?: string;
   currentValue?: number;
   status: string;
   agreementDetails?: string;
@@ -90,6 +92,7 @@ export type Withdrawal = {
   status: "pending" | "approved" | "rejected" | "paid";
   approvalDate?: string;
   paymentReference?: string;
+  paymentDate?: string;
   adminRemarks?: string;
 };
 
@@ -154,6 +157,19 @@ export type AdminDashboardRecords = {
   notifications: ClientNotification[];
 };
 
+export type AdminFinancialAnalytics = {
+  asOf: string;
+  currentYear: number;
+  currentMonth: number;
+  investmentSource: "transaction_ledger" | "investment_records";
+  withdrawalSource: "transaction_ledger" | "paid_withdrawals";
+  investmentMonths: Array<{ month: string; amount: number }>;
+  withdrawalMonths: Array<{ month: string; amount: number }>;
+  payoutMonths: Array<{ month: string; amount: number }>;
+  withdrawalDays: Array<{ date: string; amount: number }>;
+  warnings: string[];
+};
+
 export type DashboardSummary = {
   client?: Profile;
   totalInvestedAmount: number;
@@ -177,12 +193,20 @@ export type DashboardSummary = {
   kycStatus?: string;
   agreementStatus?: string;
   adminData?: AdminDashboardRecords;
+  adminAnalytics?: AdminFinancialAnalytics;
   admin?: {
     totalClients: number;
     activeClients: number;
     totalInvestment: number;
     portfolioValue: number;
     monthlyPayoutAmount: number;
+    estimatedMonthlyPayout?: number | null;
+    payoutEstimateMissingRecords?: number;
+    totalPayoutAmount?: number;
+    totalWithdrawalAmount?: number;
+    netInvestment?: number;
+    pendingWithdrawalAmount?: number;
+    verifiedKyc?: number;
     pendingWithdrawals: number;
     pendingKyc: number;
     activeInvestments: number;

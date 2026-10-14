@@ -1,9 +1,11 @@
 import { useState, type FormEvent, type ReactElement, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Activity, BarChart3, Download, ExternalLink, Eye, FileText, IndianRupee, PieChart as PieChartIcon, Plus, Printer, RefreshCw, Save, TrendingUp, WalletCards } from "lucide-react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Activity, BarChart3, Download, ExternalLink, Eye, FileText, Plus, Printer, RefreshCw, Save } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAction, useDashboard, useResource } from "../../../api/queries";
 import { useAdminOverview } from "../useAdminOverview";
+import { AdminOverviewCards } from "../AdminOverviewCards";
+import { AdminMoneyCharts } from "../AdminMoneyCharts";
 import { ErrorState } from "../../../components/State";
 import { useToast } from "../../../context/ToastContext";
 import type { ClientDocument, ClientNotification, Investment, PortalSettings, Profile, Referral, SpreadsheetSchema, Transaction, Withdrawal } from "../../../types/domain";
@@ -314,24 +316,12 @@ export function AdminReports() {
   if (overview.isPending) return <AdminLoading label="Preparing live analytics" />;
   if (!overview.data) return <ErrorState title="Reports unavailable" message={overview.error instanceof Error ? overview.error.message : undefined} />;
   const data = overview.data;
-  const metrics = computeAdminMetrics(data);
-  const investmentByMonth = monthlySeries(data.investments, (row) => row.startDate, (row) => row.principalAmount);
   const portfolioByCategory = distribution(data.investments, (row) => row.category || row.plan, (row) => row.currentValue || row.principalAmount).filter((row) => row.value > 0);
-  const monthlyReturns = monthlySeries(data.investments, (row) => row.startDate || row.maturityDate, (row) => row.monthlyReturn ?? 0);
+  const monthlyReturns = (data.dashboard.adminAnalytics?.payoutMonths ?? []).map((row) => ({ month: row.month, value: row.amount }));
   const withdrawalByStatus = distribution(data.withdrawals, (row) => row.status, (row) => row.amount || 1).filter((row) => row.value > 0);
   const transactionFlow = monthlySeries(data.transactions, (row) => row.date, (row) => row.credit - row.debit);
   const recentTransactions = [...data.transactions].sort((a, b) => sortableDateValue(b.date) - sortableDateValue(a.date)).slice(0, 8);
   const recentWithdrawals = [...data.withdrawals].sort((a, b) => sortableDateValue(b.requestDate) - sortableDateValue(a.requestDate)).slice(0, 8);
-  const investmentRows = data.investments.map((row) => ({
-    investmentId: row.id,
-    clientId: row.clientId,
-    plan: row.plan,
-    category: row.category,
-    principalAmount: row.principalAmount,
-    currentValue: row.currentValue || row.principalAmount,
-    monthlyReturn: row.monthlyReturn || 0,
-    status: row.status
-  }));
   const withdrawalRows = data.withdrawals.map((row) => ({
     requestId: row.id,
     clientId: row.clientId,
@@ -344,28 +334,18 @@ export function AdminReports() {
   const monthlyReturnRows = monthlyReturns.map((row) => ({ month: row.month, monthlyReturn: row.value }));
 
   return <AdminPage title="Reports and Analytics" eyebrow="Visual reports generated from live spreadsheet records" actions={<CommandButton tone="secondary" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print</CommandButton>}>
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <ReportMetricCard label="Investment Summary" value={formatCurrency(metrics.totalInvestment)} hint={`${data.investments.length} investment records`} icon={<IndianRupee className="h-5 w-5" />} />
-      <ReportMetricCard label="Withdrawal Report" value={formatCurrency(data.withdrawals.reduce((total, row) => total + row.amount, 0))} hint={`${metrics.pendingWithdrawals} pending approvals`} icon={<WalletCards className="h-5 w-5" />} />
-      <ReportMetricCard label="Portfolio Report" value={formatCurrency(metrics.portfolioValue)} hint={`${metrics.activeInvestments} active investments`} icon={<PieChartIcon className="h-5 w-5" />} />
-      <ReportMetricCard label="Monthly Return Report" value={formatCurrency(metrics.monthlyPayout)} hint="Expected monthly payout" icon={<TrendingUp className="h-5 w-5" />} />
-    </div>
+    <AdminOverviewCards data={data} />
+    <div className="mt-6"><AdminMoneyCharts analytics={data.dashboard.adminAnalytics} /></div>
 
-    <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-      <ReportPanel title="Investment Summary" subtitle="Month-wise principal deployed from the Investment sheet" action={<CommandButton tone="secondary" onClick={() => exportCsv("investment-summary.csv", investmentRows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> Export</CommandButton>}>
-        {investmentByMonth.length ? <ReportChartBox><BarChart data={investmentByMonth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatCompactRupeeAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Bar dataKey="value" fill="#14583f" radius={[9, 9, 0, 0]} /></BarChart></ReportChartBox> : <ReportEmpty label="No investment dates returned by spreadsheet." />}
-      </ReportPanel>
+    <div className="mt-6 grid gap-6 xl:grid-cols-3">
       <ReportPanel title="Portfolio Report" subtitle="Current portfolio value grouped by category or plan" action={<CommandButton tone="secondary" onClick={() => exportCsv("portfolio-report.csv", portfolioRows)}><Download className="h-4 w-4" /> Export</CommandButton>}>
         {portfolioByCategory.length ? <ReportChartBox><PieChart><Pie data={portfolioByCategory} dataKey="value" nameKey="name" innerRadius={58} outerRadius={102} paddingAngle={4}>{portfolioByCategory.map((_, index) => <Cell key={index} fill={reportChartColors[index % reportChartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatCurrency(Number(value))} /></PieChart></ReportChartBox> : <ReportEmpty label="No portfolio category data returned by spreadsheet." />}
       </ReportPanel>
-    </div>
-
-    <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <ReportPanel title="Withdrawal Report" subtitle="Approved, pending, rejected, and paid withdrawal movement" action={<CommandButton tone="secondary" onClick={() => exportCsv("withdrawal-report.csv", withdrawalRows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> Export</CommandButton>}>
         {withdrawalByStatus.length ? <ReportChartBox small><PieChart><Pie data={withdrawalByStatus} dataKey="value" nameKey="name" outerRadius={82} paddingAngle={4}>{withdrawalByStatus.map((_, index) => <Cell key={index} fill={reportChartColors[index % reportChartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatCurrency(Number(value))} /></PieChart></ReportChartBox> : <ReportEmpty label="No withdrawal records returned by spreadsheet." />}
       </ReportPanel>
-      <ReportPanel title="Monthly Return Report" subtitle="Monthly returns grouped by available investment dates" action={<CommandButton tone="secondary" onClick={() => exportCsv("monthly-return-report.csv", monthlyReturnRows)}><Download className="h-4 w-4" /> Export</CommandButton>}>
-        {monthlyReturns.length ? <ReportChartBox small><AreaChart data={monthlyReturns}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatCompactRupeeAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#d7ab3d" fill="#d7ab3d33" strokeWidth={3} /></AreaChart></ReportChartBox> : <ReportEmpty label="No monthly return values returned by spreadsheet." />}
+      <ReportPanel title="Monthly Payout Report" subtitle="Recorded payout and interest transactions by calendar month" action={<CommandButton tone="secondary" onClick={() => exportCsv("monthly-payout-report.csv", monthlyReturnRows)}><Download className="h-4 w-4" /> Export</CommandButton>}>
+        {monthlyReturns.length ? <ReportChartBox small><AreaChart data={monthlyReturns}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatCompactRupeeAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#d7ab3d" fill="#d7ab3d33" strokeWidth={3} /></AreaChart></ReportChartBox> : <ReportEmpty label="No dated completed payout or interest transactions were returned." />}
       </ReportPanel>
     </div>
 
@@ -478,20 +458,6 @@ export function AdminDashboardAlias() {
 }
 
 const reportChartColors = ["#08152f", "#14583f", "#1e7b54", "#d7ab3d", "#153bb7", "#a97a16"];
-
-function ReportMetricCard({ label, value, hint, icon }: { label: string; value: string; hint: string; icon: ReactNode }) {
-  return <AdminCard className="relative overflow-hidden">
-    <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-[42px] bg-gold-100/24" />
-    <div className="relative flex items-start justify-between gap-4">
-      <div>
-        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-gold-700 dark:text-gold-100">{label}</p>
-        <p className="mt-3 font-display text-2xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{value}</p>
-        <p className="mt-1 text-sm font-semibold text-charcoal/58 dark:text-white/58">{hint}</p>
-      </div>
-      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-[linear-gradient(135deg,#040b1d,#14583f)] text-gold-100 shadow-glow">{icon}</span>
-    </div>
-  </AdminCard>;
-}
 
 function ReportPanel({ title: panelTitle, subtitle, action, children }: { title: string; subtitle: string; action?: ReactNode; children: ReactNode }) {
   return <AdminCard className="overflow-hidden">

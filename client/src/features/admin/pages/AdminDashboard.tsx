@@ -1,10 +1,12 @@
-import { Activity, Bell, IndianRupee, Landmark, RefreshCw, ShieldCheck, TrendingUp, Users, WalletCards } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import type { ReactElement } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ErrorState } from "../../../components/State";
 import { formatCurrency, formatDate } from "../../../utils/format";
-import { AdminCard, AdminLoading, AdminPage, AdminTable, MetricCard, StatusBadge } from "../AdminComponents";
-import { computeAdminMetrics, distribution, monthlySeries, recentActivity, title } from "../adminUtils";
+import { AdminCard, AdminLoading, AdminPage, AdminTable, StatusBadge } from "../AdminComponents";
+import { AdminOverviewCards } from "../AdminOverviewCards";
+import { AdminMoneyCharts } from "../AdminMoneyCharts";
+import { distribution, monthlySeries, recentActivity, title } from "../adminUtils";
 import { useAdminOverview } from "../useAdminOverview";
 
 const chartColors = ["#08152f", "#153bb7", "#d7ab3d", "#2563eb", "#1e7b54", "#a97a16"];
@@ -20,10 +22,7 @@ export function AdminDashboard() {
   if (overview.isPending) return <AdminLoading />;
   if (!overview.data) return <div><ErrorState title="Unable to load admin dashboard" message={overview.error instanceof Error ? overview.error.message : "The spreadsheet API did not return admin records."} /><button type="button" onClick={() => void overview.refetch()} disabled={overview.isFetching} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-forest-800 px-4 py-2 text-sm font-semibold text-white"><RefreshCw className="h-4 w-4" />Retry</button></div>;
   const data = overview.data;
-  const metrics = computeAdminMetrics(data);
   const portfolioGrowth = monthlySeries(data.transactions, (row) => row.date, (row) => row.credit - row.debit);
-  const monthlyInvestments = monthlySeries(data.investments, (row) => row.startDate, (row) => row.principalAmount);
-  const monthlyWithdrawals = monthlySeries(data.withdrawals, (row) => row.requestDate, (row) => row.amount);
   const registrations = monthlySeries(data.clients, (row) => row.dateOfBirth, () => 1);
   const portfolio = distribution(data.investments, (row) => row.category || row.plan, (row) => row.currentValue || row.principalAmount);
   const activityRows = recentActivity(data).slice(0, 8);
@@ -31,18 +30,9 @@ export function AdminDashboard() {
   return (
     <AdminPage title="Admin Dashboard" eyebrow="Cumulative live view from Google Spreadsheet">
       {overview.error && <ErrorState title="Dashboard refresh failed" message="The last loaded dashboard is shown. The latest spreadsheet data could not be retrieved." />}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Total Clients" value={String(metrics.totalClients)} hint={`${metrics.activeClients} active, ${metrics.inactiveClients} inactive`} icon={<Users className="h-5 w-5" />} />
-        <MetricCard label="Verified KYC" value={String(metrics.verifiedKyc)} hint={`${metrics.pendingKyc} pending`} icon={<ShieldCheck className="h-5 w-5" />} tone="gold" />
-        <MetricCard label="Total Investment" value={formatCurrency(metrics.totalInvestment)} icon={<IndianRupee className="h-5 w-5" />} />
-        <MetricCard label="Portfolio Value" value={formatCurrency(metrics.portfolioValue)} icon={<TrendingUp className="h-5 w-5" />} />
-        <MetricCard label="Monthly Payout" value={formatCurrency(metrics.monthlyPayout)} icon={<Landmark className="h-5 w-5" />} tone="gold" />
-        <MetricCard label="Pending Withdrawals" value={String(metrics.pendingWithdrawals)} hint={`${metrics.approvedWithdrawals} approved, ${metrics.paidWithdrawals} paid`} icon={<WalletCards className="h-5 w-5" />} />
-        <MetricCard label="Referral Commission" value={formatCurrency(metrics.totalReferralCommission)} hint={`${formatCurrency(metrics.pendingReferralCommission)} pending`} icon={<Activity className="h-5 w-5" />} />
-        <MetricCard label="Documents / Alerts" value={`${metrics.documentsUploaded} / ${metrics.unreadNotifications}`} hint="Uploaded documents / unread notifications" icon={<Bell className="h-5 w-5" />} tone="slate" />
-      </div>
+      <AdminOverviewCards data={data} />
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr_1fr]">
         <AdminCard>
           <SectionTitle title="Portfolio Growth" subtitle="Net portfolio movement by transaction month" />
           <ChartBox><AreaChart data={portfolioGrowth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatThousandsAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox>
@@ -58,13 +48,10 @@ export function AdminDashboard() {
             </PieChart>
           </ChartBox>
         </AdminCard>
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <AdminCard><SectionTitle title="Monthly Investment" subtitle="Principal grouped by investment start date" /><ChartBox small><BarChart data={monthlyInvestments}><XAxis dataKey="month" /><YAxis hide /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Bar dataKey="value" fill="#1e7b54" radius={[6, 6, 0, 0]} /></BarChart></ChartBox></AdminCard>
-        <AdminCard><SectionTitle title="Monthly Withdrawals" subtitle="Withdrawal requests grouped by month" /><ChartBox small><BarChart data={monthlyWithdrawals}><XAxis dataKey="month" /><YAxis hide /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Bar dataKey="value" fill="#d7ab3d" radius={[6, 6, 0, 0]} /></BarChart></ChartBox></AdminCard>
         <AdminCard><SectionTitle title="Client Registration Trend" subtitle="Client records grouped by available date" /><ChartBox small><BarChart data={registrations}><XAxis dataKey="month" /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="value" fill="#14583f" radius={[6, 6, 0, 0]} /></BarChart></ChartBox></AdminCard>
       </div>
+
+      <div className="mt-6"><AdminMoneyCharts analytics={data.dashboard.adminAnalytics} /></div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
         <AdminCard>

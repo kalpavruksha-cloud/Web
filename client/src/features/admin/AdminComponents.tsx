@@ -149,7 +149,7 @@ export function AdminCard({ children, className }: { children: ReactNode; classN
   return <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} className={cn("kv-card p-4 sm:p-5", className)}>{children}</motion.section>;
 }
 
-export function MetricCard({ label, value, hint, icon, tone = "green" }: { label: string; value: string; hint?: string; icon?: ReactNode; tone?: "green" | "gold" | "slate" }) {
+export function MetricCard({ label, value, hint, icon, tone = "green" }: { label: string; value: string; hint?: ReactNode; icon?: ReactNode; tone?: "green" | "gold" | "slate" }) {
   const toneClass = tone === "gold" ? "bg-gold-100/35 text-gold-700 dark:bg-gold-100/15 dark:text-gold-100" : tone === "slate" ? "bg-charcoal/6 text-charcoal dark:bg-white/10 dark:text-white" : "bg-forest-50 text-forest-800 dark:bg-emerald-400/10 dark:text-emerald-200";
   return (
     <AdminCard>
@@ -157,7 +157,7 @@ export function MetricCard({ label, value, hint, icon, tone = "green" }: { label
         <div className="min-w-0">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-charcoal/54 dark:text-white/54">{label}</p>
           <p className="mt-3 break-words font-display text-[1.6rem] font-extrabold leading-tight tracking-tight text-navy-900 dark:text-ivory sm:text-3xl">{value}</p>
-          {hint && <p className="mt-2 text-xs font-bold text-gold-600 dark:text-gold-100">{hint}</p>}
+          {hint && <div className="mt-2 text-xs font-bold text-gold-600 dark:text-gold-100">{hint}</div>}
         </div>
         {icon && <div className={cn("shrink-0 rounded-lg p-2.5 sm:p-3", toneClass)}>{icon}</div>}
       </div>
