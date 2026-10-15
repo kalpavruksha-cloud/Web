@@ -88,6 +88,29 @@ describe("Apps Script dashboard snapshot", () => {
     expect(harness.snapshot().totalInvestedAmount).toBe(150000);
     expect(harness.openById).toHaveBeenCalledTimes(2);
   });
+
+  it("prefers actual master/register tabs even when a plan catalog and old ledger come first", () => {
+    const harness = createSpreadsheetHarness();
+    const originalSheets = harness.getSheets();
+    const catalogRead = vi.fn(() => [["Plan ID", "Plan Name"], ["CATALOG", "Not a client investment"]]);
+    const ledgerRead = vi.fn(() => [["Transaction ID", "Client ID", "Txn Date", "Txn Type", "Credit Amount", "Debit Amount", "Transaction Status"], ["ACTUAL-1", "C001", "15/09/2026", "investment", "₹50,000", 0, "Posted"]]);
+    harness.getSheets.mockReturnValue([
+      { getName: () => "INVESTMENT_PLANS", getSheetId: () => 90, getDataRange: () => ({ getValues: catalogRead }) },
+      ...originalSheets,
+      { getName: () => "Transaction_Register", getSheetId: () => 91, getDataRange: () => ({ getValues: ledgerRead }) }
+    ]);
+    const result = harness.snapshot();
+    expect(result.adminData?.investments[0].id).toBe("I001");
+    expect(result.adminData?.transactions[0].id).toBe("ACTUAL-1");
+    expect(result.adminData?.transactions[0].credit).toBe(50000);
+    expect(result.adminAnalytics?.investmentMonths).toContainEqual({ month: "2026-09", amount: 50000 });
+    expect(result.adminAnalytics?.sources?.find((source) => source.module === "transactions")?.sheet).toBe("Transaction_Register");
+    expect(result.adminAnalytics?.sources?.find((source) => source.module === "investments")?.sheet).toBe("Investment_Master");
+    expect(catalogRead).not.toHaveBeenCalled();
+    expect(harness.reads.TRANSACTIONS).not.toHaveBeenCalled();
+    expect(ledgerRead).toHaveBeenCalledTimes(1);
+    expect(harness.openById).toHaveBeenCalledTimes(1);
+  });
 });
 
 type AnalyticsResult = AdminFinancialAnalytics & {
@@ -185,5 +208,45 @@ describe("admin financial analytics", () => {
     expect(new Date(String(paidValues["Payment Date"])).getTime()).toBeGreaterThan(0);
     runInContext('approveWithdrawal({id:"W001"})', harness.context);
     expect(update.mock.calls[1][4]).not.toHaveProperty("Payment Date");
+  });
+
+  it("parses actual dated admin credit/debit fields and Indian currency text", () => {
+    const harness = createSpreadsheetHarness();
+    const credit = runInContext('mapAdminTransaction({"Txn Date":"15/10/2026","Txn Type":"Investment","Credit Amount":"₹1,00,000.50","Transaction Status":"Posted"})', harness.context) as { date: string; credit: number; type: string; status: string };
+    expect(credit).toMatchObject({ date: "2026-10-15", credit: 100000.5, type: "investment", status: "posted" });
+    const debit = runInContext('mapAdminTransaction({"Date":"15/10/2026","Type":"Withdrawal","Amount":"INR 5,000"})', harness.context) as { debit: number };
+    expect(debit.debit).toBe(5000);
+    expect(runInContext('adminMoney("(1,000)")', harness.context)).toBe(-1000);
+  });
+
+  it("does not manufacture registration history from date of birth or historical portfolio valuations", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`
+      var chartResult = {asOf:"2026-10-15T08:00:00Z", investmentMonths:[], warnings:[]};
+      addAdminOverviewSeries(chartResult,
+        [{registrationDate:"2026-09-15"},{dateOfBirth:"1990-01-01"}], [], [], [],
+        [{clientId:"C001",currentPortfolioValue:150000}]);
+      chartResult;
+    `, harness.context) as AdminFinancialAnalytics;
+    expect(result.registrationMonths).toEqual([{ month: "2026-09", count: 1 }]);
+    expect(result.portfolioMonths).toEqual([{ month: "2026-10", amount: 150000 }]);
+    expect(result.portfolioGrowthSource).toBe("current_snapshot");
+    expect(result.portfolioDistribution).toEqual([{ name: "C001", amount: 150000 }]);
+    expect(result.warnings.some((warning) => warning.includes("Date of birth is not used"))).toBe(true);
+  });
+
+  it("keeps signed monthly cash flow chronological and excludes pending transactions", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`
+      var flowResult = {asOf:"2026-10-15T08:00:00Z",investmentMonths:[],warnings:[]};
+      addAdminOverviewSeries(flowResult,[],[],[
+        {date:"2026-10-01",status:"posted",credit:1000,debit:0},
+        {date:"2026-01-01",status:"posted",credit:0,debit:200},
+        {date:"2026-10-02",status:"pending",credit:90000,debit:0}],[],[]);
+      flowResult;
+    `, harness.context) as AdminFinancialAnalytics;
+    expect(result.transactionMonths).toEqual([{ month: "2026-01", amount: -200 }, { month: "2026-10", amount: 1000 }]);
+    expect(result.portfolioMonths).toEqual([{ month: "2026-01", amount: -200 }, { month: "2026-10", amount: 800 }]);
+    expect(result.excludedTransactionStatuses).toEqual({ pending: 1 });
   });
 });

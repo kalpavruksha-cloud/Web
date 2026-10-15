@@ -1,55 +1,26 @@
 import { RefreshCw } from "lucide-react";
-import type { ReactElement } from "react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ErrorState } from "../../../components/State";
 import { formatCurrency, formatDate } from "../../../utils/format";
-import { AdminCard, AdminLoading, AdminPage, AdminTable, StatusBadge } from "../AdminComponents";
+import { AdminCard, AdminLoading, AdminPage, AdminTable, CommandButton, StatusBadge } from "../AdminComponents";
 import { AdminOverviewCards } from "../AdminOverviewCards";
 import { AdminMoneyCharts } from "../AdminMoneyCharts";
-import { distribution, monthlySeries, recentActivity, title } from "../adminUtils";
+import { AdminOverviewCharts } from "../AdminOverviewCharts";
+import { recentActivity, title } from "../adminUtils";
 import { useAdminOverview } from "../useAdminOverview";
-
-const chartColors = ["#08152f", "#153bb7", "#d7ab3d", "#2563eb", "#1e7b54", "#a97a16"];
-
-function formatThousandsAxis(value: unknown) {
-  const thousands = Number(value || 0) / 1000;
-  const display = Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1);
-  return `\u20b9${display}K`;
-}
 
 export function AdminDashboard() {
   const overview = useAdminOverview();
   if (overview.isPending) return <AdminLoading />;
   if (!overview.data) return <div><ErrorState title="Unable to load admin dashboard" message={overview.error instanceof Error ? overview.error.message : "The spreadsheet API did not return admin records."} /><button type="button" onClick={() => void overview.refetch()} disabled={overview.isFetching} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-forest-800 px-4 py-2 text-sm font-semibold text-white"><RefreshCw className="h-4 w-4" />Retry</button></div>;
   const data = overview.data;
-  const portfolioGrowth = monthlySeries(data.transactions, (row) => row.date, (row) => row.credit - row.debit);
-  const registrations = monthlySeries(data.clients, (row) => row.dateOfBirth, () => 1);
-  const portfolio = distribution(data.investments, (row) => row.category || row.plan, (row) => row.currentValue || row.principalAmount);
   const activityRows = recentActivity(data).slice(0, 8);
 
   return (
-    <AdminPage title="Admin Dashboard" eyebrow="Cumulative live view from Google Spreadsheet">
+    <AdminPage title="Admin Dashboard" eyebrow="Cumulative live view from Google Spreadsheet" actions={<CommandButton tone="secondary" disabled={overview.isFetching} onClick={() => void overview.refetch()}><RefreshCw className="h-4 w-4" />Refresh data</CommandButton>}>
       {overview.error && <ErrorState title="Dashboard refresh failed" message="The last loaded dashboard is shown. The latest spreadsheet data could not be retrieved." />}
       <AdminOverviewCards data={data} />
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr_1fr]">
-        <AdminCard>
-          <SectionTitle title="Portfolio Growth" subtitle="Net portfolio movement by transaction month" />
-          <ChartBox><AreaChart data={portfolioGrowth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatThousandsAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox>
-        </AdminCard>
-        <AdminCard>
-          <SectionTitle title="Portfolio Distribution" subtitle="Current value grouped by plan/category" />
-          <ChartBox>
-            <PieChart>
-              <Pie data={portfolio} dataKey="value" nameKey="name" innerRadius={54} outerRadius={92} paddingAngle={3}>
-                {portfolio.map((_, index) => <Cell key={index} fill={chartColors[index % chartColors.length]} />)}
-              </Pie>
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-            </PieChart>
-          </ChartBox>
-        </AdminCard>
-        <AdminCard><SectionTitle title="Client Registration Trend" subtitle="Client records grouped by available date" /><ChartBox small><BarChart data={registrations}><XAxis dataKey="month" /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="value" fill="#14583f" radius={[6, 6, 0, 0]} /></BarChart></ChartBox></AdminCard>
-      </div>
+      <div className="mt-6"><AdminOverviewCharts analytics={data.dashboard.adminAnalytics} /></div>
 
       <div className="mt-6"><AdminMoneyCharts analytics={data.dashboard.adminAnalytics} /></div>
 
@@ -105,8 +76,4 @@ export function AdminDashboard() {
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
   return <div className="mb-4"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-gold-600 dark:text-gold-100">Executive intelligence</p><h2 className="mt-1 font-display text-xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{title}</h2><p className="mt-1 text-sm text-charcoal/58 dark:text-white/58">{subtitle}</p></div>;
-}
-
-function ChartBox({ children, small = false }: { children: ReactElement; small?: boolean }) {
-  return <div className={small ? "h-52 sm:h-56" : "h-64 sm:h-80"}><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>;
 }

@@ -1,6 +1,19 @@
 # Google Apps Script Integration
 
-## Admin Financial Analytics Update (V18)
+## Chart Source Fix (V19)
+
+V19 corrects admin financial tab selection: Investment_Master and
+Transaction_Register take precedence over a plan catalogue or older transaction
+tab, regardless of their physical order in the workbook. Client reads, login,
+permissions, and existing write routes are unchanged.
+
+Admin charts now share backend-normalized chronological series, parse Indian
+dates/currency, display single-point snapshots visibly, and use stable chart
+dimensions. Registration charts require registration dates, never date of birth.
+The Chart data sources panel shows the selected tabs, record counts, headers,
+missing-field warnings, excluded transaction statuses, and snapshot time.
+
+## Admin Financial Analytics
 
 Dashboard and Reports share the same `admin` totals and `adminAnalytics` series.
 This includes net investment, current-month estimated payout, total recorded
@@ -10,8 +23,8 @@ additional spreadsheet reads or a persistent data cache.
 
 Replace the complete `Code.gs` and deploy **New version** on the existing deployment.
 Verify `?action=deploymentTest` returns
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_14_ADMIN_ANALYTICS_V18`.
-The V18 web release explicitly flags unavailable analytics until this deployment
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_15_CHART_SOURCES_V19`.
+The web release explicitly flags unavailable analytics until this deployment
 is updated. Do not change the deployment URL unless necessary.
 
 Payout estimates require an explicit monetary `Monthly Return`, `Monthly Payout`,
@@ -38,7 +51,7 @@ To enable the single-request dashboard, replace the existing script with the
 complete `Code.gs` in this directory, then use **Deploy > Manage deployments >
 Edit > Version: New version > Deploy**. Keep the existing deployment and URL.
 Check `?action=deploymentTest` for marker
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_14_ADMIN_ANALYTICS_V18`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_15_CHART_SOURCES_V19`.
 
 Until that deployment is updated, the web portal loads the summary first and
 limits legacy collection requests to two at a time. The optimized Apps Script

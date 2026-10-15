@@ -1,17 +1,18 @@
 import { useState, type FormEvent, type ReactElement, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Activity, BarChart3, Download, ExternalLink, Eye, FileText, Plus, Printer, RefreshCw, Save } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Cell, Legend, Pie, PieChart, Tooltip, XAxis, YAxis } from "recharts";
 import { useAction, useDashboard, useResource } from "../../../api/queries";
 import { useAdminOverview } from "../useAdminOverview";
 import { AdminOverviewCards } from "../AdminOverviewCards";
 import { AdminMoneyCharts } from "../AdminMoneyCharts";
+import { AdminChartFrame } from "../AdminChartFrame";
 import { ErrorState } from "../../../components/State";
 import { useToast } from "../../../context/ToastContext";
 import type { ClientDocument, ClientNotification, Investment, PortalSettings, Profile, Referral, SpreadsheetSchema, Transaction, Withdrawal } from "../../../types/domain";
 import { formatCurrency, formatDate } from "../../../utils/format";
 import { AdminCard, AdminLoading, AdminPage, AdminTable, CommandButton, Field, Input, Select, StatusBadge } from "../AdminComponents";
-import { computeAdminMetrics, distribution, exportCsv, isStatus, monthlySeries, recentActivity, title } from "../adminUtils";
+import { computeAdminMetrics, exportCsv, isStatus, recentActivity, title } from "../adminUtils";
 
 export function AdminClients() {
   const { data, isLoading, error } = useResource<Profile[]>("admin-clients", "/clients");
@@ -316,10 +317,10 @@ export function AdminReports() {
   if (overview.isPending) return <AdminLoading label="Preparing live analytics" />;
   if (!overview.data) return <ErrorState title="Reports unavailable" message={overview.error instanceof Error ? overview.error.message : undefined} />;
   const data = overview.data;
-  const portfolioByCategory = distribution(data.investments, (row) => row.category || row.plan, (row) => row.currentValue || row.principalAmount).filter((row) => row.value > 0);
+  const portfolioByCategory = (data.dashboard.adminAnalytics?.portfolioDistribution ?? []).map((row) => ({ name: row.name, value: row.amount })).filter((row) => row.value > 0);
   const monthlyReturns = (data.dashboard.adminAnalytics?.payoutMonths ?? []).map((row) => ({ month: row.month, value: row.amount }));
-  const withdrawalByStatus = distribution(data.withdrawals, (row) => row.status, (row) => row.amount || 1).filter((row) => row.value > 0);
-  const transactionFlow = monthlySeries(data.transactions, (row) => row.date, (row) => row.credit - row.debit);
+  const withdrawalByStatus = (data.dashboard.adminAnalytics?.withdrawalStatus ?? []).map((row) => ({ name: row.name, value: row.amount })).filter((row) => row.value > 0);
+  const transactionFlow = (data.dashboard.adminAnalytics?.transactionMonths ?? []).map((row) => ({ month: row.month, value: row.amount }));
   const recentTransactions = [...data.transactions].sort((a, b) => sortableDateValue(b.date) - sortableDateValue(a.date)).slice(0, 8);
   const recentWithdrawals = [...data.withdrawals].sort((a, b) => sortableDateValue(b.requestDate) - sortableDateValue(a.requestDate)).slice(0, 8);
   const withdrawalRows = data.withdrawals.map((row) => ({
@@ -333,16 +334,16 @@ export function AdminReports() {
   const portfolioRows = portfolioByCategory.map((row) => ({ category: row.name, value: row.value }));
   const monthlyReturnRows = monthlyReturns.map((row) => ({ month: row.month, monthlyReturn: row.value }));
 
-  return <AdminPage title="Reports and Analytics" eyebrow="Visual reports generated from live spreadsheet records" actions={<CommandButton tone="secondary" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print</CommandButton>}>
+  return <AdminPage title="Reports and Analytics" eyebrow="Visual reports generated from live spreadsheet records" actions={<><CommandButton tone="secondary" disabled={overview.isFetching} onClick={() => void overview.refetch()}><RefreshCw className="h-4 w-4" />Refresh data</CommandButton><CommandButton tone="secondary" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print</CommandButton></>}>
     <AdminOverviewCards data={data} />
     <div className="mt-6"><AdminMoneyCharts analytics={data.dashboard.adminAnalytics} /></div>
 
     <div className="mt-6 grid gap-6 xl:grid-cols-3">
-      <ReportPanel title="Portfolio Report" subtitle="Current portfolio value grouped by category or plan" action={<CommandButton tone="secondary" onClick={() => exportCsv("portfolio-report.csv", portfolioRows)}><Download className="h-4 w-4" /> Export</CommandButton>}>
-        {portfolioByCategory.length ? <ReportChartBox><PieChart><Pie data={portfolioByCategory} dataKey="value" nameKey="name" innerRadius={58} outerRadius={102} paddingAngle={4}>{portfolioByCategory.map((_, index) => <Cell key={index} fill={reportChartColors[index % reportChartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatCurrency(Number(value))} /></PieChart></ReportChartBox> : <ReportEmpty label="No portfolio category data returned by spreadsheet." />}
+      <ReportPanel title="Portfolio Report" subtitle={data.dashboard.adminAnalytics?.portfolioDistributionSource === "dashboard_clients" ? "Current spreadsheet portfolio by client" : "Investment value grouped by category or plan"} action={<CommandButton tone="secondary" onClick={() => exportCsv("portfolio-report.csv", portfolioRows)}><Download className="h-4 w-4" /> Export</CommandButton>}>
+        {portfolioByCategory.length ? <ReportChartBox><PieChart accessibilityLayer><Pie data={portfolioByCategory} dataKey="value" nameKey="name" innerRadius="35%" outerRadius="65%" paddingAngle={4} isAnimationActive={false}>{portfolioByCategory.map((_, index) => <Cell key={index} fill={reportChartColors[index % reportChartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Legend /></PieChart></ReportChartBox> : <ReportEmpty label="No portfolio values returned by spreadsheet." />}
       </ReportPanel>
       <ReportPanel title="Withdrawal Report" subtitle="Approved, pending, rejected, and paid withdrawal movement" action={<CommandButton tone="secondary" onClick={() => exportCsv("withdrawal-report.csv", withdrawalRows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> Export</CommandButton>}>
-        {withdrawalByStatus.length ? <ReportChartBox small><PieChart><Pie data={withdrawalByStatus} dataKey="value" nameKey="name" outerRadius={82} paddingAngle={4}>{withdrawalByStatus.map((_, index) => <Cell key={index} fill={reportChartColors[index % reportChartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatCurrency(Number(value))} /></PieChart></ReportChartBox> : <ReportEmpty label="No withdrawal records returned by spreadsheet." />}
+        {withdrawalByStatus.length ? <ReportChartBox small><PieChart accessibilityLayer><Pie data={withdrawalByStatus} dataKey="value" nameKey="name" outerRadius="65%" paddingAngle={4} isAnimationActive={false}>{withdrawalByStatus.map((_, index) => <Cell key={index} fill={reportChartColors[index % reportChartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Legend /></PieChart></ReportChartBox> : <ReportEmpty label="No withdrawal amounts returned by spreadsheet." />}
       </ReportPanel>
       <ReportPanel title="Monthly Payout Report" subtitle="Recorded payout and interest transactions by calendar month" action={<CommandButton tone="secondary" onClick={() => exportCsv("monthly-payout-report.csv", monthlyReturnRows)}><Download className="h-4 w-4" /> Export</CommandButton>}>
         {monthlyReturns.length ? <ReportChartBox small><AreaChart data={monthlyReturns}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatCompactRupeeAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#d7ab3d" fill="#d7ab3d33" strokeWidth={3} /></AreaChart></ReportChartBox> : <ReportEmpty label="No dated completed payout or interest transactions were returned." />}
@@ -474,7 +475,7 @@ function ReportPanel({ title: panelTitle, subtitle, action, children }: { title:
 }
 
 function ReportChartBox({ children, small = false }: { children: ReactElement; small?: boolean }) {
-  return <div className={small ? "h-56 sm:h-64" : "h-72 sm:h-80"}><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>;
+  return <AdminChartFrame height={small ? 256 : 320}>{children}</AdminChartFrame>;
 }
 
 function ReportEmpty({ label }: { label: string }) {

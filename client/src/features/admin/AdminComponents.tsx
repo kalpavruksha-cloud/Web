@@ -146,7 +146,7 @@ export function AdminPage({ title, eyebrow, actions, children }: { title: string
 }
 
 export function AdminCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} className={cn("kv-card p-4 sm:p-5", className)}>{children}</motion.section>;
+  return <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} className={cn("kv-card min-w-0 p-4 sm:p-5", className)}>{children}</motion.section>;
 }
 
 export function MetricCard({ label, value, hint, icon, tone = "green" }: { label: string; value: string; hint?: ReactNode; icon?: ReactNode; tone?: "green" | "gold" | "slate" }) {

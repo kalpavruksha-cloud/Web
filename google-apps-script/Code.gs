@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_14_ADMIN_ANALYTICS_V18";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_15_CHART_SOURCES_V19";
 var DASHBOARD_READ_CONTEXT = null;
 
 var REQUIRED_SHEETS = [
@@ -351,7 +351,7 @@ function registerClient(payload) {
 
 function dashboard(payload) {
   var previousContext = DASHBOARD_READ_CONTEXT;
-  DASHBOARD_READ_CONTEXT = { spreadsheets: {}, sheets: {}, values: {} };
+  DASHBOARD_READ_CONTEXT = { spreadsheets: {}, sheets: {}, values: {}, sources: [] };
   try {
     return buildDashboardSnapshot(payload);
   } finally {
@@ -419,6 +419,8 @@ function buildDashboardSnapshot(payload) {
       };
     }, false);
     var analytics = buildAdminFinancialAnalytics(investments, transactions, withdrawals, totalInvested, new Date());
+    addAdminOverviewSeries(analytics, clients, investments, transactions, withdrawals, sourceDashboardRows);
+    analytics.sources = DASHBOARD_READ_CONTEXT.sources;
     var kycByClient = {};
     allKycRows.forEach(function(row) { kycByClient[normalizeText(row.clientId)] = row.kycStatus; });
     var verifiedKyc = clients.filter(function(row) {
@@ -483,15 +485,17 @@ function adminCalendarDay(value) {
   return isNaN(parsed.getTime()) ? "" : adminCalendarDay(parsed);
 }
 
+function adminTransactionPosted(row) {
+  return ["completed", "posted", "paid", "success", "successful", "settled"].indexOf(row.status) >= 0;
+}
+
 function buildAdminFinancialAnalytics(investments, transactions, withdrawals, totalInvested, now) {
   var today = adminCalendarDay(now);
   var month = today.slice(0, 7);
   var monthStart = month + "-01";
   var monthEnd = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0)).toISOString().slice(0, 10);
   var warnings = [];
-  var completed = transactions.filter(function(row) {
-    return ["completed", "posted", "paid", "success", "successful", "settled"].indexOf(row.status) >= 0;
-  });
+  var completed = transactions.filter(adminTransactionPosted);
   var investmentLedger = completed.filter(function(row) {
     return ["investment", "deposit", "investment_credit", "capital_investment", "add_investment"].indexOf(row.type) >= 0;
   });
@@ -578,7 +582,8 @@ function adminMonthlyAmounts(days) {
 
 function mapAdminInvestment(row) {
   var result = mapInvestment(row);
-  result.principalAmount = number(first(row, ["Principal Amount", "Amount", "Invested Amount", "Investment Amount"]));
+  result.principalAmount = adminMoney(first(row, ["Principal Amount", "Amount", "Invested Amount", "Investment Amount"]));
+  result.currentValue = adminMoney(first(row, ["Current Value", "Portfolio Value"]));
   result.startDate = adminCalendarDay(first(row, ["Start Date", "Investment Date", "Invested Date", "Date"]));
   result.maturityDate = adminCalendarDay(result.maturityDate);
   result.nextPayoutDate = adminCalendarDay(first(row, ["Next Payout Date", "Scheduled Payout Date"]));
@@ -592,12 +597,109 @@ function mapAdminInvestment(row) {
 
 function mapAdminWithdrawal(row) {
   var result = mapWithdrawal(row);
+  result.amount = adminMoney(first(row, ["Amount", "Requested Amount", "Withdrawal Amount"]));
   result.paymentDate = adminCalendarDay(first(row, ["Payment Date", "Paid Date", "Withdrawal Date", "Paid On"]));
   return result;
 }
 
+function adminMoney(value) {
+  if (typeof value === "number") return isFinite(value) ? value : 0;
+  var text = cleanString(value).replace(/^(?:INR|Rs\.?)\s*/i, "").replace(/[\u20b9,\s]/g, "");
+  if (/^\(\d+(?:\.\d+)?\)$/.test(text)) text = "-" + text.slice(1, -1);
+  return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text) ? Number(text) : 0;
+}
+
+function mapAdminTransaction(row) {
+  var result = mapTransaction(row);
+  result.date = adminCalendarDay(first(row, ["Date", "Transaction Date", "Txn Date", "Value Date"]));
+  result.type = normalizeStatus(first(row, ["Type", "Transaction Type", "Transaction", "Txn Type", "Transaction Category"]));
+  result.status = normalizeStatus(first(row, ["Status", "Transaction Status", "Posting Status"]) || "completed");
+  var credit = first(row, ["Credit", "Credit Amount", "Amount Credit", "Cr"]);
+  var debit = first(row, ["Debit", "Debit Amount", "Amount Debit", "Dr"]);
+  var amount = first(row, ["Amount", "Transaction Amount", "Value"]);
+  if (credit !== "") result.credit = adminMoney(credit);
+  if (debit !== "") result.debit = adminMoney(debit);
+  if (credit === "" && debit === "" && amount !== "") {
+    if (["investment", "deposit", "investment_credit", "capital_investment", "add_investment", "payout", "interest", "interest_credit", "monthly_return", "monthly_payout", "referral", "bonus"].indexOf(result.type) >= 0) result.credit = adminMoney(amount);
+    if (["withdrawal", "withdrawal_paid", "withdrawal_debit", "redemption", "fee", "charge"].indexOf(result.type) >= 0) result.debit = adminMoney(amount);
+  }
+  result.netAmount = result.credit - result.debit;
+  return result;
+}
+
+function mapAdminProfile(row) {
+  var result = mapProfile(row);
+  result.registrationDate = adminCalendarDay(first(row, ["Registration Date", "Created Date", "Created At", "Joining Date", "Account Opening Date", "Registered On"]));
+  return result;
+}
+
+function adminSourceWarnings(module, headers) {
+  var requirements = {
+    investments: [["investment date", "Start Date", "Investment Date", "Invested Date", "Date"], ["principal", "Principal Amount", "Amount", "Invested Amount", "Investment Amount"]],
+    transactions: [["transaction date", "Date", "Transaction Date", "Txn Date", "Value Date"], ["transaction type", "Type", "Transaction Type", "Transaction", "Txn Type", "Transaction Category"], ["amount", "Credit", "Credit Amount", "Amount Credit", "Cr", "Debit", "Debit Amount", "Amount Debit", "Dr", "Amount", "Transaction Amount", "Value"]],
+    withdrawals: [["withdrawal amount", "Amount", "Requested Amount", "Withdrawal Amount"], ["payment date", "Payment Date", "Paid Date", "Withdrawal Date", "Paid On"]],
+    clients: [["registration date", "Registration Date", "Created Date", "Created At", "Joining Date", "Account Opening Date", "Registered On"]]
+  };
+  return (requirements[module] || []).filter(function(aliases) { return findHeaderIndex(headers, aliases.slice(1)) < 0; }).map(function(aliases) {
+    return "Missing " + aliases[0] + " column.";
+  });
+}
+
+function addAdminOverviewSeries(analytics, clients, investments, transactions, withdrawals, dashboardRows) {
+  var today = adminCalendarDay(new Date(analytics.asOf));
+  var completed = transactions.filter(adminTransactionPosted);
+  var dated = completed.filter(function(row) { return row.date && row.date <= today; });
+  var flow = {};
+  dated.forEach(function(row) {
+    var month = row.date.slice(0, 7);
+    flow[month] = (flow[month] || 0) + row.credit - row.debit;
+  });
+  analytics.transactionMonths = Object.keys(flow).sort().map(function(month) { return { month: month, amount: Math.round(flow[month] * 100) / 100 }; });
+  var running = 0;
+  analytics.portfolioMonths = analytics.transactionMonths.map(function(row) {
+    running += row.amount;
+    return { month: row.month, amount: Math.round(running * 100) / 100 };
+  });
+  analytics.portfolioGrowthSource = "transaction_ledger";
+  if (!analytics.portfolioMonths.length) {
+    analytics.portfolioGrowthSource = "investment_records";
+    analytics.portfolioMonths = analytics.investmentMonths.map(function(row) {
+      running += row.amount;
+      return { month: row.month, amount: Math.round(running * 100) / 100 };
+    });
+  }
+  if (!analytics.portfolioMonths.length && dashboardRows.length) {
+    analytics.portfolioGrowthSource = "current_snapshot";
+    analytics.portfolioMonths = [{ month: today.slice(0, 7), amount: sum(dashboardRows, "currentPortfolioValue") }];
+  }
+  var groups = {};
+  var valuedInvestments = investments.filter(function(row) { return row.currentValue > 0 || row.principalAmount > 0; });
+  analytics.portfolioDistributionSource = valuedInvestments.length ? "investment_records" : "dashboard_clients";
+  valuedInvestments.forEach(function(row) {
+    var category = row.category || row.plan || "Unassigned";
+    groups[category] = (groups[category] || 0) + (row.currentValue || row.principalAmount);
+  });
+  if (!valuedInvestments.length) dashboardRows.forEach(function(row) { groups[row.clientId || "Unassigned"] = (groups[row.clientId || "Unassigned"] || 0) + row.currentPortfolioValue; });
+  analytics.portfolioDistribution = Object.keys(groups).filter(function(name) { return groups[name] > 0; }).map(function(name) { return { name: name, amount: Math.round(groups[name] * 100) / 100 }; });
+  var registered = clients.filter(function(row) { return row.registrationDate && row.registrationDate <= today; });
+  var registrations = {};
+  registered.forEach(function(row) {
+    var month = row.registrationDate.slice(0, 7);
+    registrations[month] = (registrations[month] || 0) + 1;
+  });
+  analytics.registrationMonths = Object.keys(registrations).sort().map(function(month) { return { month: month, count: registrations[month] }; });
+  if (registered.length < clients.length) analytics.warnings.push(String(clients.length - registered.length) + " clients have no usable registration date. Date of birth is not used for registration charts.");
+  var statuses = {};
+  withdrawals.forEach(function(row) { statuses[row.status] = (statuses[row.status] || 0) + row.amount; });
+  analytics.withdrawalStatus = Object.keys(statuses).map(function(status) { return { name: status, amount: Math.round(statuses[status] * 100) / 100 }; });
+  var excluded = {};
+  transactions.filter(function(row) { return !adminTransactionPosted(row); }).forEach(function(row) { excluded[row.status] = (excluded[row.status] || 0) + 1; });
+  analytics.excludedTransactionStatuses = excluded;
+  if (transactions.length && !dated.length) analytics.warnings.push("No completed transactions have usable dates. Check transaction status, date headers, and the selected source tab.");
+}
+
 function getClients(payload) {
-  return readModule(payload, ["CLIENTS", "Client", "Clients", "Profile"], mapProfile, false);
+  return readModule(payload, ["CLIENTS", "Client", "Clients", "Profile"], payload.role === "admin" ? mapAdminProfile : mapProfile, false, payload.role === "admin" ? "clients" : "");
 }
 
 function getClient(payload) {
@@ -641,7 +743,8 @@ function updateProfile(payload) {
 }
 
 function getInvestments(payload) {
-  return readModule(payload, ["Investment_Master", "Investment Master", "INVESTMENT_PLANS", "Investment", "Investments"], payload.role === "admin" ? mapAdminInvestment : mapInvestment, true);
+  var names = payload.role === "admin" ? ["Investment_Master", "Investment Master", "Investment", "Investments", "INVESTMENT_PLANS"] : ["Investment_Master", "Investment Master", "INVESTMENT_PLANS", "Investment", "Investments"];
+  return readModule(payload, names, payload.role === "admin" ? mapAdminInvestment : mapInvestment, true, payload.role === "admin" ? "investments" : "");
 }
 
 function getInvestment(payload) {
@@ -657,7 +760,7 @@ function updateInvestment(payload) {
 }
 
 function getTransactions(payload) {
-  return readModule(payload, ["Transaction_Register", "Transaction Register", "Raw_Transactions", "Raw Transactions", "TRANSACTIONS", "Transaction", "Transactions", "Ledger"], mapTransaction, true);
+  return readModule(payload, ["Transaction_Register", "Transaction Register", "Raw_Transactions", "Raw Transactions", "TRANSACTIONS", "Transaction", "Transactions", "Ledger"], payload.role === "admin" ? mapAdminTransaction : mapTransaction, true, payload.role === "admin" ? "transactions" : "");
 }
 
 function getTransaction(payload) {
@@ -669,7 +772,7 @@ function createTransaction(payload) {
 }
 
 function getWithdrawals(payload) {
-  return readModule(payload, ["Withdrawals", "Withdrawal"], payload.role === "admin" ? mapAdminWithdrawal : mapWithdrawal, true);
+  return readModule(payload, ["Withdrawals", "Withdrawal"], payload.role === "admin" ? mapAdminWithdrawal : mapWithdrawal, true, payload.role === "admin" ? "withdrawals" : "");
 }
 
 function createWithdrawal(payload) {
@@ -1230,11 +1333,18 @@ function logClientActivity(payload) {
   return { logged: true };
 }
 
-function readModule(payload, sheetNames, mapper, scoped) {
-  var sheet = findSheet(getSpreadsheet(payload), sheetNames);
-  if (!sheet) return [];
+function readModule(payload, sheetNames, mapper, scoped, adminModule) {
+  var sheet = findSheet(getSpreadsheet(payload), sheetNames, !!adminModule);
+  if (!sheet) {
+    if (adminModule && DASHBOARD_READ_CONTEXT) DASHBOARD_READ_CONTEXT.sources.push({ module: adminModule, sheet: null, recordCount: 0, headers: [], warnings: ["No supported tab exists for " + adminModule + "."] });
+    return [];
+  }
   var clientScoped = scoped && payload.role !== "admin";
   var rows = clientScoped ? readRowsForClient(sheet, payload.clientId) : readRows(sheet);
+  if (adminModule && DASHBOARD_READ_CONTEXT) {
+    var headers = readDashboardSheetValues(sheet)[0] || [];
+    DASHBOARD_READ_CONTEXT.sources.push({ module: adminModule, sheet: sheet.getName(), recordCount: rows.length, headers: headers.map(String), warnings: adminSourceWarnings(adminModule, headers) });
+  }
   return rows.map(mapper);
 }
 
@@ -1697,7 +1807,7 @@ function sanitizeName(value) {
   return String(value || "file").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").slice(0, 120);
 }
 
-function findSheet(spreadsheet, names) {
+function findSheet(spreadsheet, names, preferAliasOrder) {
   var normalized = names.map(normalizeKey);
   var sheets;
   if (DASHBOARD_READ_CONTEXT) {
@@ -1706,6 +1816,14 @@ function findSheet(spreadsheet, names) {
     sheets = DASHBOARD_READ_CONTEXT.sheets[spreadsheetId];
   } else {
     sheets = spreadsheet.getSheets();
+  }
+  if (preferAliasOrder) {
+    for (var nameIndex = 0; nameIndex < normalized.length; nameIndex++) {
+      for (var sheetIndex = 0; sheetIndex < sheets.length; sheetIndex++) {
+        if (normalized[nameIndex] === normalizeKey(sheets[sheetIndex].getName())) return sheets[sheetIndex];
+      }
+    }
+    return null;
   }
   for (var i = 0; i < sheets.length; i++) {
     if (normalized.indexOf(normalizeKey(sheets[i].getName())) >= 0) return sheets[i];

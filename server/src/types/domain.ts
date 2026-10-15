@@ -36,6 +36,7 @@ export type Profile = {
   mobile?: string;
   email?: string;
   dateOfBirth?: string;
+  registrationDate?: string;
   address?: string;
   pan?: string;
   aadhaar?: string;
@@ -168,6 +169,15 @@ export type AdminFinancialAnalytics = {
   payoutMonths: Array<{ month: string; amount: number }>;
   withdrawalDays: Array<{ date: string; amount: number }>;
   warnings: string[];
+  portfolioMonths?: Array<{ month: string; amount: number }>;
+  portfolioGrowthSource?: "transaction_ledger" | "investment_records" | "current_snapshot";
+  portfolioDistribution?: Array<{ name: string; amount: number }>;
+  portfolioDistributionSource?: "investment_records" | "dashboard_clients";
+  transactionMonths?: Array<{ month: string; amount: number }>;
+  registrationMonths?: Array<{ month: string; count: number }>;
+  withdrawalStatus?: Array<{ name: string; amount: number }>;
+  sources?: Array<{ module: string; sheet: string | null; recordCount: number; headers: string[]; warnings: string[] }>;
+  excludedTransactionStatuses?: Record<string, number>;
 };
 
 export type DashboardSummary = {

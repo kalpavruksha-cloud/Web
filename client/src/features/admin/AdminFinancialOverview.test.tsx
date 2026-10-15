@@ -9,7 +9,8 @@ import type { AdminCollections } from "./adminUtils";
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   BarChart: ({ data }: { data: Array<{ label: string; amount: number }> }) => <div data-testid="money-chart">{JSON.stringify(data)}</div>,
-  Bar: () => null, CartesianGrid: () => null, Tooltip: () => null, XAxis: () => null, YAxis: () => null
+  Bar: () => null, CartesianGrid: () => null, Tooltip: () => null, XAxis: () => null, YAxis: () => null,
+  Area: () => null, AreaChart: () => null, Pie: () => null, PieChart: () => null, Cell: () => null, Legend: () => null
 }));
 
 afterEach(cleanup);
@@ -64,7 +65,7 @@ describe("shared admin dashboard and report financial views", () => {
 
   it("shows explicit data quality and deployment errors instead of fabricated chart data", () => {
     const result = render(<AdminMoneyCharts />);
-    expect(screen.getByRole("status")).toHaveTextContent("Apps Script V18");
+    expect(screen.getByRole("status")).toHaveTextContent("Apps Script V19");
     result.rerender(<AdminMoneyCharts analytics={{ ...analytics, warnings: ["Payment dates are missing."] }} />);
     expect(screen.getByRole("status")).toHaveTextContent("Payment dates are missing.");
   });

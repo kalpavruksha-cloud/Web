@@ -7,7 +7,7 @@
 - Frontend local URL: `http://localhost:5173`
 - Backend local URL: `http://localhost:8080/api`
 
-## Admin Dashboard Upgrade (V18)
+## Admin Dashboard Upgrade (V19)
 
 The dashboard and analytics now use one shared `/api/dashboard` snapshot instead
 of eight overlapping module requests. This upgrade requires both the web release
@@ -18,7 +18,7 @@ and the updated `google-apps-script/Code.gs` deployment:
 3. Select Version > New version, then Deploy. Keep Execute as: Me and the existing access configuration.
 4. Keep the existing deployment URL to avoid changing Vercel environment variables.
 5. Open the existing `/exec?action=deploymentTest` URL. The marker must be
-   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_14_ADMIN_ANALYTICS_V18`.
+   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_15_CHART_SOURCES_V19`.
 6. After the GitHub-triggered Vercel deployment succeeds, reload the portal and sign in as admin.
 
 The admin dashboard should make a single `/api/dashboard` request for its records,
@@ -28,10 +28,17 @@ request. Read caches are discarded even on failure; there is no cross-request
 business-data cache. Until Apps Script is upgraded, the web release uses a bounded
 two-request compatibility path after retrieving the legacy summary.
 
-V18 adds shared dashboard/report financial analytics. See
+V19 fixes financial source-tab precedence and uses shared dashboard/report chart series. See
 `docs/ADMIN_FINANCIAL_ANALYTICS.md` for metric definitions and source requirements.
-Until Apps Script V18 is deployed, the web release shows an explicit analytics
+Until Apps Script V19 is deployed, source diagnostics and the corrected series are unavailable.
+The web release shows an explicit analytics
 availability notice rather than empty or invented financial charts.
+
+After deployment, sign in as admin and expand Chart data sources. Transactions
+should resolve to Transaction_Register when present, and investments to
+Investment_Master, regardless of workbook tab order. Use Refresh data to refetch
+the snapshot without a full page reload. Verify known monthly totals against the
+selected source; health checks do not validate private financial amounts.
 
 ## GitHub Preparation
 

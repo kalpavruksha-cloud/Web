@@ -1,20 +1,23 @@
 import { useState } from "react";
 import { Download } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import type { AdminFinancialAnalytics } from "../../types/domain";
 import { formatCurrency } from "../../utils/format";
 import { AdminCard, CommandButton, Field, Select } from "./AdminComponents";
 import { dailyChartSeries, monthlyChartSeries, monthOptions } from "./adminChartSeries";
 import { exportCsv } from "./adminUtils";
+import { AdminChartFrame } from "./AdminChartFrame";
+import { AdminChartSources } from "./AdminOverviewCharts";
 
 export function AdminMoneyCharts({ analytics }: { analytics?: AdminFinancialAnalytics }) {
-  if (!analytics) return <AdminCard><p role="status" className="text-sm text-amber-800 dark:text-gold-100">Monthly analytics are unavailable. Deploy the updated Apps Script V18 and refresh this page.</p></AdminCard>;
+  if (!analytics) return <AdminCard><p role="status" className="text-sm text-amber-800 dark:text-gold-100">Monthly analytics are unavailable. Deploy the updated Apps Script V19 and refresh this page.</p></AdminCard>;
   return <>
     <div className="grid gap-6 xl:grid-cols-2">
       <InvestmentChart analytics={analytics} />
       <WithdrawalChart analytics={analytics} />
     </div>
     {analytics.warnings.length > 0 && <div role="status" className="mt-4 rounded-lg border border-amber-300/60 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100"><ul className="grid gap-2">{analytics.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></div>}
+    <AdminChartSources analytics={analytics} />
   </>;
 }
 
@@ -57,7 +60,7 @@ function ChartHeading({ title, detail, total, points, filename }: { title: strin
 }
 
 function MoneyBarChart({ points, color }: { points: Array<{ label: string; amount: number }>; color: string }) {
-  return <div className="h-64 w-full min-w-0 sm:h-72">
-    <ResponsiveContainer width="100%" height="100%"><BarChart data={points} margin={{ top: 12, right: 8, left: 0, bottom: 0 }} accessibilityLayer><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" vertical={false} /><XAxis dataKey="label" minTickGap={12} /><YAxis width={66} tickFormatter={(value: number) => `\u20b9${Number((value / 1000).toFixed(1))}K`} /><Tooltip formatter={(value) => [formatCurrency(Number(value)), "Amount"]} /><Bar dataKey="amount" fill={color} radius={[5, 5, 0, 0]} maxBarSize={40} isAnimationActive={false} /></BarChart></ResponsiveContainer>
-  </div>;
+  return <><AdminChartFrame><BarChart data={points} margin={{ top: 12, right: 8, left: 0, bottom: 0 }} accessibilityLayer><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" vertical={false} /><XAxis dataKey="label" minTickGap={12} /><YAxis width={66} tickFormatter={(value: number) => `\u20b9${Number((value / 1000).toFixed(1))}K`} /><Tooltip formatter={(value) => [formatCurrency(Number(value)), "Amount"]} /><Bar dataKey="amount" fill={color} radius={[5, 5, 0, 0]} maxBarSize={40} isAnimationActive={false} /></BarChart></AdminChartFrame>
+    {!points.some((point) => point.amount !== 0) && <p role="status" className="mt-2 text-sm text-charcoal/65 dark:text-white/65">No completed activity is recorded for this period.</p>}
+  </>;
 }

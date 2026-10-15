@@ -32,6 +32,7 @@ Current month boundaries use Asia/Kolkata, independent of the server's timezone.
 
 ## Charts
 
+- V19 selects admin financial source tabs in explicit alias priority, not workbook position. Investment_Master precedes investment records/catalogues; Transaction_Register precedes raw/legacy transaction tabs. Read sources remain visible in admin-only Chart data sources.
 - Monthly Investment: January through the current month of the present India calendar year, chronological, with zero amounts for genuine no-activity months.
 - Prefer completed investment/deposit ledger entries. If none exist, use dated funded investment records. Never add both sources together.
 - Monthly Withdrawals: completed withdrawal ledger entries, or paid withdrawal records with payment dates when no completed ledger entries exist. Pending, approved-but-unpaid, and rejected requests are not completed withdrawals.
@@ -40,12 +41,17 @@ Current month boundaries use Asia/Kolkata, independent of the server's timezone.
 - Indian `dd/MM/yyyy`, ISO dates, Apps Script Date values, and spreadsheet date serials are supported. Invalid/impossible dates are excluded with warnings. Future dates are excluded from actual-activity charts.
 - Mark Paid records Payment Date for future charting. Do not backfill historical payment dates using request dates unless independently verified.
 - Filtered chart exports use the currently selected period.
+- Portfolio Movement uses chronological cumulative posted cash flow, not a sum of independently grouped monthly balances. Without ledger history it uses dated investment principal. When only a current DASHBOARD value exists, it displays one current snapshot, not fabricated historical growth.
+- Portfolio distribution uses investment values when available, or actual per-client DASHBOARD values when investment-level values are absent. Labels identify the selected source.
+- Registration charts use Registration Date/Created Date/Created At/Joining Date/Account Opening Date/Registered On. Missing dates are flagged; DOB is never used.
+- All chart containers have explicit numeric height and minimum width constraints. Single-point area charts display a visible point. Real Recharts SVG rendering is tested without mocking the chart library.
+- The source panel lists detected columns, counts and excluded posting statuses. Correct missing data at the source; do not mark pending or rejected transactions completed merely to populate a chart.
 
 ## Deployment and Verification
 
 Deploy the complete `google-apps-script/Code.gs` as a new version of the existing
 deployment. Expected marker:
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_14_ADMIN_ANALYTICS_V18`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_15_CHART_SOURCES_V19`.
 
 Sign in as admin, open Dashboard then Reports, and verify matching card values.
 Check monthly investment against completed investment ledger amounts for the
@@ -56,4 +62,4 @@ Confirm missing payout terms show Not available and a warning, rather than zero.
 Automated tests cover the calculations, source precedence, dates, role separation,
 request-local read reuse, card rendering, and interactive month/year filtering.
 Live financial reconciliation requires an authenticated admin session and the
-V18 Apps Script deployment; a successful build or health response does not prove it.
+V19 Apps Script deployment; a successful build or health response does not prove it.
