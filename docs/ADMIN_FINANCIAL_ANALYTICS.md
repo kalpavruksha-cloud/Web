@@ -42,7 +42,7 @@ Current month boundaries use Asia/Kolkata, independent of the server's timezone.
 - Mark Paid records Payment Date for future charting. Do not backfill historical payment dates using request dates unless independently verified.
 - Filtered chart exports use the currently selected period.
 - Portfolio Movement uses chronological cumulative posted cash flow, not a sum of independently grouped monthly balances. Without ledger history it uses dated investment principal. When only a current DASHBOARD value exists, it displays one current snapshot, not fabricated historical growth.
-- Portfolio distribution uses investment values when available, or actual per-client DASHBOARD values when investment-level values are absent. Labels identify the selected source.
+- Portfolio distribution uses complete investment-level current valuations, or actual per-client DASHBOARD portfolio values when those valuations are incomplete. Only when neither valuation source exists does it show recorded principal, explicitly labelled as principal rather than current value. Labels identify the selected source and basis.
 - Registration charts use Registration Date/Created Date/Created At/Joining Date/Account Opening Date/Registered On. Missing dates are flagged; DOB is never used.
 - All chart containers have explicit numeric height and minimum width constraints. Single-point area charts display a visible point. Real Recharts SVG rendering is tested without mocking the chart library.
 - The source panel lists detected columns, counts and excluded posting statuses. Correct missing data at the source; do not mark pending or rejected transactions completed merely to populate a chart.

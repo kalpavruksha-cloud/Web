@@ -249,4 +249,12 @@ describe("admin financial analytics", () => {
     expect(result.portfolioMonths).toEqual([{ month: "2026-01", amount: -200 }, { month: "2026-10", amount: 800 }]);
     expect(result.excludedTransactionStatuses).toEqual({ pending: 1 });
   });
+
+  it("uses actual DASHBOARD portfolio totals when investment-level valuations are missing", () => {
+    const harness = createSpreadsheetHarness();
+    const result = harness.snapshot();
+    expect(result.adminAnalytics?.portfolioDistributionSource).toBe("dashboard_clients");
+    expect(result.adminAnalytics?.portfolioDistributionBasis).toBe("current_portfolio");
+    expect(result.adminAnalytics?.portfolioDistribution?.reduce((total, row) => total + row.amount, 0)).toBe(result.currentPortfolioValue);
+  });
 });

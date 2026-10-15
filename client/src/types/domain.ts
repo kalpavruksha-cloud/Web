@@ -151,6 +151,7 @@ export type AdminFinancialAnalytics = {
   portfolioGrowthSource?: "transaction_ledger" | "investment_records" | "current_snapshot";
   portfolioDistribution?: Array<{ name: string; amount: number }>;
   portfolioDistributionSource?: "investment_records" | "dashboard_clients";
+  portfolioDistributionBasis?: "current_portfolio" | "current_value" | "principal";
   transactionMonths?: Array<{ month: string; amount: number }>;
   registrationMonths?: Array<{ month: string; count: number }>;
   withdrawalStatus?: Array<{ name: string; amount: number }>;

@@ -674,12 +674,18 @@ function addAdminOverviewSeries(analytics, clients, investments, transactions, w
   }
   var groups = {};
   var valuedInvestments = investments.filter(function(row) { return row.currentValue > 0 || row.principalAmount > 0; });
-  analytics.portfolioDistributionSource = valuedInvestments.length ? "investment_records" : "dashboard_clients";
-  valuedInvestments.forEach(function(row) {
-    var category = row.category || row.plan || "Unassigned";
-    groups[category] = (groups[category] || 0) + (row.currentValue || row.principalAmount);
-  });
-  if (!valuedInvestments.length) dashboardRows.forEach(function(row) { groups[row.clientId || "Unassigned"] = (groups[row.clientId || "Unassigned"] || 0) + row.currentPortfolioValue; });
+  var completeValuations = valuedInvestments.length && valuedInvestments.every(function(row) { return row.currentValue > 0; });
+  var useDashboardValues = !completeValuations && dashboardRows.some(function(row) { return row.currentPortfolioValue > 0; });
+  analytics.portfolioDistributionSource = useDashboardValues ? "dashboard_clients" : "investment_records";
+  analytics.portfolioDistributionBasis = useDashboardValues ? "current_portfolio" : completeValuations ? "current_value" : "principal";
+  if (useDashboardValues) {
+    dashboardRows.forEach(function(row) { groups[row.clientId || "Unassigned"] = (groups[row.clientId || "Unassigned"] || 0) + row.currentPortfolioValue; });
+  } else {
+    valuedInvestments.forEach(function(row) {
+      var category = row.category || row.plan || "Unassigned";
+      groups[category] = (groups[category] || 0) + (completeValuations ? row.currentValue : row.principalAmount);
+    });
+  }
   analytics.portfolioDistribution = Object.keys(groups).filter(function(name) { return groups[name] > 0; }).map(function(name) { return { name: name, amount: Math.round(groups[name] * 100) / 100 }; });
   var registered = clients.filter(function(row) { return row.registrationDate && row.registrationDate <= today; });
   var registrations = {};
