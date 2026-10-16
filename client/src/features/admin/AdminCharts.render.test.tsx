@@ -41,13 +41,18 @@ describe("real Recharts rendering", () => {
     expect(screen.getByText("₹1,00,000")).toBeInTheDocument();
   });
 
-  it("renders portfolio area, pie sectors and registration bars without mocking the chart library", async () => {
+  it("renders one expanded portfolio chart without distribution or registration panels", async () => {
     measuredWidth = 1280;
-    const view = render(<AdminOverviewCharts analytics={analytics} />);
-    await waitFor(() => expect(view.container.querySelectorAll(".recharts-pie-sector").length).toBeGreaterThan(0));
+    const view = render(<AdminOverviewCharts analytics={analytics} currentValue={100000} />);
+    await waitFor(() => expect(view.container.querySelector(".recharts-area")).not.toBeNull());
     expect(view.container.querySelector(".recharts-area")).not.toBeNull();
-    expect(view.container.querySelector(".recharts-bar-rectangle")).not.toBeNull();
-    expect(view.container.querySelectorAll("div.recharts-wrapper").length).toBe(3);
+    expect(view.container.querySelector(".recharts-bar-rectangle")).toBeNull();
+    expect(view.container.querySelector(".recharts-pie-sector")).toBeNull();
+    expect(view.container.querySelectorAll("div.recharts-wrapper").length).toBe(1);
+    expect(screen.getByRole("heading", { name: "Current Portfolio" })).toBeInTheDocument();
+    expect(screen.queryByText("Client Registration Trend")).not.toBeInTheDocument();
+    expect(screen.queryByText("Portfolio Distribution")).not.toBeInTheDocument();
+    expect(Number(view.container.querySelector(".recharts-wrapper > svg")?.getAttribute("height"))).toBe(420);
   });
 
   it("keeps the real chart canvas within a mobile-width container", async () => {

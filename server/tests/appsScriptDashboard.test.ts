@@ -103,12 +103,35 @@ describe("Apps Script dashboard snapshot", () => {
     expect(result.adminData?.investments[0].id).toBe("I001");
     expect(result.adminData?.transactions[0].id).toBe("ACTUAL-1");
     expect(result.adminData?.transactions[0].credit).toBe(50000);
-    expect(result.adminAnalytics?.investmentMonths).toContainEqual({ month: "2026-09", amount: 50000 });
+    expect(result.adminAnalytics?.investmentSource).toBe("investment_master");
+    expect(result.adminAnalytics?.investmentMonths).toEqual([{ month: "2026-01", amount: 1000 }, { month: "2026-02", amount: 2000 }]);
     expect(result.adminAnalytics?.sources?.find((source) => source.module === "transactions")?.sheet).toBe("Transaction_Register");
     expect(result.adminAnalytics?.sources?.find((source) => source.module === "investments")?.sheet).toBe("Investment_Master");
     expect(catalogRead).not.toHaveBeenCalled();
     expect(harness.reads.TRANSACTIONS).not.toHaveBeenCalled();
     expect(ledgerRead).toHaveBeenCalledTimes(1);
+    expect(harness.openById).toHaveBeenCalledTimes(1);
+  });
+
+  it("charts dated investment and withdrawal master records without requiring workflow status", () => {
+    const harness = createSpreadsheetHarness();
+    harness.rows.Investment_Master = [["Investment ID", "Client_ID", "Date of Investment", "Investment Amount", "Investment Status"],
+      ["I001", "C001", "10/01/2026", "INR 10,000", ""], ["I002", "C002", "15/02/2026", 20000, "Active"],
+      ["I003", "C001", "15/02/2026", 90000, "Pending"], ["I004", "C001", "15/02/2026", 80000, "Rejected"]];
+    const historyRead = vi.fn(() => [["Client_ID", "Withdrawal Date", "Withdrawal Amount", "Status"],
+      ["C001", "20/03/2026", "INR 2,000", ""], ["C002", "25/04/2026", 3000, "Paid"],
+      ["C001", "25/04/2026", 8000, "Pending"], ["C001", "25/04/2026", 9000, "Rejected"],
+      ["C001", "25/04/2026", 7000, "Approved"]]);
+    harness.getSheets.mockReturnValue([...harness.getSheets(), {
+      getName: () => "Withdrawal_Master", getSheetId: () => 92, getDataRange: () => ({ getValues: historyRead })
+    }]);
+    const result = harness.snapshot();
+    expect(result.adminAnalytics?.investmentMonths).toEqual([{ month: "2026-01", amount: 10000 }, { month: "2026-02", amount: 20000 }]);
+    expect(result.adminAnalytics?.withdrawalSource).toBe("withdrawal_master");
+    expect(result.adminAnalytics?.withdrawalMonths).toEqual([{ month: "2026-03", amount: 2000 }, { month: "2026-04", amount: 3000 }]);
+    expect(result.admin?.pendingWithdrawalAmount).toBe(5000);
+    expect(result.adminAnalytics?.sources?.find((item) => item.module === "withdrawal_history")?.sheet).toBe("Withdrawal_Master");
+    expect(historyRead).toHaveBeenCalledTimes(1);
     expect(harness.openById).toHaveBeenCalledTimes(1);
   });
 });
@@ -219,6 +242,14 @@ describe("admin financial analytics", () => {
     expect(runInContext('adminMoney("(1,000)")', harness.context)).toBe(-1000);
   });
 
+  it("distinguishes an explicit zero balance from an empty or invalid balance", () => {
+    const harness = createSpreadsheetHarness();
+    expect(runInContext('mapAdminTransaction({"Balance":"pending"}).balance', harness.context)).toBeUndefined();
+    expect(runInContext('mapAdminTransaction({"Balance":""}).balance', harness.context)).toBeUndefined();
+    expect(runInContext('mapAdminTransaction({"Balance":0}).balance', harness.context)).toBe(0);
+    expect(runInContext('mapAdminTransaction({"Balance":"INR 5,000"}).balance', harness.context)).toBe(5000);
+  });
+
   it("does not manufacture registration history from date of birth or historical portfolio valuations", () => {
     const harness = createSpreadsheetHarness();
     const result = runInContext(`
@@ -232,7 +263,7 @@ describe("admin financial analytics", () => {
     expect(result.portfolioMonths).toEqual([{ month: "2026-10", amount: 150000 }]);
     expect(result.portfolioGrowthSource).toBe("current_snapshot");
     expect(result.portfolioDistribution).toEqual([{ name: "C001", amount: 150000 }]);
-    expect(result.warnings.some((warning) => warning.includes("Date of birth is not used"))).toBe(true);
+    expect(result.registrationMonths).not.toContainEqual({ month: "1990-01", count: 1 });
   });
 
   it("keeps signed monthly cash flow chronological and excludes pending transactions", () => {
@@ -256,5 +287,55 @@ describe("admin financial analytics", () => {
     expect(result.adminAnalytics?.portfolioDistributionSource).toBe("dashboard_clients");
     expect(result.adminAnalytics?.portfolioDistributionBasis).toBe("current_portfolio");
     expect(result.adminAnalytics?.portfolioDistribution?.reduce((total, row) => total + row.amount, 0)).toBe(result.currentPortfolioValue);
+  });
+});
+
+describe("24-month admin portfolio history", () => {
+  function history(events: Array<Record<string, unknown>>, transactions: Array<Record<string, unknown>> = []) {
+    const harness = createSpreadsheetHarness();
+    return runInContext(`buildAdminPortfolioHistory(${JSON.stringify(events)}, ${JSON.stringify(transactions)}, new Date("2026-10-16T08:00:00Z"), [])`, harness.context) as { months: Array<{ month: string; amount: number | null }>; source: string };
+  }
+
+  it("includes the opening balance before the window and carries recorded month-end balances", () => {
+    const result = history([{ date: "2024-10-01", clientId: "C001", amount: 1000 },
+      { date: "2025-02-01", clientId: "C001", amount: -200 }, { date: "2026-10-01", clientId: "C001", amount: 100 }]);
+    expect(result.months).toHaveLength(24);
+    expect(result.months[0]).toEqual({ month: "2024-11", amount: 1000 });
+    expect(result.months.find((point) => point.month === "2025-02")?.amount).toBe(800);
+    expect(result.months[23]).toEqual({ month: "2026-10", amount: 900 });
+    expect(result.source).toBe("recorded_cash_flow");
+  });
+
+  it("leaves unknown history blank, preserves genuine zero and excludes future records", () => {
+    const result = history([{ date: "2026-01-01", clientId: "C001", amount: 1000 },
+      { date: "2026-02-01", clientId: "C001", amount: -1000 }, { date: "2026-11-01", clientId: "C001", amount: 9000 }]);
+    expect(result.months[0].amount).toBeNull();
+    expect(result.months.find((point) => point.month === "2026-01")?.amount).toBe(1000);
+    expect(result.months[23].amount).toBe(0);
+  });
+
+  it("sums clients and replaces each client's cash flow with the recorded closing balance", () => {
+    const result = history([{ date: "2026-01-01", clientId: "C001", amount: 1000 }], [
+      { date: "2026-01-01", clientId: "C001", balance: 1000 },
+      { date: "2026-01-01", clientId: "C002", balance: 2000 },
+      { date: "2026-02-01", clientId: "C002", balance: 2200 }]);
+    expect(result.months.find((point) => point.month === "2026-01")?.amount).toBe(3000);
+    expect(result.months[23].amount).toBe(3200);
+    expect(result.source).toBe("recorded_balances");
+  });
+
+  it("flags a reconciliation mismatch without rewriting historical data", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`var result = {portfolioHistoryMonths:buildAdminPortfolioHistory([{date:"2026-01-01",clientId:"C001",amount:1000}],[],new Date("2026-10-16T08:00:00Z"),[]).months,portfolioHistorySource:"recorded_cash_flow",warnings:[]}; reconcileAdminPortfolio(result,1500); result;`, harness.context) as AdminFinancialAnalytics;
+    expect(result.portfolioHistoryMonths?.[23].amount).toBe(1000);
+    expect(result.portfolioReconciliation).toMatchObject({ calculated: 1000, recorded: 1500, difference: 500, matches: false });
+    expect(result.warnings[0]).toContain("have not been adjusted");
+  });
+
+  it("uses only the current snapshot when no historical financial records exist", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`var result = {portfolioHistoryMonths:buildAdminPortfolioHistory([],[],new Date("2026-10-16T08:00:00Z"),[]).months,portfolioHistorySource:"current_snapshot",warnings:[]}; reconcileAdminPortfolio(result,1500); result;`, harness.context) as AdminFinancialAnalytics;
+    expect(result.portfolioHistoryMonths?.slice(0, 23).every((point) => point.amount === null)).toBe(true);
+    expect(result.portfolioHistoryMonths?.[23]).toEqual({ month: "2026-10", amount: 1500 });
   });
 });

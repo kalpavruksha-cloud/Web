@@ -1,15 +1,19 @@
 # Google Apps Script Integration
 
-## Chart Source Fix (V19)
+## Portfolio and Monthly Charts (V20)
 
-V19 corrects admin financial tab selection: Investment_Master and
+V20 extends the admin financial tab selection: Investment_Master and
 Transaction_Register take precedence over a plan catalogue or older transaction
 tab, regardless of their physical order in the workbook. Client reads, login,
 permissions, and existing write routes are unchanged.
 
 Admin charts now share backend-normalized chronological series, parse Indian
 dates/currency, display single-point snapshots visibly, and use stable chart
-dimensions. Registration charts require registration dates, never date of birth.
+dimensions. Dashboard distribution and registration panels have been removed.
+The expanded Current Portfolio chart covers 24 months. Dated client closing
+balances replace reconstructed balances; otherwise dated investments, payouts,
+withdrawals and adjustments form the recorded book balance. Missing history is
+left blank and discrepancies with the current DASHBOARD total are flagged.
 The Chart data sources panel shows the selected tabs, record counts, headers,
 missing-field warnings, excluded transaction statuses, and snapshot time.
 
@@ -18,12 +22,13 @@ missing-field warnings, excluded transaction statuses, and snapshot time.
 Dashboard and Reports share the same `admin` totals and `adminAnalytics` series.
 This includes net investment, current-month estimated payout, total recorded
 payouts, pending withdrawal amount, KYC counts, and dated investment/paid-withdrawal
-charts. All calculations run inside the existing dashboard request, without
-additional spreadsheet reads or a persistent data cache.
+charts. All calculations run inside the existing dashboard request. The historical
+Withdrawal_Master is read once for analytics only, without changing withdrawal
+approval workflows or adding a persistent data cache.
 
 Replace the complete `Code.gs` and deploy **New version** on the existing deployment.
 Verify `?action=deploymentTest` returns
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_15_CHART_SOURCES_V19`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_16_PORTFOLIO_HISTORY_V20`.
 The web release explicitly flags unavailable analytics until this deployment
 is updated. Do not change the deployment URL unless necessary.
 
@@ -35,8 +40,14 @@ eligible; an explicit Next Payout Date restricts the estimate to that month.
 Unsupported frequency or missing terms produce a warning and an unavailable
 estimate, not a fabricated zero. This is an estimate, not a payment instruction.
 
-Completed withdrawal ledger entries are preferred for withdrawal charts. If there
-are no such entries, paid withdrawal records require a Payment Date/Paid Date.
+Monthly investment charts prefer dated Investment_Master records, including
+historical rows with blank status. Explicit pending/rejected entries are excluded.
+Monthly withdrawal charts prefer dated Withdrawal_Master records. Blank status
+means a recorded historical entry, not a paid approval request. Explicit pending,
+approved-but-unpaid and rejected entries are excluded. One primary source per
+chart avoids counting the same money again from the transaction register.
+Without usable master records, completed ledger entries are used; without ledger
+entries, paid workflow records require a Payment Date/Paid Date.
 Mark Paid now records Payment Date. Existing undated paid records are flagged and
 are not assigned an invented payment month.
 
@@ -51,7 +62,7 @@ To enable the single-request dashboard, replace the existing script with the
 complete `Code.gs` in this directory, then use **Deploy > Manage deployments >
 Edit > Version: New version > Deploy**. Keep the existing deployment and URL.
 Check `?action=deploymentTest` for marker
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_15_CHART_SOURCES_V19`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_16_PORTFOLIO_HISTORY_V20`.
 
 Until that deployment is updated, the web portal loads the summary first and
 limits legacy collection requests to two at a time. The optimized Apps Script

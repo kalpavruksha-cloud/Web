@@ -65,7 +65,7 @@ describe("shared admin dashboard and report financial views", () => {
 
   it("shows explicit data quality and deployment errors instead of fabricated chart data", () => {
     const result = render(<AdminMoneyCharts />);
-    expect(screen.getByRole("status")).toHaveTextContent("Apps Script V19");
+    expect(screen.getByRole("status")).toHaveTextContent("Apps Script V20");
     result.rerender(<AdminMoneyCharts analytics={{ ...analytics, warnings: ["Payment dates are missing."] }} />);
     expect(screen.getByRole("status")).toHaveTextContent("Payment dates are missing.");
   });

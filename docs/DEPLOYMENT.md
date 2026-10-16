@@ -7,7 +7,7 @@
 - Frontend local URL: `http://localhost:5173`
 - Backend local URL: `http://localhost:8080/api`
 
-## Admin Dashboard Upgrade (V19)
+## Admin Dashboard Upgrade (V20)
 
 The dashboard and analytics now use one shared `/api/dashboard` snapshot instead
 of eight overlapping module requests. This upgrade requires both the web release
@@ -18,7 +18,7 @@ and the updated `google-apps-script/Code.gs` deployment:
 3. Select Version > New version, then Deploy. Keep Execute as: Me and the existing access configuration.
 4. Keep the existing deployment URL to avoid changing Vercel environment variables.
 5. Open the existing `/exec?action=deploymentTest` URL. The marker must be
-   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_15_CHART_SOURCES_V19`.
+   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_16_PORTFOLIO_HISTORY_V20`.
 6. After the GitHub-triggered Vercel deployment succeeds, reload the portal and sign in as admin.
 
 The admin dashboard should make a single `/api/dashboard` request for its records,
@@ -28,9 +28,11 @@ request. Read caches are discarded even on failure; there is no cross-request
 business-data cache. Until Apps Script is upgraded, the web release uses a bounded
 two-request compatibility path after retrieving the legacy summary.
 
-V19 fixes financial source-tab precedence and uses shared dashboard/report chart series. See
+V20 adds Withdrawal_Master analytics, dated investment-master totals, and the
+24-month Current Portfolio history. The Dashboard no longer displays Portfolio
+Distribution or Client Registration Trend. See
 `docs/ADMIN_FINANCIAL_ANALYTICS.md` for metric definitions and source requirements.
-Until Apps Script V19 is deployed, source diagnostics and the corrected series are unavailable.
+Until Apps Script V20 is deployed, the new historical series are unavailable.
 The web release shows an explicit analytics
 availability notice rather than empty or invented financial charts.
 
@@ -39,6 +41,9 @@ should resolve to Transaction_Register when present, and investments to
 Investment_Master, regardless of workbook tab order. Use Refresh data to refetch
 the snapshot without a full page reload. Verify known monthly totals against the
 selected source; health checks do not validate private financial amounts.
+For Current Portfolio, check the first/last displayed months and the reconciliation
+between history closing balance and the current DASHBOARD total. A difference
+is a source-data reconciliation issue, not a value to override automatically.
 
 ## GitHub Preparation
 

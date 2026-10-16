@@ -20,7 +20,7 @@ export function AdminDashboard() {
       {overview.error && <ErrorState title="Dashboard refresh failed" message="The last loaded dashboard is shown. The latest spreadsheet data could not be retrieved." />}
       <AdminOverviewCards data={data} />
 
-      <div className="mt-6"><AdminOverviewCharts analytics={data.dashboard.adminAnalytics} /></div>
+      <div className="mt-6"><AdminOverviewCharts analytics={data.dashboard.adminAnalytics} currentValue={data.dashboard.currentPortfolioValue} /></div>
 
       <div className="mt-6"><AdminMoneyCharts analytics={data.dashboard.adminAnalytics} /></div>
 

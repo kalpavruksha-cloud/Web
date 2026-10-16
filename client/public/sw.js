@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v14-chart-sources";
+const CACHE_VERSION = "kalpavruksha-pwa-v15-portfolio-history";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 

@@ -19,3 +19,12 @@ export function dailyChartSeries(points: AdminFinancialAnalytics["withdrawalDays
 }
 
 export const monthOptions = months;
+
+export function portfolioChartSeries(analytics: AdminFinancialAnalytics) {
+  const values = new Map((analytics.portfolioHistoryMonths ?? analytics.portfolioMonths ?? []).map((point) => [point.month, point.amount]));
+  return Array.from({ length: 24 }, (_, index) => {
+    const date = new Date(Date.UTC(analytics.currentYear, analytics.currentMonth - 24 + index, 1));
+    const month = date.toISOString().slice(0, 7);
+    return { month, label: new Intl.DateTimeFormat("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" }).format(date), amount: values.get(month) ?? null };
+  });
+}

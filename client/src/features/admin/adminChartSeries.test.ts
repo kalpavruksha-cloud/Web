@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { dailyChartSeries, monthlyChartSeries } from "./adminChartSeries";
+import { dailyChartSeries, monthlyChartSeries, portfolioChartSeries } from "./adminChartSeries";
+import type { AdminFinancialAnalytics } from "../../types/domain";
 
 describe("admin financial chart periods", () => {
+  it("shows exactly 24 portfolio months without filling unknown months with fake zeroes", () => {
+    const points = portfolioChartSeries({ currentYear: 2026, currentMonth: 10,
+      portfolioHistoryMonths: [{ month: "2026-01", amount: 1000 }, { month: "2026-10", amount: 0 }]
+    } as AdminFinancialAnalytics);
+    expect(points).toHaveLength(24);
+    expect(points[0]).toMatchObject({ month: "2024-11", amount: null });
+    expect(points.find((point) => point.month === "2026-01")?.amount).toBe(1000);
+    expect(points[23]).toMatchObject({ month: "2026-10", amount: 0 });
+  });
   it("shows January through the current month with genuine zero-activity months", () => {
     const points = monthlyChartSeries([{ month: "2025-01", amount: 9000 }, { month: "2026-02", amount: 2000 }, { month: "2026-10", amount: 5000 }], 2026, 2026, 10);
     expect(points).toHaveLength(10);

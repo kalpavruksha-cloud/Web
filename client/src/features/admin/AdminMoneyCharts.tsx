@@ -10,7 +10,7 @@ import { AdminChartFrame } from "./AdminChartFrame";
 import { AdminChartSources } from "./AdminOverviewCharts";
 
 export function AdminMoneyCharts({ analytics }: { analytics?: AdminFinancialAnalytics }) {
-  if (!analytics) return <AdminCard><p role="status" className="text-sm text-amber-800 dark:text-gold-100">Monthly analytics are unavailable. Deploy the updated Apps Script V19 and refresh this page.</p></AdminCard>;
+  if (!analytics) return <AdminCard><p role="status" className="text-sm text-amber-800 dark:text-gold-100">Monthly analytics are unavailable. Deploy the updated Apps Script V20 and refresh this page.</p></AdminCard>;
   return <>
     <div className="grid gap-6 xl:grid-cols-2">
       <InvestmentChart analytics={analytics} />
@@ -27,7 +27,7 @@ function InvestmentChart({ analytics }: { analytics: AdminFinancialAnalytics }) 
   return <AdminCard>
     <ChartHeading title="Monthly Investment" detail={`January to ${monthOptions[analytics.currentMonth - 1]} ${analytics.currentYear}`} total={total} points={points} filename={`monthly-investment-${analytics.currentYear}.csv`} />
     <MoneyBarChart points={points} color="#1e7b54" />
-    <p className="mt-3 text-xs text-charcoal/65 dark:text-white/65">{analytics.investmentSource === "transaction_ledger" ? "Completed investment transactions" : "Investment principal by start date"}</p>
+    <p className="mt-3 text-xs text-charcoal/65 dark:text-white/65">{analytics.investmentSource === "investment_master" ? "Dated investment amounts from Investment_Master" : analytics.investmentSource === "transaction_ledger" ? "Completed investment transactions" : "Investment principal by start date"}</p>
   </AdminCard>;
 }
 
@@ -48,7 +48,7 @@ function WithdrawalChart({ analytics }: { analytics: AdminFinancialAnalytics }) 
       <Field label="Withdrawal Month"><Select value={effectiveMonth} onChange={(event) => setMonth(event.target.value)}><option value="all">All months</option>{availableMonths.map((label, index) => <option key={label} value={index + 1}>{label}</option>)}</Select></Field>
     </div>
     <MoneyBarChart points={points} color="#d7ab3d" />
-    <p className="mt-3 text-xs text-charcoal/65 dark:text-white/65">{analytics.withdrawalSource === "transaction_ledger" ? "Completed withdrawal transactions; pending requests excluded" : "Paid withdrawal records by payment date; pending requests excluded"}</p>
+    <p className="mt-3 text-xs text-charcoal/65 dark:text-white/65">{analytics.withdrawalSource === "withdrawal_master" ? "Dated withdrawal amounts from Withdrawal_Master; pending requests excluded" : analytics.withdrawalSource === "transaction_ledger" ? "Completed withdrawal transactions; pending requests excluded" : "Paid withdrawal records by payment date; pending requests excluded"}</p>
   </AdminCard>;
 }
 
