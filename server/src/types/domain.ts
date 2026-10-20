@@ -90,11 +90,13 @@ export type Withdrawal = {
   requestDate?: string;
   bankAccount?: string;
   remarks?: string;
-  status: "pending" | "approved" | "rejected" | "paid";
+  status: "pending" | "approved" | "rejected" | "paid" | "recorded" | "completed" | "posted" | "settled" | "success" | "successful" | "cancelled";
   approvalDate?: string;
   paymentReference?: string;
   paymentDate?: string;
   adminRemarks?: string;
+  recordSource?: "withdrawal_master";
+  readOnly?: boolean;
 };
 
 export type Referral = {
@@ -215,6 +217,9 @@ export type DashboardSummary = {
     portfolioValue: number;
     monthlyPayoutAmount: number;
     estimatedMonthlyPayout?: number | null;
+    scheduledMonthlyPayout?: number | null;
+    paidMonthlyPayout?: number | null;
+    remainingMonthlyPayout?: number | null;
     payoutEstimateMissingRecords?: number;
     totalPayoutAmount?: number;
     totalWithdrawalAmount?: number;

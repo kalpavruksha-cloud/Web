@@ -30,7 +30,7 @@ const dashboard: DashboardSummary = {
   activeInvestments: 1, pendingWithdrawals: 1, referralEarnings: 0,
   recentTransactions: [], investments: [], documents: [], notifications: [], adminAnalytics: analytics,
   admin: { totalClients: 2, activeClients: 2, totalInvestment: 100000, portfolioValue: 110000,
-    monthlyPayoutAmount: 1500, estimatedMonthlyPayout: 1500, totalPayoutAmount: 10000,
+    monthlyPayoutAmount: 1500, estimatedMonthlyPayout: 1500, scheduledMonthlyPayout: 1500, paidMonthlyPayout: 500, remainingMonthlyPayout: 1000, totalPayoutAmount: 10000,
     netInvestment: 97000, pendingWithdrawalAmount: 5000, verifiedKyc: 1, pendingKyc: 1,
     pendingWithdrawals: 1, activeInvestments: 1, referralLiabilities: 0 }
 };
@@ -40,7 +40,9 @@ describe("shared admin dashboard and report financial views", () => {
   it("shows net investment, estimated payout and historical total as distinct figures", () => {
     render(<AdminOverviewCards data={data} />);
     expect(screen.getByText("Net investment: ₹97,000")).toBeInTheDocument();
-    expect(screen.getByText("₹1,500")).toBeInTheDocument();
+    expect(screen.getByText("₹1,000")).toBeInTheDocument();
+    expect(screen.getByText("Scheduled: ₹1,500")).toBeInTheDocument();
+    expect(screen.getByText("Recorded payouts for month: ₹500")).toBeInTheDocument();
     expect(screen.getByText("Total payouts: ₹10,000")).toBeInTheDocument();
     expect(screen.getByText("1 client needs KYC review")).toBeInTheDocument();
     expect(screen.getByText("Awaiting approval: ₹5,000")).toBeInTheDocument();
@@ -48,8 +50,15 @@ describe("shared admin dashboard and report financial views", () => {
   });
 
   it("does not show a missing estimate as zero", () => {
-    render(<AdminOverviewCards data={{ ...data, dashboard: { ...dashboard, admin: { ...dashboard.admin!, estimatedMonthlyPayout: null } } }} />);
+    render(<AdminOverviewCards data={{ ...data, dashboard: { ...dashboard, admin: { ...dashboard.admin!, remainingMonthlyPayout: null } } }} />);
     expect(screen.getByText("Not available")).toBeInTheDocument();
+  });
+
+  it("does not substitute the gross estimate for a remainder on an older deployment", () => {
+    render(<AdminOverviewCards data={{ ...data, dashboard: { ...dashboard, admin: { ...dashboard.admin!, remainingMonthlyPayout: undefined } } }} />);
+    expect(screen.getByText("Not available")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Apps Script V21");
+    expect(screen.getByText("Scheduled: ₹1,500")).toBeInTheDocument();
   });
 
   it("filters completed withdrawals by year and month without a new API request", () => {

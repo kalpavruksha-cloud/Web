@@ -41,11 +41,14 @@ export function computeAdminMetrics(data: AdminCollections) {
     portfolioValue,
     monthlyPayout,
     estimatedMonthlyPayout: data.dashboard?.admin?.estimatedMonthlyPayout ?? null,
+    scheduledMonthlyPayout: data.dashboard?.admin?.scheduledMonthlyPayout ?? null,
+    paidMonthlyPayout: data.dashboard?.admin?.paidMonthlyPayout ?? null,
+    remainingMonthlyPayout: data.dashboard?.admin?.remainingMonthlyPayout ?? null,
     totalPayouts: data.dashboard?.admin?.totalPayoutAmount ?? data.dashboard?.totalPayouts ?? null,
     netInvestment: data.dashboard?.admin?.netInvestment ?? (data.dashboard?.totalWithdrawal !== undefined ? totalInvestment - data.dashboard.totalWithdrawal : null),
-    pendingWithdrawalAmount: data.dashboard?.admin?.pendingWithdrawalAmount ?? sum(data.withdrawals.filter((row) => isStatus(row.status, "pending")), "amount"),
-    pendingWithdrawals: data.withdrawals.filter((row) => isStatus(row.status, "pending")).length,
-    approvedWithdrawals: data.withdrawals.filter((row) => isStatus(row.status, "approved")).length,
+    pendingWithdrawalAmount: data.dashboard?.admin?.pendingWithdrawalAmount ?? sum(data.withdrawals.filter((row) => !row.readOnly && isStatus(row.status, "pending")), "amount"),
+    pendingWithdrawals: data.withdrawals.filter((row) => !row.readOnly && isStatus(row.status, "pending")).length,
+    approvedWithdrawals: data.withdrawals.filter((row) => !row.readOnly && isStatus(row.status, "approved")).length,
     paidWithdrawals: data.withdrawals.filter((row) => isStatus(row.status, "paid")).length,
     totalReferralCommission: rewardReferral,
     pendingReferralCommission: Math.max(rewardReferral - paidReferral, 0),
@@ -125,6 +128,11 @@ export function title(value?: string) {
 
 export function isStatus(value: string | undefined, expected: string) {
   return String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_") === expected;
+}
+
+export function sameClientId(value: string | undefined, expected: string | undefined) {
+  const id = String(value ?? "").trim().toUpperCase();
+  return id !== "" && id === String(expected ?? "").trim().toUpperCase();
 }
 
 function sum<T>(rows: T[], key: keyof T) {

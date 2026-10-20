@@ -23,6 +23,9 @@ All protected endpoints require the secure `session` HTTP-only cookie issued by 
 - `GET /api/transactions/:id`
 - `POST /api/transactions` admin
 - `GET /api/withdrawals`
+  Admin responses include read-only `Withdrawal_Master` history alongside portal
+  requests. History has `recordSource: "withdrawal_master"` and `readOnly: true`.
+  Client responses remain scoped to the existing client request history.
 - `POST /api/withdrawals`
 - `PUT /api/withdrawals/:id/approve` admin
 - `PUT /api/withdrawals/:id/reject` admin

@@ -12,7 +12,7 @@ import { useToast } from "../../../context/ToastContext";
 import type { ClientDocument, ClientNotification, Investment, PortalSettings, Profile, Referral, SpreadsheetSchema, Transaction, Withdrawal } from "../../../types/domain";
 import { formatCurrency, formatDate } from "../../../utils/format";
 import { AdminCard, AdminLoading, AdminPage, AdminTable, CommandButton, Field, Input, Select, StatusBadge } from "../AdminComponents";
-import { computeAdminMetrics, exportCsv, isStatus, recentActivity, title } from "../adminUtils";
+import { computeAdminMetrics, exportCsv, isStatus, recentActivity, sameClientId, title } from "../adminUtils";
 
 export function AdminClients() {
   const { data, isLoading, error } = useResource<Profile[]>("admin-clients", "/clients");
@@ -82,13 +82,13 @@ export function AdminClientDetails() {
   const error = [clients, investments, transactions, withdrawals, documents, referrals].find((query) => query.error)?.error;
   if (loading) return <AdminLoading label="Loading client details" />;
   if (error) return <ErrorState title="Client details unavailable" message={error instanceof Error ? error.message : undefined} />;
-  const client = (clients.data ?? []).find((row) => row.clientId.toLowerCase() === id.toLowerCase());
+  const client = (clients.data ?? []).find((row) => sameClientId(row.clientId, id));
   if (!client) return <ErrorState title="Client not found" message="The spreadsheet did not return this client ID." />;
-  const clientInvestments = (investments.data ?? []).filter((row) => row.clientId === client.clientId);
-  const clientTransactions = (transactions.data ?? []).filter((row) => row.clientId === client.clientId);
-  const clientWithdrawals = (withdrawals.data ?? []).filter((row) => row.clientId === client.clientId);
-  const clientDocuments = (documents.data ?? []).filter((row) => row.clientId === client.clientId);
-  const clientReferrals = (referrals.data ?? []).filter((row) => row.clientId === client.clientId);
+  const clientInvestments = (investments.data ?? []).filter((row) => sameClientId(row.clientId, client.clientId));
+  const clientTransactions = (transactions.data ?? []).filter((row) => sameClientId(row.clientId, client.clientId));
+  const clientWithdrawals = (withdrawals.data ?? []).filter((row) => sameClientId(row.clientId, client.clientId));
+  const clientDocuments = (documents.data ?? []).filter((row) => sameClientId(row.clientId, client.clientId));
+  const clientReferrals = (referrals.data ?? []).filter((row) => sameClientId(row.clientId, client.clientId));
 
   return (
     <AdminPage title={client.fullName} eyebrow={client.clientId}>
@@ -214,15 +214,18 @@ export function AdminWithdrawals() {
     { label: "Pending", value: "pending", predicate: (row) => isStatus(row.status, "pending") },
     { label: "Approved", value: "approved", predicate: (row) => isStatus(row.status, "approved") },
     { label: "Rejected", value: "rejected", predicate: (row) => isStatus(row.status, "rejected") },
-    { label: "Paid", value: "paid", predicate: (row) => isStatus(row.status, "paid") }
+    { label: "Paid", value: "paid", predicate: (row) => isStatus(row.status, "paid") },
+    { label: "Historical records", value: "history", predicate: (row) => row.recordSource === "withdrawal_master" }
   ]} columns={[
     { key: "id", header: "Request", render: (row) => row.id },
     { key: "client", header: "Client", render: (row) => row.clientId },
     { key: "amount", header: "Amount", render: (row) => formatCurrency(row.amount) },
     { key: "request", header: "Request Date", render: (row) => formatDate(row.requestDate) },
+    { key: "payment", header: "Recorded / Payment Date", render: (row) => formatDate(row.paymentDate) },
+    { key: "source", header: "Source", render: (row) => row.recordSource === "withdrawal_master" ? "Withdrawal master" : "Portal request" },
     { key: "status", header: "Status", render: (row) => <StatusBadge value={row.status} /> },
     { key: "reference", header: "Payment Ref", render: (row) => row.paymentReference },
-    { key: "actions", header: "Actions", render: (row) => <div className="flex gap-2"><CommandButton tone="secondary" onClick={() => decide(row.id, "approve")}>Approve</CommandButton><CommandButton tone="danger" onClick={() => decide(row.id, "reject")}>Reject</CommandButton><CommandButton onClick={() => decide(row.id, "paid")}>Paid</CommandButton></div> }
+    { key: "actions", header: "Actions", render: (row) => row.readOnly || !row.id ? <span className="text-xs text-charcoal/60 dark:text-white/60">Historical record</span> : <div className="flex gap-2">{row.status === "pending" && <><CommandButton tone="secondary" onClick={() => decide(row.id, "approve")}>Approve</CommandButton><CommandButton tone="danger" onClick={() => decide(row.id, "reject")}>Reject</CommandButton></>}{row.status === "approved" && <CommandButton onClick={() => decide(row.id, "paid")}>Paid</CommandButton>}</div> }
   ]} /></AdminCard></AdminPage>;
 }
 

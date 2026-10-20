@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v15-portfolio-history";
+const CACHE_VERSION = "kalpavruksha-pwa-v16-withdrawal-payout";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 

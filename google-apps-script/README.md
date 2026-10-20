@@ -1,6 +1,12 @@
 # Google Apps Script Integration
 
-## Portfolio and Monthly Charts (V20)
+## Withdrawals and Payout Remainder (V21)
+
+V21 includes read-only Withdrawal_Master records in the admin withdrawal list and
+linked client details while keeping writes in the existing request sheet. Historical
+rows do not become approval requests. Dashboard/Reports show the per-client unpaid
+monthly payout remainder, with scheduled and recorded amounts separately. Actual
+payment records and explicit monthly terms are required; ROI is never guessed.
 
 V20 extends the admin financial tab selection: Investment_Master and
 Transaction_Register take precedence over a plan catalogue or older transaction
@@ -23,12 +29,12 @@ Dashboard and Reports share the same `admin` totals and `adminAnalytics` series.
 This includes net investment, current-month estimated payout, total recorded
 payouts, pending withdrawal amount, KYC counts, and dated investment/paid-withdrawal
 charts. All calculations run inside the existing dashboard request. The historical
-Withdrawal_Master is read once for analytics only, without changing withdrawal
+Withdrawal_Master is read once for read-only history and analytics, without changing withdrawal
 approval workflows or adding a persistent data cache.
 
 Replace the complete `Code.gs` and deploy **New version** on the existing deployment.
 Verify `?action=deploymentTest` returns
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_16_PORTFOLIO_HISTORY_V20`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_20_WITHDRAWALS_PAYOUT_REMAINDER_V21`.
 The web release explicitly flags unavailable analytics until this deployment
 is updated. Do not change the deployment URL unless necessary.
 
@@ -62,7 +68,7 @@ To enable the single-request dashboard, replace the existing script with the
 complete `Code.gs` in this directory, then use **Deploy > Manage deployments >
 Edit > Version: New version > Deploy**. Keep the existing deployment and URL.
 Check `?action=deploymentTest` for marker
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_16_PORTFOLIO_HISTORY_V20`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_20_WITHDRAWALS_PAYOUT_REMAINDER_V21`.
 
 Until that deployment is updated, the web portal loads the summary first and
 limits legacy collection requests to two at a time. The optimized Apps Script

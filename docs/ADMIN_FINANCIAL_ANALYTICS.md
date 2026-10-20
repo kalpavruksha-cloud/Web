@@ -11,7 +11,7 @@ component calculations.
 | Total Investment | Sum of DASHBOARD Total Invested; investment principal is used only when DASHBOARD has no records. |
 | Net investment (gold line) | Total invested minus DASHBOARD Total Withdrawal; without DASHBOARD records, completed withdrawals are used. Negative balances are not silently clamped. |
 | Total Portfolio Value | Sum of DASHBOARD Net Portfolio. It is not renamed available balance or assumed to equal net investment. |
-| Estimated Monthly Payout | Explicit monthly payout amounts for active investments eligible in the current Asia/Kolkata calendar month. Future starts, expired maturities, and next-payout dates outside the month are excluded. |
+| Estimated Monthly Payout | Remaining current-month payout: sum per client of max(scheduled amount minus completed payouts assigned to that month, 0). Smaller lines show scheduled amount, recorded payments for the month, and historical total payouts separately. |
 | Total payouts (small line) | DASHBOARD Total Payout. Completed payout/interest ledger totals are used only when DASHBOARD has no records. |
 | Pending Withdrawals | Count of requests with pending status; the gold line shows their total amount awaiting approval. |
 | Verified KYC | Verified client count using the KYC tab, with profile status as fallback. Duplicate KYC rows do not count a client twice; missing/rejected/non-verified clients need review. |
@@ -27,12 +27,40 @@ frequencies produce null plus an explicit warning; an explicit numeric zero is
 valid. ROI alone is not sufficient because its units and payment terms are not
 confirmed. No rate conversion, prorating, or payment execution is invented.
 
-This is a gross current-month estimate, not the unpaid remainder after payments.
+The API keeps `estimatedMonthlyPayout` as the gross estimate for compatibility.
+`scheduledMonthlyPayout` exposes that same amount; the visible card uses
+`remainingMonthlyPayout`, never the old gross value as an unpaid balance.
+`paidMonthlyPayout` shows completed payout/interest records allocated to the month.
+The existing client-ledger convention applies: credit is a payout credit and debit
+is a reversal. Pending/rejected/future payments are not deducted. If Payout Period,
+Payout Month, For Month or Accrual Month is provided, it identifies the obligation
+month (for example `2026-10`); otherwise the payment's India calendar month is used.
+An explicit older period therefore does not reduce the current month's remainder.
+An overpayment for one client cannot reduce another client's unpaid amount.
+Missing terms, dates, client IDs or invalid explicit periods make the remainder
+unavailable with a warning rather than showing a false zero. An actual fully paid
+schedule produces zero. Without investment status, an Investment_Master entry
+requires a client ID, funded start date and eligible date window; explicit pending,
+rejected or closed investments are never assumed active.
 Current month boundaries use Asia/Kolkata, independent of the server's timezone.
+
+## Withdrawal Records
+
+Admin `GET /api/withdrawals`, Dashboard records and linked client details include
+both portal requests and historical Withdrawal_Master rows. History is labelled
+`recordSource: withdrawal_master`, `readOnly: true`, with recorded dates and client
+ID. Blank historical status remains `recorded`, not an invented `paid` status.
+History cannot be approved/marked paid from the UI; writes still target only the
+existing request sheet. Pending approval cards count actionable requests, not
+read-only history. A matching explicit client ID and withdrawal ID deduplicates
+the list across tabs; matching amount/date alone never removes a legitimate row.
+Analytics still use the complete primary history source once per request.
+Client API reads and permissions are unchanged and never return all-client history.
+Admin linked-record matching trims and ignores case but never rewrites client codes.
 
 ## Charts
 
-- V20 selects admin financial source tabs in explicit alias priority, not workbook position. Investment_Master precedes investment records/catalogues; Transaction_Register precedes raw/legacy transaction tabs. Withdrawal_Master is a separate analytics-only read; it does not replace the withdrawal approval workflow. Read sources remain visible in admin-only Chart data sources.
+- V21 selects admin financial source tabs in explicit alias priority, not workbook position. Investment_Master precedes investment records/catalogues; Transaction_Register precedes raw/legacy transaction tabs. Withdrawal_Master supplies read-only admin history and analytics; it does not replace the withdrawal approval workflow. Read sources remain visible in admin-only Chart data sources.
 - Monthly Investment: January through the current month of the present India calendar year, chronological, with zero amounts for genuine no-activity months.
 - Monthly Investment prefers dated Investment_Master principal records. Blank historical master status is accepted when date and client ID exist; explicit pending/rejected records are excluded. Without usable master records, prefer completed investment/deposit ledger entries, then funded investment records. Never add both sources together.
 - Monthly Withdrawals prefers dated Withdrawal_Master amounts. Blank master status represents recorded history, not a paid workflow request. Explicit pending, approved-but-unpaid, rejected and cancelled records are excluded. Without eligible master records, use completed withdrawal ledger entries, then paid workflow records with payment dates. Never combine master and ledger totals.
@@ -53,7 +81,7 @@ Current month boundaries use Asia/Kolkata, independent of the server's timezone.
 
 Deploy the complete `google-apps-script/Code.gs` as a new version of the existing
 deployment. Expected marker:
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_16_PORTFOLIO_HISTORY_V20`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_20_WITHDRAWALS_PAYOUT_REMAINDER_V21`.
 
 Sign in as admin, open Dashboard then Reports, and verify matching card values.
 Check monthly investment against dated Investment_Master amounts for the
@@ -63,8 +91,11 @@ Check the 24-month portfolio series against per-client closing balances and date
 cash flows; investigate any difference from the current DASHBOARD total.
 Confirm a pending request changes pending count/amount but not completed charts.
 Confirm missing payout terms show Not available and a warning, rather than zero.
+Verify a partial payment reduces only that client's monthly remainder; verify an
+overpayment does not reduce another client's remainder. Verify historical rows
+appear in both Withdrawal Management and the linked client's details, read-only.
 
 Automated tests cover the calculations, source precedence, dates, role separation,
 request-local read reuse, card rendering, and interactive month/year filtering.
 Live financial reconciliation requires an authenticated admin session and the
-V20 Apps Script deployment; a successful build or health response does not prove it.
+V21 Apps Script deployment; a successful build or health response does not prove it.
