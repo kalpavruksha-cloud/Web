@@ -39,6 +39,61 @@ function createSpreadsheetHarness() {
 }
 
 describe("Apps Script dashboard snapshot", () => {
+  it("reads new DASHBOARD amounts directly, scopes clients and sums admin values only once", () => {
+    const harness = createSpreadsheetHarness();
+    harness.rows.DASHBOARD[0].push(" present_investment ", "MONTHLY PAYOUT");
+    harness.rows.DASHBOARD[1].push("INR 95,000", 1500);
+    harness.rows.DASHBOARD[2].push(48000, "2,500");
+    const admin = harness.snapshot();
+    expect(admin.presentInvestment).toBe(143000);
+    expect(admin.monthlyPayout).toBe(4000);
+    expect(admin.adminAnalytics?.sources?.find((row) => row.module === "dashboard")?.headers).toContain("MONTHLY PAYOUT");
+    expect(harness.reads.DASHBOARD).toHaveBeenCalledTimes(1);
+    const client = harness.snapshot("client", "C001");
+    expect(client.presentInvestment).toBe(95000);
+    expect(client.monthlyPayout).toBe(1500);
+    expect(client.admin).toBeUndefined();
+    expect(admin.adminAnalytics?.payoutScheduleSource).toBe("dashboard");
+    expect(admin.admin?.scheduledMonthlyPayout).toBe(4000);
+    expect(admin.admin?.remainingMonthlyPayout).toBe(4000);
+  });
+
+  it("preserves genuine zeros and does not derive missing new columns from old totals", () => {
+    const harness = createSpreadsheetHarness();
+    expect(harness.snapshot().presentInvestment).toBeUndefined();
+    expect(harness.snapshot().monthlyPayout).toBeUndefined();
+    harness.rows.DASHBOARD[0].push("Present Investment", "Monthly Payout");
+    harness.rows.DASHBOARD[1].push(0, 0);
+    harness.rows.DASHBOARD[2].push(0, 0);
+    const result = harness.snapshot();
+    expect(result.presentInvestment).toBe(0);
+    expect(result.monthlyPayout).toBe(0);
+  });
+
+  it("flags incomplete new column values instead of showing partial totals or fake zero", () => {
+    const harness = createSpreadsheetHarness();
+    harness.rows.DASHBOARD[0].push("Present Investment", "Monthly Payout");
+    harness.rows.DASHBOARD[1].push(95000, "#REF!");
+    harness.rows.DASHBOARD[2].push("", 2000);
+    const result = harness.snapshot();
+    expect(result.presentInvestment).toBeNull();
+    expect(result.monthlyPayout).toBeNull();
+    expect(result.adminAnalytics?.warnings.some((warning) => warning.includes("Monthly Payout has blank or invalid"))).toBe(true);
+    expect(result.availableBalance).toBe(143000);
+    expect(harness.snapshot("client", "C001").presentInvestment).toBe(95000);
+    expect(harness.snapshot("client", "C002").monthlyPayout).toBe(2000);
+  });
+
+  it("does not add a footer total to client-row sums in the new columns", () => {
+    const harness = createSpreadsheetHarness();
+    harness.rows.DASHBOARD[0].push("Present Investment", "Monthly Payout");
+    harness.rows.DASHBOARD[1].push(95000, 1500);
+    harness.rows.DASHBOARD[2].push(48000, 2500);
+    harness.rows.DASHBOARD.push(["", "", "", "", "", 143000, 4000]);
+    expect(harness.snapshot().presentInvestment).toBe(143000);
+    expect(harness.snapshot().monthlyPayout).toBe(4000);
+  });
+
   it("opens the spreadsheet once and reads each required tab once", () => {
     const harness = createSpreadsheetHarness();
     const result = harness.snapshot();
@@ -183,6 +238,30 @@ function analytics(investments: Array<Record<string, unknown>>, transactions: Ar
 }
 
 describe("admin financial analytics", () => {
+  it("uses the DASHBOARD schedule for the remainder even when investment payout terms are missing", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`buildAdminFinancialAnalytics(
+      [{clientId:"C001",status:"active",principalAmount:800000}],
+      [{clientId:"C001",type:"payout",status:"posted",date:"2026-10-05",credit:5000,debit:0}],
+      [],800000,new Date("2026-10-21T08:00:00Z"),
+      {dashboardRows:[{clientId:"C001",monthlyPayout:20000},{clientId:"C002",monthlyPayout:2500}]})`, harness.context) as AnalyticsResult;
+    expect(result.payoutScheduleSource).toBe("dashboard");
+    expect(result.estimatedMonthlyPayout).toBe(22500);
+    expect(result.paidMonthlyPayout).toBe(5000);
+    expect(result.remainingMonthlyPayout).toBe(17500);
+    expect(result.payoutEstimateMissingRecords).toBe(0);
+  });
+
+  it("does not replace an incomplete DASHBOARD schedule with a different investment estimate", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`buildAdminFinancialAnalytics(
+      [{clientId:"C001",status:"active",monthlyReturn:9999}],[],[],800000,new Date("2026-10-21T08:00:00Z"),
+      {dashboardRows:[{clientId:"C001",monthlyPayout:null},{clientId:"C002",monthlyPayout:2500}]})`, harness.context) as AnalyticsResult;
+    expect(result.estimatedMonthlyPayout).toBeNull();
+    expect(result.remainingMonthlyPayout).toBeNull();
+    expect(result.warnings.some((warning) => warning.includes("DASHBOARD Monthly Payout"))).toBe(true);
+  });
+
   it("subtracts completed current-month payouts to calculate the remaining payout", () => {
     const result = analytics([{ clientId: "C001", status: "active", monthlyReturn: 1500, startDate: "2026-01-01" }], [
       { clientId: " c001 ", type: "payout", status: "posted", date: "2026-10-05", credit: 500, debit: 0 },

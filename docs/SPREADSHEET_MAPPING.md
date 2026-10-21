@@ -6,7 +6,29 @@
 - Apps Script URL in local env: `https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec`
 - Backend remains the only browser-facing integration layer.
 
-## Header Matching
+## DASHBOARD Columns (V22)
+
+The user-provided screenshot on 21 October 2026 shows:
+
+| Sheet header | API field | Use |
+| --- | --- | --- |
+| Present Investment (G) | `presentInvestment` | Current client investment. The displayed formula is `=B2-D2`, Total Invested minus Total Withdrawal. Supplies available balance and admin net investment when valid. |
+| Monthly Payout (H) | `monthlyPayout` | Direct monetary monthly schedule, separate from historical Total Payout. Supplies the per-client admin scheduled amount before subtracting completed payments assigned to the current month. |
+
+The H-column formula was not visible. The implementation reads the sheet's numeric
+amounts; it does not calculate or assume a percentage. No formulas are written back.
+Client responses include only that client's rows. Admin aggregates client rows and
+excludes unlinked footer totals from these new fields. Any blank/error cell makes
+the aggregate unavailable rather than returning a partial total; explicit zero is
+valid. Missing columns stay absent for legacy compatibility. `Monthly Payout` is
+the schedule, not the unpaid remainder or all-time payouts. The remainder remains
+the sum of per-client max(schedule minus assigned completed payments, zero).
+
+This mapping is grounded in the supplied screenshot and regression tests. Direct
+Google Sheets access returned 403, so live formulas and all client totals still
+require verification in an authorized admin session after deploying V22.
+
+## Header Normalization
 
 Header matching is case-insensitive and tolerant of spaces, underscores, and hyphens.
 

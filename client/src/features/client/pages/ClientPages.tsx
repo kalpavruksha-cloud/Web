@@ -92,7 +92,7 @@ export function ClientDashboardPage() {
   const data = dashboard.data;
   if (!data) return <ErrorState title="Dashboard unavailable" message="The spreadsheet did not return dashboard records." />;
   const pendingRequests = requests.data ? requests.data.filter((row) => String(row.status).toLowerCase().includes("pending")).length : 0;
-  const availableBalance = data.totalWithdrawal !== undefined ? data.totalInvestedAmount - data.totalWithdrawal : data.availableBalance ?? data.walletBalance;
+  const availableBalance = data.availableBalance ?? (data.totalWithdrawal !== undefined ? data.totalInvestedAmount - data.totalWithdrawal : data.walletBalance);
   const rawGrowth = (data.portfolioGrowth?.length
     ? data.portfolioGrowth
     : data.investmentGrowth?.length
@@ -120,6 +120,11 @@ export function ClientDashboardPage() {
         <ClientMetric label="Available Balance" value={formatCurrency(availableBalance)} hint={`${data.pendingWithdrawals} pending withdrawals`} icon={<WalletCards className="h-5 w-5" />} />
         <ClientMetric label="Referral Earnings" value={formatCurrency(data.referralEarnings)} hint={requests.isLoading ? "Investment requests loading" : `${pendingRequests} pending investment requests`} icon={<Copy className="h-5 w-5" />} />
       </div>
+
+      {(data.presentInvestment !== undefined || data.monthlyPayout !== undefined) && <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        {data.presentInvestment !== undefined && <ClientMetric label="Present Investment" value={data.presentInvestment === null ? "Not available" : formatCurrency(data.presentInvestment)} icon={<IndianRupee className="h-5 w-5" />} />}
+        {data.monthlyPayout !== undefined && <ClientMetric label="Monthly Payout" value={data.monthlyPayout === null ? "Not available" : formatCurrency(data.monthlyPayout)} icon={<WalletCards className="h-5 w-5" />} />}
+      </div>}
 
       <div className="mt-6">
         <ClientCard><SectionTitle title="Portfolio Growth" subtitle="X-axis shows months and Y-axis shows total portfolio amount in thousands" />{growth.length ? <ChartBox><AreaChart data={growth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatThousandsAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} labelFormatter={(label) => `Month: ${label}`} /><Area dataKey="value" type="monotone" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox> : <div className="grid min-h-[280px] place-items-center rounded-[18px] border border-dashed border-forest-100 bg-white/55 text-center text-sm font-semibold text-charcoal/62 dark:border-white/10 dark:bg-white/5 dark:text-white/62">No portfolio growth records are available for this client yet.</div>}</ClientCard>
@@ -253,7 +258,7 @@ export function ClientWithdrawalsPage() {
   const [form, setForm] = useState({ amount: "", bankAccount: "", remarks: "", declaration: false });
   if (dashboard.isLoading || withdrawals.isLoading) return <ClientLoading label="Loading withdrawals" />;
   if (withdrawals.error) return <ErrorState title="Withdrawals unavailable" message={withdrawals.error instanceof Error ? withdrawals.error.message : undefined} />;
-  const eligible = dashboard.data?.totalWithdrawal !== undefined ? dashboard.data.totalInvestedAmount - dashboard.data.totalWithdrawal : dashboard.data?.availableBalance ?? dashboard.data?.walletBalance ?? 0;
+  const eligible = dashboard.data?.availableBalance ?? (dashboard.data?.totalWithdrawal !== undefined ? dashboard.data.totalInvestedAmount - dashboard.data.totalWithdrawal : dashboard.data?.walletBalance ?? 0);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (Number(form.amount) > eligible) { toast({ title: "Amount exceeds eligible balance", type: "error" }); return; }

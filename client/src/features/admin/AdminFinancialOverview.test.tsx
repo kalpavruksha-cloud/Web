@@ -37,6 +37,21 @@ const dashboard: DashboardSummary = {
 const data: AdminCollections = { dashboard, clients: [], investments: [], transactions: [], withdrawals: [], documents: [], referrals: [], notifications: [] };
 
 describe("shared admin dashboard and report financial views", () => {
+  it("shows the new spreadsheet values independently of scheduled and remaining payouts", () => {
+    render(<AdminOverviewCards data={{ ...data, dashboard: { ...dashboard, presentInvestment: 96500, monthlyPayout: 1750 } }} />);
+    expect(screen.getByText("Present Investment")).toBeInTheDocument();
+    expect(screen.getByText("₹96,500")).toBeInTheDocument();
+    expect(screen.getByText("Monthly Payout")).toBeInTheDocument();
+    expect(screen.getByText("₹1,750")).toBeInTheDocument();
+    expect(screen.getByText("₹1,000")).toBeInTheDocument();
+    expect(screen.getByText("Scheduled: ₹1,500")).toBeInTheDocument();
+  });
+
+  it("does not display missing spreadsheet columns as zero", () => {
+    render(<AdminOverviewCards data={{ ...data, dashboard: { ...dashboard, presentInvestment: null, monthlyPayout: null } }} />);
+    expect(screen.getAllByText("Not available")).toHaveLength(2);
+  });
+
   it("shows net investment, estimated payout and historical total as distinct figures", () => {
     render(<AdminOverviewCards data={data} />);
     expect(screen.getByText("Net investment: ₹97,000")).toBeInTheDocument();

@@ -169,6 +169,7 @@ export type AdminFinancialAnalytics = {
   investmentMonths: Array<{ month: string; amount: number }>;
   withdrawalMonths: Array<{ month: string; amount: number }>;
   payoutMonths: Array<{ month: string; amount: number }>;
+  payoutScheduleSource?: "dashboard" | "investment_records";
   withdrawalDays: Array<{ date: string; amount: number }>;
   warnings: string[];
   portfolioMonths?: Array<{ month: string; amount: number }>;
@@ -193,6 +194,8 @@ export type DashboardSummary = {
   totalReturns: number;
   totalPayouts?: number;
   totalWithdrawal?: number;
+  presentInvestment?: number | null;
+  monthlyPayout?: number | null;
   monthlyReturn: number;
   walletBalance: number;
   availableBalance?: number;

@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_20_WITHDRAWALS_PAYOUT_REMAINDER_V21";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_21_DASHBOARD_COLUMNS_V22";
 var DASHBOARD_READ_CONTEXT = null;
 
 var REQUIRED_SHEETS = [
@@ -363,7 +363,7 @@ function dashboard(payload) {
 function buildDashboardSnapshot(payload) {
   var isAdmin = payload.role === "admin";
   var clientId = isAdmin ? "" : String(payload.clientId || "");
-  var dashboardRows = readModule(payload, ["DASHBOARD", "Dashboard"], mapDashboard, true);
+  var dashboardRows = readModule(payload, ["DASHBOARD", "Dashboard"], mapDashboard, true, isAdmin ? "dashboard" : "");
   var adminPayload = isAdmin ? clonePayload(payload, { role: "admin" }) : null;
   var allDashboardRows = isAdmin ? dashboardRows : [];
   var investments = getInvestments(payload);
@@ -380,7 +380,9 @@ function buildDashboardSnapshot(payload) {
   var totalPayout = hasDashboardRows ? sum(sourceDashboardRows, "totalReturns") : 0;
   var totalWithdrawal = hasDashboardRows ? sum(sourceDashboardRows, "totalWithdrawal") : sum(withdrawals, "amount");
   var currentValue = hasDashboardRows ? sum(sourceDashboardRows, "currentPortfolioValue") : sum(investments, "currentValue") || totalInvested;
-  var availableBalance = totalInvested - totalWithdrawal;
+  var presentInvestment = dashboardColumnTotal(sourceDashboardRows, "presentInvestment");
+  var monthlyPayout = dashboardColumnTotal(sourceDashboardRows, "monthlyPayout");
+  var availableBalance = typeof presentInvestment === "number" ? presentInvestment : totalInvested - totalWithdrawal;
   var monthlyReturn = sum(investments, "monthlyReturn");
   var paidReferrals = sum(referrals, "paidAmount");
   var pendingWithdrawals = withdrawals.filter(function(row) { return row.status === "pending" && !row.readOnly; }).length;
@@ -394,6 +396,8 @@ function buildDashboardSnapshot(payload) {
     totalReturns: hasDashboardRows ? totalPayout : currentValue - totalInvested,
     totalPayouts: totalPayout,
     totalWithdrawal: totalWithdrawal,
+    presentInvestment: presentInvestment,
+    monthlyPayout: monthlyPayout,
     monthlyReturn: monthlyReturn,
     walletBalance: availableBalance,
     availableBalance: availableBalance,
@@ -422,10 +426,13 @@ function buildDashboardSnapshot(payload) {
     var investmentSource = DASHBOARD_READ_CONTEXT.sources.filter(function(source) { return source.module === "investments"; })[0];
     var analytics = buildAdminFinancialAnalytics(investments, transactions, withdrawals, totalInvested, new Date(), {
       preferInvestmentMaster: investmentSource && normalizeKey(investmentSource.sheet) === "investmentmaster",
-      withdrawalHistory: withdrawalHistory
+      withdrawalHistory: withdrawalHistory,
+      dashboardRows: sourceDashboardRows
     });
     addAdminOverviewSeries(analytics, clients, investments, transactions, withdrawals, sourceDashboardRows);
     reconcileAdminPortfolio(analytics, currentValue);
+    if (response.presentInvestment === null) analytics.warnings.push("DASHBOARD Present Investment has blank or invalid client amounts; its total is unavailable.");
+    if (response.monthlyPayout === null) analytics.warnings.push("DASHBOARD Monthly Payout has blank or invalid client amounts; its total is unavailable.");
     analytics.sources = DASHBOARD_READ_CONTEXT.sources;
     var kycByClient = {};
     allKycRows.forEach(function(row) { kycByClient[normalizeText(row.clientId)] = row.kycStatus; });
@@ -433,7 +440,7 @@ function buildDashboardSnapshot(payload) {
       return (kycByClient[normalizeText(row.clientId)] || row.kycStatus) === "verified";
     }).length;
     var actualWithdrawal = hasDashboardRows ? totalWithdrawal : analytics.completedWithdrawalTotal;
-    response.availableBalance = totalInvested - actualWithdrawal;
+    response.availableBalance = typeof presentInvestment === "number" ? presentInvestment : totalInvested - actualWithdrawal;
     response.totalWithdrawal = actualWithdrawal;
     response.admin = {
       totalClients: clients.length,
@@ -448,7 +455,7 @@ function buildDashboardSnapshot(payload) {
       payoutEstimateMissingRecords: analytics.payoutEstimateMissingRecords,
       totalPayoutAmount: hasDashboardRows ? totalPayout : analytics.recordedPayoutTotal,
       totalWithdrawalAmount: actualWithdrawal,
-      netInvestment: totalInvested - actualWithdrawal,
+      netInvestment: response.availableBalance,
       pendingWithdrawalAmount: sum(withdrawals.filter(function(row) { return row.status === "pending" && !row.readOnly; }), "amount"),
       verifiedKyc: verifiedKyc,
       pendingWithdrawals: pendingWithdrawals,
@@ -543,6 +550,11 @@ function buildAdminFinancialAnalytics(investments, transactions, withdrawals, to
     return funded && (!start || start <= monthEnd) && (!maturity || maturity >= monthStart)
       && (!nextPayout || nextPayout.slice(0, 7) === month);
   });
+  var dashboardPayoutRows = (history && history.dashboardRows) || [];
+  var useDashboardPayout = dashboardPayoutRows.some(function(row) { return row.monthlyPayout !== undefined; });
+  if (useDashboardPayout) eligible = dashboardPayoutRows.filter(function(row) { return normalizeText(row.clientId) !== ""; }).map(function(row) {
+    return { clientId: row.clientId, monthlyReturn: row.monthlyPayout };
+  });
   var missing = 0;
   var estimate = 0;
   eligible.forEach(function(row) {
@@ -553,11 +565,12 @@ function buildAdminFinancialAnalytics(investments, transactions, withdrawals, to
       estimate += row.monthlyReturn;
     }
   });
-  if (!investments.length && totalInvested > 0) {
+  if (useDashboardPayout && !eligible.length) missing += 1;
+  if (!useDashboardPayout && !investments.length && totalInvested > 0) {
     missing += 1;
     warnings.push("Investment payout terms are missing for the recorded invested balance.");
   }
-  if (missing) warnings.push("The current-month payout estimate is unavailable because payout amounts or frequency are missing or unsupported. Generic ROI is not assumed to be monthly or annual.");
+  if (missing) warnings.push(useDashboardPayout ? "The current-month payout estimate is unavailable because DASHBOARD Monthly Payout contains missing/invalid amounts or client IDs." : "The current-month payout estimate is unavailable because payout amounts or frequency are missing or unsupported. Generic ROI is not assumed to be monthly or annual.");
   var payoutLedger = completed.filter(function(row) {
     return ["payout", "interest", "interest_credit", "monthly_return", "monthly_payout"].indexOf(row.type) >= 0;
   });
@@ -575,6 +588,7 @@ function buildAdminFinancialAnalytics(investments, transactions, withdrawals, to
   return {
     asOf: now.toISOString(), currentYear: Number(today.slice(0, 4)), currentMonth: Number(today.slice(5, 7)),
     investmentSource: investmentSource, withdrawalSource: withdrawalSource,
+    payoutScheduleSource: useDashboardPayout ? "dashboard" : "investment_records",
     investmentMonths: adminMonthlyAmounts(investmentDays), withdrawalMonths: adminMonthlyAmounts(withdrawalDays),
     payoutMonths: adminMonthlyAmounts(payoutDays),
     portfolioHistoryMonths: portfolioHistory.months,
@@ -1078,6 +1092,19 @@ function getSettings(payload) {
   return settings;
 }
 
+function dashboardColumnAmount(row, header) {
+  if (findHeaderIndex(Object.keys(row), [header]) < 0) return undefined;
+  var amount = adminMoney(first(row, [header]), NaN);
+  return isFinite(amount) ? amount : null;
+}
+
+function dashboardColumnTotal(rows, key) {
+  if (!rows.length || rows.every(function(row) { return row[key] === undefined; })) return undefined;
+  var clients = rows.filter(function(row) { return normalizeText(row.clientId) !== ""; });
+  if (!clients.length || clients.some(function(row) { return typeof row[key] !== "number" || !isFinite(row[key]); })) return null;
+  return Math.round(sum(clients, key) * 100) / 100;
+}
+
 function mapDashboard(row) {
   return {
     clientId: String(first(row, ["ClientId", "Client ID", "CLIENT_ID"]) || ""),
@@ -1086,6 +1113,8 @@ function mapDashboard(row) {
     walletBalance: number(first(row, ["Net Portfolio"])),
     referralEarnings: number(first(row, ["Total Referral"])),
     totalWithdrawal: number(first(row, ["Total Withdrawal"])),
+    presentInvestment: dashboardColumnAmount(row, "Present Investment"),
+    monthlyPayout: dashboardColumnAmount(row, "Monthly Payout"),
     currentPortfolioValue: number(first(row, ["Net Portfolio"]))
   };
 }

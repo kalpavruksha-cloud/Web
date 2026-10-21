@@ -7,7 +7,7 @@
 - Frontend local URL: `http://localhost:5173`
 - Backend local URL: `http://localhost:8080/api`
 
-## Admin Dashboard Upgrade (V21)
+## Dashboard Columns Upgrade (V22)
 
 The dashboard and analytics now use one shared `/api/dashboard` snapshot instead
 of eight overlapping module requests. This upgrade requires both the web release
@@ -18,7 +18,7 @@ and the updated `google-apps-script/Code.gs` deployment:
 3. Select Version > New version, then Deploy. Keep Execute as: Me and the existing access configuration.
 4. Keep the existing deployment URL to avoid changing Vercel environment variables.
 5. Open the existing `/exec?action=deploymentTest` URL. The marker must be
-   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_20_WITHDRAWALS_PAYOUT_REMAINDER_V21`.
+   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_21_DASHBOARD_COLUMNS_V22`.
 6. After the GitHub-triggered Vercel deployment succeeds, reload the portal and sign in as admin.
 
 The admin dashboard should make a single `/api/dashboard` request for its records,
@@ -33,7 +33,10 @@ and the per-client monthly payout remainder. V20 added dated investment totals a
 24-month Current Portfolio history. The Dashboard no longer displays Portfolio
 Distribution or Client Registration Trend. See
 `docs/ADMIN_FINANCIAL_ANALYTICS.md` for metric definitions and source requirements.
-Until Apps Script V21 is deployed, the new remainder and linked history are unavailable.
+V22 reads DASHBOARD Present Investment and Monthly Payout for the same web/PWA
+dashboards. Present Investment supplies available/net investment, and Monthly
+Payout supplies the per-client monthly schedule used for the unpaid remainder.
+Until Apps Script V22 is deployed, these new column mappings are unavailable.
 The web release shows an explicit analytics
 availability notice rather than empty or invented financial charts.
 

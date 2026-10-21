@@ -26,6 +26,7 @@ All protected endpoints require the secure `session` HTTP-only cookie issued by 
   Admin responses include read-only `Withdrawal_Master` history alongside portal
   requests. History has `recordSource: "withdrawal_master"` and `readOnly: true`.
   Client responses remain scoped to the existing client request history.
+
 - `POST /api/withdrawals`
 - `PUT /api/withdrawals/:id/approve` admin
 - `PUT /api/withdrawals/:id/reject` admin
@@ -48,6 +49,15 @@ All protected endpoints require the secure `session` HTTP-only cookie issued by 
 - `GET /api/clients/:id` admin extension
 - `POST /api/clients` admin extension
 - `PUT /api/clients/:id` admin extension
+
+## Dashboard Columns (V22)
+
+The existing dashboard responses additionally expose `presentInvestment` and
+`monthlyPayout` from matching DASHBOARD columns. They are numbers, null when
+present but invalid/incomplete, and omitted on legacy sheets without these
+columns. Admin values sum client rows; client values remain scoped. The admin
+schedule prefers DASHBOARD Monthly Payout; the unpaid balance is still returned
+separately as `admin.remainingMonthlyPayout`. No additional endpoint is needed.
 
 ## Diagnostics
 

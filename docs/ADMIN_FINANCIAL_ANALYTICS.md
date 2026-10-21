@@ -9,17 +9,24 @@ component calculations.
 | Card | Meaning |
 | --- | --- |
 | Total Investment | Sum of DASHBOARD Total Invested; investment principal is used only when DASHBOARD has no records. |
-| Net investment (gold line) | Total invested minus DASHBOARD Total Withdrawal; without DASHBOARD records, completed withdrawals are used. Negative balances are not silently clamped. |
+| Net investment (gold line) | DASHBOARD Present Investment when valid. Legacy fallback: total invested minus DASHBOARD Total Withdrawal, or completed withdrawals without DASHBOARD records. Negative balances are not silently clamped. |
 | Total Portfolio Value | Sum of DASHBOARD Net Portfolio. It is not renamed available balance or assumed to equal net investment. |
 | Estimated Monthly Payout | Remaining current-month payout: sum per client of max(scheduled amount minus completed payouts assigned to that month, 0). Smaller lines show scheduled amount, recorded payments for the month, and historical total payouts separately. |
 | Total payouts (small line) | DASHBOARD Total Payout. Completed payout/interest ledger totals are used only when DASHBOARD has no records. |
 | Pending Withdrawals | Count of requests with pending status; the gold line shows their total amount awaiting approval. |
 | Verified KYC | Verified client count using the KYC tab, with profile status as fallback. Duplicate KYC rows do not count a client twice; missing/rejected/non-verified clients need review. |
 | Documents Uploaded | Document-record count; its smaller line is unread notifications, not a KYC alert. |
+| Present Investment | Direct sum of the DASHBOARD client-row Present Investment values; client dashboard shows its own amount. Not an estimate of market value. |
+| Monthly Payout | Direct DASHBOARD Monthly Payout amount; a monthly schedule, not the unpaid remainder or all-time Total Payout. |
 
 ## Payout Requirements
 
-Use a monetary Monthly Return, Monthly Payout, Monthly Interest, or Monthly Payout
+V22 prefers each client's explicit DASHBOARD Monthly Payout amount for the
+monthly schedule and remainder. It does not add investment-master amounts again.
+A missing/error/negative payout in an existing DASHBOARD schedule makes the
+estimate unavailable with a warning, not a partial sum or a fallback to a different
+source. Older sheets without this column retain the investment-record fallback:
+use a monetary Monthly Return, Monthly Payout, Monthly Interest, or Monthly Payout
 Amount column. Header matching remains case/space/underscore insensitive.
 Optional fields: Next Payout Date/Scheduled Payout Date and Payout Frequency/Payment
 Frequency. Monthly recurrence is supported. Missing amounts or unsupported
@@ -81,7 +88,7 @@ Admin linked-record matching trims and ignores case but never rewrites client co
 
 Deploy the complete `google-apps-script/Code.gs` as a new version of the existing
 deployment. Expected marker:
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_20_WITHDRAWALS_PAYOUT_REMAINDER_V21`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_21_DASHBOARD_COLUMNS_V22`.
 
 Sign in as admin, open Dashboard then Reports, and verify matching card values.
 Check monthly investment against dated Investment_Master amounts for the
@@ -98,4 +105,4 @@ appear in both Withdrawal Management and the linked client's details, read-only.
 Automated tests cover the calculations, source precedence, dates, role separation,
 request-local read reuse, card rendering, and interactive month/year filtering.
 Live financial reconciliation requires an authenticated admin session and the
-V21 Apps Script deployment; a successful build or health response does not prove it.
+V22 Apps Script deployment; a successful build or health response does not prove it.

@@ -1,5 +1,14 @@
 # Google Apps Script Integration
 
+## DASHBOARD Columns (V22)
+
+V22 reads the existing DASHBOARD columns Present Investment and Monthly Payout.
+Both client web/PWA and admin views display those exact sheet amounts. Present
+Investment supplies available/net investment; Monthly Payout supplies the monthly
+schedule used for the per-client unpaid remainder. Percentage rates are not
+inferred or calculated in the app. Missing/error cells are not fabricated zeroes.
+No spreadsheet formulas are changed. See docs/SPREADSHEET_MAPPING.md for grounding.
+
 ## Withdrawals and Payout Remainder (V21)
 
 V21 includes read-only Withdrawal_Master records in the admin withdrawal list and
@@ -34,7 +43,7 @@ approval workflows or adding a persistent data cache.
 
 Replace the complete `Code.gs` and deploy **New version** on the existing deployment.
 Verify `?action=deploymentTest` returns
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_20_WITHDRAWALS_PAYOUT_REMAINDER_V21`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_21_DASHBOARD_COLUMNS_V22`.
 The web release explicitly flags unavailable analytics until this deployment
 is updated. Do not change the deployment URL unless necessary.
 
@@ -68,7 +77,7 @@ To enable the single-request dashboard, replace the existing script with the
 complete `Code.gs` in this directory, then use **Deploy > Manage deployments >
 Edit > Version: New version > Deploy**. Keep the existing deployment and URL.
 Check `?action=deploymentTest` for marker
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_20_WITHDRAWALS_PAYOUT_REMAINDER_V21`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_21_DASHBOARD_COLUMNS_V22`.
 
 Until that deployment is updated, the web portal loads the summary first and
 limits legacy collection requests to two at a time. The optimized Apps Script
