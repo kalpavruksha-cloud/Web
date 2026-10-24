@@ -1,5 +1,4 @@
-import { useState, type FormEvent, type ReactElement, type ReactNode } from "react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Bell, Copy, Download, ExternalLink, IndianRupee, Printer, UserCircle, WalletCards } from "lucide-react";
 import { api } from "../../../api/client";
 import { useAction, useResource } from "../../../api/queries";
@@ -24,6 +23,7 @@ import {
 import type { AccountOverview, Agreement, BankDetails, ClientDashboardData, ClientPreferences, InvestmentPlan, InvestmentRequest, SupportTicket } from "../clientTypes";
 import { downloadBase64File, exportCsv, maskLastFour, profileCompletion, statusText } from "../clientUtils";
 import { fallbackFaqs } from "../config/faqs";
+import { ClientPortfolioChart } from "../ClientPortfolioChart";
 
 const documentCategories = ["Aadhaar Card", "PAN Card", "Agreement", "Cancelled Cheque", "Address Proof", "Bank Proof", "Investment Receipt", "Tax Document", "Nominee Proof", "Other"];
 
@@ -33,8 +33,6 @@ const supportContactDetails = {
   whatsapp: "+916366636226",
   businessHours: "9 AM to 9 PM, Monday to Saturday"
 };
-
-type PortfolioGrowthPoint = { date?: string; value: number; credit?: number; debit?: number; transactionId?: string; investmentId?: string };
 
 function profileDriveThumbnail(url: string) {
   const value = String(url || "").trim();
@@ -52,37 +50,6 @@ function profileImageSource(profile?: Pick<Profile, "profilePhotoUrl" | "profile
   return profile.profilePhotoUrl;
 }
 
-function portfolioMonthLabel(value?: string) {
-  if (!value) return "Current";
-  const parsed = new Date(value);
-  if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleString("en-IN", { month: "short", year: "2-digit" });
-  return formatDate(value);
-}
-
-function portfolioMonthOrder(value?: string, fallback = 0) {
-  if (!value) return fallback;
-  const parsed = new Date(value).getTime();
-  return Number.isNaN(parsed) ? fallback : parsed;
-}
-
-function monthlyPortfolioGrowth(points: PortfolioGrowthPoint[]) {
-  const byMonth = new Map<string, { month: string; value: number; order: number }>();
-  points.forEach((point, index) => {
-    const month = portfolioMonthLabel(point.date);
-    const order = portfolioMonthOrder(point.date, index);
-    const value = Number(point.value || 0);
-    const existing = byMonth.get(month);
-    if (!existing || order >= existing.order) byMonth.set(month, { month, value, order });
-  });
-  return Array.from(byMonth.values()).sort((a, b) => a.order - b.order).map(({ month, value }) => ({ month, value }));
-}
-
-function formatThousandsAxis(value: unknown) {
-  const thousands = Number(value || 0) / 1000;
-  const display = Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1);
-  return `\u20b9${display}K`;
-}
-
 export function ClientDashboardPage() {
   const { user } = useAuth();
   const dashboard = useResource<ClientDashboardData>("client-dashboard", "/client/dashboard");
@@ -93,13 +60,6 @@ export function ClientDashboardPage() {
   if (!data) return <ErrorState title="Dashboard unavailable" message="The spreadsheet did not return dashboard records." />;
   const pendingRequests = requests.data ? requests.data.filter((row) => String(row.status).toLowerCase().includes("pending")).length : 0;
   const availableBalance = data.availableBalance ?? (data.totalWithdrawal !== undefined ? data.totalInvestedAmount - data.totalWithdrawal : data.walletBalance);
-  const rawGrowth = (data.portfolioGrowth?.length
-    ? data.portfolioGrowth
-    : data.investmentGrowth?.length
-      ? data.investmentGrowth
-      : (data.recentTransactions ?? []).slice().reverse().map((row) => ({ date: row.date, value: row.balance ?? row.credit - row.debit }))
-  ).filter((row) => row.date || Number(row.value || 0) !== 0);
-  const growth = monthlyPortfolioGrowth(rawGrowth);
   const client = data.client;
   const profilePhoto = profileImageSource(client);
 
@@ -127,7 +87,7 @@ export function ClientDashboardPage() {
       </div>}
 
       <div className="mt-6">
-        <ClientCard><SectionTitle title="Portfolio Growth" subtitle="X-axis shows months and Y-axis shows total portfolio amount in thousands" />{growth.length ? <ChartBox><AreaChart data={growth}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatThousandsAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} labelFormatter={(label) => `Month: ${label}`} /><Area dataKey="value" type="monotone" stroke="#14583f" fill="#1e7b5433" strokeWidth={3} /></AreaChart></ChartBox> : <div className="grid min-h-[280px] place-items-center rounded-[18px] border border-dashed border-forest-100 bg-white/55 text-center text-sm font-semibold text-charcoal/62 dark:border-white/10 dark:bg-white/5 dark:text-white/62">No portfolio growth records are available for this client yet.</div>}</ClientCard>
+        <ClientCard><SectionTitle title="Portfolio Growth" subtitle="Last 12 months · Portfolio amount in thousands" /><ClientPortfolioChart history={data.portfolioHistory} /></ClientCard>
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
@@ -270,7 +230,7 @@ export function ClientWithdrawalsPage() {
     await mutation.mutateAsync({ method: "put", url: `/client/withdrawals/${id}/cancel`, body: { remarks: "Cancelled by client" } });
     toast({ title: "Withdrawal cancelled", type: "success" });
   }
-  return <ClientPage title="Withdrawals"><div className="mb-4 flex gap-2"><ClientButton tone={tab === "history" ? "primary" : "secondary"} onClick={() => setTab("history")}>History</ClientButton><ClientButton tone={tab === "new" ? "primary" : "secondary"} onClick={() => setTab("new")}>New Request</ClientButton></div>{tab === "history" ? <ClientCard><ClientTable rows={withdrawals.data ?? []} columns={[{ key: "id", header: "Withdrawal ID", render: (row) => row.id }, { key: "date", header: "Request Date", render: (row) => formatDate(row.requestDate) }, { key: "amount", header: "Amount", render: (row) => formatCurrency(row.amount) }, { key: "bank", header: "Bank", render: (row) => maskLastFour(row.bankAccount) }, { key: "status", header: "Status", render: (row) => <ClientStatus value={row.status} /> }, { key: "approval", header: "Approval", render: (row) => formatDate(row.approvalDate) }, { key: "reference", header: "Payment Ref", render: (row) => row.paymentReference }, { key: "remarks", header: "Admin Remarks", render: (row) => row.adminRemarks }, { key: "action", header: "Action", render: (row) => row.status === "pending" ? <ClientButton tone="danger" onClick={() => cancel(row.id)}>Cancel</ClientButton> : "Locked" }]} /></ClientCard> : <ClientCard><ClientMetric label="Eligible Balance" value={formatCurrency(eligible)} /><form onSubmit={submit} className="mt-5 grid gap-3 md:grid-cols-2"><ClientField label="Requested Amount"><ClientInput required type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></ClientField><ClientField label="Verified Bank Account"><ClientInput required value={form.bankAccount} onChange={(e) => setForm({ ...form, bankAccount: e.target.value })} /></ClientField><ClientField label="Remarks"><ClientInput value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} /></ClientField><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={form.declaration} onChange={(e) => setForm({ ...form, declaration: e.target.checked })} /> I confirm this withdrawal request.</label><ClientButton type="submit" disabled={!form.declaration || mutation.isPending}>Submit Request</ClientButton></form></ClientCard>}</ClientPage>;
+  return <ClientPage title="Withdrawals"><div className="mb-4 flex gap-2"><ClientButton tone={tab === "history" ? "primary" : "secondary"} onClick={() => setTab("history")}>History</ClientButton><ClientButton tone={tab === "new" ? "primary" : "secondary"} onClick={() => setTab("new")}>New Request</ClientButton></div>{tab === "history" ? <ClientCard><ClientTable rows={withdrawals.data ?? []} columns={[{ key: "id", header: "Withdrawal ID", render: (row) => row.id || "Recorded withdrawal" }, { key: "date", header: "Request / Recorded Date", render: (row) => formatDate(row.requestDate || row.paymentDate) }, { key: "amount", header: "Amount", render: (row) => formatCurrency(row.amount) }, { key: "bank", header: "Bank", render: (row) => maskLastFour(row.bankAccount) }, { key: "status", header: "Status", render: (row) => <ClientStatus value={row.status} /> }, { key: "source", header: "Source", render: (row) => row.readOnly ? "History" : "Portal request" }, { key: "approval", header: "Approval", render: (row) => formatDate(row.approvalDate) }, { key: "reference", header: "Payment Ref", render: (row) => row.paymentReference }, { key: "remarks", header: "Admin Remarks", render: (row) => row.adminRemarks }, { key: "action", header: "Action", render: (row) => !row.readOnly && row.id && row.status === "pending" ? <ClientButton tone="danger" onClick={() => cancel(row.id)}>Cancel</ClientButton> : row.readOnly ? "Recorded history" : "Locked" }]} /></ClientCard> : <ClientCard><ClientMetric label="Eligible Balance" value={formatCurrency(eligible)} /><form onSubmit={submit} className="mt-5 grid gap-3 md:grid-cols-2"><ClientField label="Requested Amount"><ClientInput required type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></ClientField><ClientField label="Verified Bank Account"><ClientInput required value={form.bankAccount} onChange={(e) => setForm({ ...form, bankAccount: e.target.value })} /></ClientField><ClientField label="Remarks"><ClientInput value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} /></ClientField><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={form.declaration} onChange={(e) => setForm({ ...form, declaration: e.target.checked })} /> I confirm this withdrawal request.</label><ClientButton type="submit" disabled={!form.declaration || mutation.isPending}>Submit Request</ClientButton></form></ClientCard>}</ClientPage>;
 }
 
 export function AgreementsPage() {
@@ -410,10 +370,6 @@ export function ClientSettingsPage() {
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return <div className="mb-4"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-gold-600 dark:text-gold-100">Portfolio intelligence</p><h2 className="mt-1 font-display text-xl font-extrabold tracking-tight text-navy-900 dark:text-ivory">{title}</h2>{subtitle && <p className="mt-1 text-sm text-charcoal/58 dark:text-white/58">{subtitle}</p>}</div>;
-}
-
-function ChartBox({ children }: { children: ReactElement }) {
-  return <div className="h-60 sm:h-72"><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>;
 }
 
 

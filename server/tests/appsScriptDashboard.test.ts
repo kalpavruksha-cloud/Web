@@ -187,17 +187,21 @@ describe("Apps Script dashboard snapshot", () => {
     expect(result.admin?.pendingWithdrawalAmount).toBe(5000);
     expect(result.adminAnalytics?.sources?.find((item) => item.module === "withdrawal_history")?.sheet).toBe("Withdrawal_Master");
     expect(result.adminData?.withdrawals.filter((row) => row.readOnly)).toHaveLength(5);
-    expect(result.adminData?.withdrawals.find((row) => row.recordSource === "withdrawal_master")).toMatchObject({ clientId: "C001", amount: 2000, requestDate: "", paymentDate: "2026-03-20", readOnly: true });
+    expect(result.adminData?.withdrawals.find((row) => row.recordSource === "withdrawal_master" && row.amount === 2000)).toMatchObject({ clientId: "C001", amount: 2000, requestDate: "", paymentDate: "2026-03-20", readOnly: true });
     expect(historyRead).toHaveBeenCalledTimes(1);
     expect(harness.openById).toHaveBeenCalledTimes(1);
   });
 
-  it("does not expose historical withdrawals through client reads", () => {
+  it("returns only the signed-in client's historical withdrawals and refuses unscoped reads", () => {
     const harness = createSpreadsheetHarness();
-    const historyRead = vi.fn(() => [["Client ID", "Date", "Amount"], ["C002", "2026-01-01", 9000]]);
+    const historyRead = vi.fn(() => [["Client ID", "Date", "Amount"], ["C002", "2026-01-01", 9000], [" c001 ", "2026-02-01", 2000]]);
     harness.getSheets.mockReturnValue([...harness.getSheets(), { getName: () => "Withdrawal_Master", getSheetId: () => 93, getDataRange: () => ({ getValues: historyRead }) }]);
-    expect(runInContext('getWithdrawals({role:"client",clientId:"C001"})', harness.context)).toMatchObject([{ id: "W001", clientId: "C001" }]);
-    expect(historyRead).not.toHaveBeenCalled();
+    const result = runInContext('getWithdrawals({role:"client",clientId:"C001"})', harness.context) as Array<{ clientId: string; readOnly?: boolean }>;
+    expect(result).toHaveLength(2);
+    expect(result.filter((row) => row.readOnly)).toMatchObject([{ clientId: "c001", readOnly: true }]);
+    expect(result.some((row) => row.clientId === "C002")).toBe(false);
+    expect(historyRead).toHaveBeenCalledTimes(1);
+    expect(() => runInContext('getWithdrawals({role:"client"})', harness.context)).toThrow("A client session is required");
     expect(() => runInContext('readAdminWithdrawalHistory({role:"client",clientId:"C001"})', harness.context)).toThrow("Administrator access");
   });
 
@@ -223,6 +227,83 @@ describe("Apps Script dashboard snapshot", () => {
   });
 });
 
+describe("client history and linked financial totals", () => {
+  it("builds 12 client months from the entire ledger, including its opening balance", () => {
+    const harness = createSpreadsheetHarness();
+    harness.rows.Investment_Master = [harness.rows.Investment_Master[0]];
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth();
+    harness.rows.TRANSACTIONS = [["Transaction ID", "Client ID", "Date", "Type", "Credit", "Debit", "Status"],
+      ["OPEN", "C001", "2020-01-01", "investment", 100000, 0, "posted"]];
+    for (let index = 0; index < 50; index++) harness.rows.TRANSACTIONS.push([String(index), "C001", new Date(Date.UTC(year, month - 2, 1 + index)).toISOString().slice(0, 10), "investment", 100, 0, "posted"]);
+    harness.rows.TRANSACTIONS.push(["PENDING", "C001", "2020-01-01", "investment", 900000, 0, "pending"], ["OTHER", "C002", "2020-01-01", "investment", 800000, 0, "posted"]);
+    const result = harness.snapshot("client", "C001");
+    expect(result.portfolioHistory?.months).toHaveLength(12);
+    expect(result.portfolioHistory?.months[0].amount).toBe(100000);
+    expect(result.portfolioHistory?.months[11].amount).toBe(105000);
+    expect(result.portfolioHistory?.matchesCurrentPortfolio).toBe(false);
+    expect(result.adminClientSummaries).toBeUndefined();
+    expect(result.adminAnalytics).toBeUndefined();
+    expect(harness.reads.TRANSACTIONS).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows only a current snapshot when historical dates do not exist", () => {
+    const harness = createSpreadsheetHarness();
+    harness.rows.Investment_Master = [harness.rows.Investment_Master[0]];
+    harness.rows.TRANSACTIONS = [harness.rows.TRANSACTIONS[0]];
+    const result = harness.snapshot("client", "C001");
+    expect(result.portfolioHistory?.source).toBe("current_snapshot");
+    expect(result.portfolioHistory?.months.slice(0, 11).every((row) => row.amount === null)).toBe(true);
+    expect(result.portfolioHistory?.months[11].amount).toBe(110000);
+  });
+
+  it("uses the actual register and normalized financial fields for client reads too", () => {
+    const harness = createSpreadsheetHarness();
+    const register = vi.fn(() => [["Transaction ID", "Client ID", "Txn Date", "Txn Type", "Credit Amount", "Transaction Status"],
+      ["ACTUAL", "C001", "15/09/2026", "investment", "INR 5,000", "posted"], ["OTHER", "C002", "15/09/2026", "investment", 9000, "posted"]]);
+    harness.getSheets.mockReturnValue([...harness.getSheets(), { getName: () => "Transaction_Register", getSheetId: () => 99, getDataRange: () => ({ getValues: register }) }]);
+    const result = harness.snapshot("client", "C001");
+    expect(result.recentTransactions).toHaveLength(1);
+    expect(result.recentTransactions[0]).toMatchObject({ id: "ACTUAL", date: "2026-09-15", credit: 5000 });
+    expect(harness.reads.TRANSACTIONS).not.toHaveBeenCalled();
+    expect(register).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns four client-linked DASHBOARD totals in the existing admin snapshot", () => {
+    const harness = createSpreadsheetHarness();
+    const result = harness.snapshot();
+    expect(result.adminClientSummaries).toEqual([
+      { clientId: "C001", totalInvestment: 100000, totalWithdrawal: 5000, totalPayout: 10000, totalPortfolio: 110000 },
+      { clientId: "C002", totalInvestment: 50000, totalWithdrawal: 2000, totalPayout: 5000, totalPortfolio: 55000 }
+    ]);
+    harness.rows.DASHBOARD[1][2] = "#REF!";
+    expect(harness.snapshot().adminClientSummaries?.[0].totalPayout).toBeNull();
+    expect(harness.snapshot("client", "C001").adminClientSummaries).toBeUndefined();
+  });
+
+  it("does not allow clients to cancel a historical pending entry", () => {
+    const harness = createSpreadsheetHarness();
+    harness.context.getWithdrawals = () => [{ id: "OLD", clientId: "C001", status: "pending", readOnly: true }];
+    const update = vi.fn();
+    harness.context.updateRecord = update;
+    expect(() => runInContext('cancelWithdrawal({role:"client",clientId:"C001",id:"OLD"})', harness.context)).toThrow("Only pending portal");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("scopes supported client-code headers and reads paid-status/date aliases", () => {
+    const harness = createSpreadsheetHarness();
+    const read = vi.fn(() => [["Client_Code", "Paid On", "Withdrawal Amount", "Payment Status"], ["C001", "15/10/2026", 2000, "Paid"], ["C002", "15/10/2026", 9000, "Paid"]]);
+    harness.getSheets.mockReturnValue([...harness.getSheets(), { getName: () => "Withdrawal_Master", getSheetId: () => 94, getDataRange: () => ({ getValues: read }) }]);
+    const rows = runInContext('getWithdrawals({role:"client",clientId:"C001"})', harness.context) as Array<{ clientId: string; status: string; paymentDate?: string }>;
+    expect(rows.find((row) => row.paymentDate)).toMatchObject({ clientId: "C001", status: "paid", paymentDate: "2026-10-15" });
+    expect(rows.some((row) => row.clientId === "C002")).toBe(false);
+    expect(runInContext('mapAdminWithdrawal({"Withdrawal Status":"Paid"}).status', harness.context)).toBe("paid");
+    expect(runInContext('mapAdminInvestment({"Client Code":"C001"}).clientId', harness.context)).toBe("C001");
+    expect(runInContext('mapAdminTransaction({"Investor ID":"C001"}).clientId', harness.context)).toBe("C001");
+  });
+});
+
 type AnalyticsResult = AdminFinancialAnalytics & {
   estimatedMonthlyPayout: number | null;
   payoutEstimateMissingRecords: number;
@@ -238,6 +319,20 @@ function analytics(investments: Array<Record<string, unknown>>, transactions: Ar
 }
 
 describe("admin financial analytics", () => {
+  it("selects a usable withdrawal source per client instead of dropping clients missing from the master", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`buildAdminFinancialAnalytics([], [
+      {clientId:"C001",date:"2026-10-01",type:"withdrawal",status:"paid",debit:1000,credit:0},
+      {clientId:"C002",date:"2026-10-02",type:"withdrawal",status:"paid",debit:2000,credit:0}],
+      [{clientId:"C003",paymentDate:"2026-10-03",status:"paid",amount:3000}],0,new Date("2026-10-24T08:00:00Z"),
+      {withdrawalHistory:[{clientId:"C001",paymentDate:"2026-10-01",status:"recorded",amount:1000},{clientId:"C002",paymentDate:"invalid",status:"recorded",amount:9000}]})`, harness.context) as AnalyticsResult;
+    expect(result.withdrawalSource).toBe("combined_records");
+    expect(result.withdrawalMonths).toEqual([{ month: "2026-10", amount: 6000 }]);
+    expect(result.withdrawalDays).toHaveLength(3);
+    expect(result.completedWithdrawalTotal).toBe(6000);
+    expect(result.warnings.some((warning) => warning.includes("invalid dates"))).toBe(true);
+  });
+
   it("uses the DASHBOARD schedule for the remainder even when investment payout terms are missing", () => {
     const harness = createSpreadsheetHarness();
     const result = runInContext(`buildAdminFinancialAnalytics(
@@ -382,6 +477,8 @@ describe("admin financial analytics", () => {
     expect(runInContext('adminCalendarDay("29/02/2024")', harness.context)).toBe("2024-02-29");
     expect(runInContext('adminCalendarDay("31/02/2026")', harness.context)).toBe("");
     expect(runInContext('adminCalendarDay(new Date("2026-09-30T20:00:00Z"))', harness.context)).toBe("2026-10-01");
+    expect(runInContext('dateMillis("2026-10-01T09:00:00Z")-dateMillis("2026-10-01T08:00:00Z")', harness.context)).toBe(3600000);
+    expect(runInContext('dateMillis("15/10/2026")', harness.context)).toBe(Date.UTC(2026, 9, 15));
   });
 
   it("records an actual payment timestamp only when a withdrawal is marked paid", () => {

@@ -20,6 +20,14 @@ export function dailyChartSeries(points: AdminFinancialAnalytics["withdrawalDays
 
 export const monthOptions = months;
 
+export function chartYears(points: Array<{ month: string; amount: number }>, currentYear: number) {
+  return [...new Set([currentYear, ...points.map((row) => Number(row.month.slice(0, 4))).filter((year) => Number.isInteger(year) && year >= 1900 && year <= currentYear)])].sort((a, b) => b - a);
+}
+
+export function latestActivityYear(points: Array<{ month: string; amount: number }>, currentYear: number) {
+  return chartYears(points, currentYear).find((year) => points.some((row) => Number(row.month.slice(0, 4)) === year && row.amount > 0)) ?? currentYear;
+}
+
 export function portfolioChartSeries(analytics: AdminFinancialAnalytics) {
   const values = new Map((analytics.portfolioHistoryMonths ?? analytics.portfolioMonths ?? []).map((point) => [point.month, point.amount]));
   return Array.from({ length: 24 }, (_, index) => {

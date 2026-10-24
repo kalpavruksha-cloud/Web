@@ -87,6 +87,20 @@ describe("shared admin dashboard and report financial views", () => {
     expect(within(screen.getByLabelText("Withdrawal Month")).getByRole("option", { name: "Dec" })).toBeInTheDocument();
   });
 
+  it("filters monthly investments by year and shows all twelve months of a previous year", () => {
+    render(<AdminMoneyCharts analytics={{ ...analytics, investmentMonths: [{ month: "2025-06", amount: 9000 }, ...analytics.investmentMonths] }} />);
+    fireEvent.change(screen.getByLabelText("Investment Year"), { target: { value: "2025" } });
+    expect(screen.getByText("January to Dec 2025")).toBeInTheDocument();
+    expect(screen.getByText("\u20b99,000")).toBeInTheDocument();
+    expect(screen.getAllByTestId("money-chart")[0]).toHaveTextContent('"label":"Dec"');
+  });
+
+  it("opens the latest withdrawal activity year when the current year has no recorded withdrawals", () => {
+    render(<AdminMoneyCharts analytics={{ ...analytics, withdrawalMonths: [{ month: "2025-06", amount: 7000 }], withdrawalDays: [{ date: "2025-06-10", amount: 7000 }] }} />);
+    expect(screen.getByLabelText("Withdrawal Year")).toHaveValue("2025");
+    expect(screen.getByText("\u20b97,000")).toBeInTheDocument();
+  });
+
   it("shows explicit data quality and deployment errors instead of fabricated chart data", () => {
     const result = render(<AdminMoneyCharts />);
     expect(screen.getByRole("status")).toHaveTextContent("Apps Script V20");

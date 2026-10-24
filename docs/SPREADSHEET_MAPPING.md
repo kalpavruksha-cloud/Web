@@ -8,6 +8,17 @@
 
 ## DASHBOARD Columns (V22)
 
+V23 additionally sends admin-only per-client totals from Total Invested, Total
+Withdrawal, Total Payout and Net Portfolio as `adminClientSummaries`, matched by
+trimmed, case-insensitive Client ID. Missing amounts remain unavailable, not an
+investment-table approximation. Client detail pages reuse this dashboard snapshot.
+
+V23 client historical reads reuse Investment_Master, Transaction_Register and
+Withdrawal_Master with the same alias priority and normalization as admin reads,
+but filter by the signed-in client before mapping. Withdrawal history is read-only.
+The one-year portfolio series contains 12 rolling monthly balances, including
+opening records before the visible year, and never backfills unknown market values.
+
 The user-provided screenshot on 21 October 2026 shows:
 
 | Sheet header | API field | Use |

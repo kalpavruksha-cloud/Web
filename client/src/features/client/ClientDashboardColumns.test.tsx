@@ -1,11 +1,12 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useResource } from "../../api/queries";
+import { useAction, useResource } from "../../api/queries";
 import type { DashboardSummary } from "../../types/domain";
-import { ClientDashboardPage } from "./pages/ClientPages";
+import { ClientDashboardPage, ClientWithdrawalsPage } from "./pages/ClientPages";
 
 vi.mock("../../api/queries", () => ({ useResource: vi.fn(), useAction: vi.fn() }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: { name: "Client One", clientId: "C001", role: "client" } }) }));
+vi.mock("../../context/ToastContext", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
 const resource = vi.mocked(useResource);
 const dashboard: DashboardSummary = {
@@ -24,6 +25,20 @@ beforeEach(() => respond());
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe("client spreadsheet dashboard columns", () => {
+  it("displays historical withdrawals with recorded dates and keeps them read-only", () => {
+    vi.mocked(useAction).mockReturnValue({ mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useAction>);
+    resource.mockImplementation((name) => ({ data: name === "client-dashboard" ? dashboard : [
+      { id: "OLD-CLIENT", clientId: "C001", amount: 2500, status: "pending", paymentDate: "2026-10-01", readOnly: true, recordSource: "withdrawal_master" },
+      { id: "REQUEST", clientId: "C001", amount: 500, status: "pending", requestDate: "2026-10-02" }
+    ], isLoading: false, error: null }) as unknown as ReturnType<typeof useResource>);
+    render(<ClientWithdrawalsPage />);
+    const old = screen.getByText("OLD-CLIENT").closest("tr")!;
+    expect(within(old).getByText("Recorded history")).toBeInTheDocument();
+    expect(within(old).queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    expect(within(screen.getByText("REQUEST").closest("tr")!).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(resource).toHaveBeenCalledWith("client-withdrawals", "/client/withdrawals");
+  });
+
   it("shows direct spreadsheet amounts without replacing existing balances", () => {
     respond({ presentInvestment: 96000, monthlyPayout: 1750 });
     render(<ClientDashboardPage />);

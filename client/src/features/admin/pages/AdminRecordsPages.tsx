@@ -72,26 +72,30 @@ export function AdminClients() {
 
 export function AdminClientDetails() {
   const { id } = useParams<{ id: string }>();
-  const clients = useResource<Profile[]>("admin-clients", "/clients");
-  const investments = useResource<Investment[]>("admin-investments", "/investments");
-  const transactions = useResource<Transaction[]>("admin-transactions", "/transactions");
-  const withdrawals = useResource<Withdrawal[]>("admin-withdrawals", "/withdrawals");
-  const documents = useResource<ClientDocument[]>("admin-documents", "/documents");
-  const referrals = useResource<Referral[]>("admin-referrals", "/referrals");
-  const loading = [clients, investments, transactions, withdrawals, documents, referrals].some((query) => query.isLoading);
-  const error = [clients, investments, transactions, withdrawals, documents, referrals].find((query) => query.error)?.error;
-  if (loading) return <AdminLoading label="Loading client details" />;
-  if (error) return <ErrorState title="Client details unavailable" message={error instanceof Error ? error.message : undefined} />;
-  const client = (clients.data ?? []).find((row) => sameClientId(row.clientId, id));
+  const overview = useAdminOverview();
+  if (overview.isPending) return <AdminLoading label="Loading client details" />;
+  if (!overview.data) return <ErrorState title="Client details unavailable" message={overview.error instanceof Error ? overview.error.message : undefined} />;
+  const records = overview.data;
+  const client = records.clients.find((row) => sameClientId(row.clientId, id));
   if (!client) return <ErrorState title="Client not found" message="The spreadsheet did not return this client ID." />;
-  const clientInvestments = (investments.data ?? []).filter((row) => sameClientId(row.clientId, client.clientId));
-  const clientTransactions = (transactions.data ?? []).filter((row) => sameClientId(row.clientId, client.clientId));
-  const clientWithdrawals = (withdrawals.data ?? []).filter((row) => sameClientId(row.clientId, client.clientId));
-  const clientDocuments = (documents.data ?? []).filter((row) => sameClientId(row.clientId, client.clientId));
-  const clientReferrals = (referrals.data ?? []).filter((row) => sameClientId(row.clientId, client.clientId));
+  const clientInvestments = records.investments.filter((row) => sameClientId(row.clientId, client.clientId));
+  const clientTransactions = records.transactions.filter((row) => sameClientId(row.clientId, client.clientId));
+  const clientWithdrawals = records.withdrawals.filter((row) => sameClientId(row.clientId, client.clientId));
+  const clientDocuments = records.documents.filter((row) => sameClientId(row.clientId, client.clientId));
+  const clientReferrals = records.referrals.filter((row) => sameClientId(row.clientId, client.clientId));
+  const totals = records.dashboard.adminClientSummaries?.find((row) => sameClientId(row.clientId, client.clientId));
+  const money = (value: number | null | undefined) => value === undefined || value === null ? "Not available" : formatCurrency(value);
 
   return (
     <AdminPage title={client.fullName} eyebrow={client.clientId}>
+      {overview.error && <ErrorState title="Client refresh failed" message="The last loaded snapshot is shown." />}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <InfoCard label="Total Investment" value={money(totals?.totalInvestment)} />
+        <InfoCard label="Total Withdrawal" value={money(totals?.totalWithdrawal)} />
+        <InfoCard label="Total Payout" value={money(totals?.totalPayout)} />
+        <InfoCard label="Total Portfolio" value={money(totals?.totalPortfolio)} />
+      </div>
+      {!totals && <p role="status" className="mb-4 text-sm text-amber-800 dark:text-gold-100">No client-linked dashboard totals were returned. These totals require Apps Script V23.</p>}
       <div className="grid gap-4 md:grid-cols-4">
         <InfoCard label="Mobile" value={client.mobile} />
         <InfoCard label="Email" value={client.email} />

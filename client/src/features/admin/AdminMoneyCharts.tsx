@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import type { AdminFinancialAnalytics } from "../../types/domain";
 import { formatCurrency } from "../../utils/format";
 import { AdminCard, CommandButton, Field, Select } from "./AdminComponents";
-import { dailyChartSeries, monthlyChartSeries, monthOptions } from "./adminChartSeries";
+import { chartYears, dailyChartSeries, latestActivityYear, monthlyChartSeries, monthOptions } from "./adminChartSeries";
 import { exportCsv } from "./adminUtils";
 import { AdminChartFrame } from "./AdminChartFrame";
 import { AdminChartSources } from "./AdminOverviewCharts";
@@ -22,19 +22,23 @@ export function AdminMoneyCharts({ analytics }: { analytics?: AdminFinancialAnal
 }
 
 function InvestmentChart({ analytics }: { analytics: AdminFinancialAnalytics }) {
-  const points = monthlyChartSeries(analytics.investmentMonths, analytics.currentYear, analytics.currentYear, analytics.currentMonth);
+  const [selectedYear, setSelectedYear] = useState(() => latestActivityYear(analytics.investmentMonths, analytics.currentYear));
+  const years = chartYears(analytics.investmentMonths, analytics.currentYear);
+  const year = years.includes(selectedYear) ? selectedYear : analytics.currentYear;
+  const points = monthlyChartSeries(analytics.investmentMonths, year, analytics.currentYear, analytics.currentMonth);
   const total = points.reduce((sum, row) => sum + row.amount, 0);
   return <AdminCard>
-    <ChartHeading title="Monthly Investment" detail={`January to ${monthOptions[analytics.currentMonth - 1]} ${analytics.currentYear}`} total={total} points={points} filename={`monthly-investment-${analytics.currentYear}.csv`} />
+    <ChartHeading title="Monthly Investment" detail={`January to ${monthOptions[year === analytics.currentYear ? analytics.currentMonth - 1 : 11]} ${year}`} total={total} points={points} filename={`monthly-investment-${year}.csv`} />
+    <div className="mb-4 max-w-xs"><Field label="Investment Year"><Select value={year} onChange={(event) => setSelectedYear(Number(event.target.value))}>{years.map((value) => <option key={value} value={value}>{value}</option>)}</Select></Field></div>
     <MoneyBarChart points={points} color="#1e7b54" />
     <p className="mt-3 text-xs text-charcoal/65 dark:text-white/65">{analytics.investmentSource === "investment_master" ? "Dated investment amounts from Investment_Master" : analytics.investmentSource === "transaction_ledger" ? "Completed investment transactions" : "Investment principal by start date"}</p>
   </AdminCard>;
 }
 
 function WithdrawalChart({ analytics }: { analytics: AdminFinancialAnalytics }) {
-  const [selectedYear, setSelectedYear] = useState(analytics.currentYear);
+  const [selectedYear, setSelectedYear] = useState(() => latestActivityYear(analytics.withdrawalMonths, analytics.currentYear));
   const [month, setMonth] = useState("all");
-  const years = [...new Set([analytics.currentYear, ...analytics.withdrawalMonths.map((row) => Number(row.month.slice(0, 4)))])].sort((a, b) => b - a);
+  const years = chartYears(analytics.withdrawalMonths, analytics.currentYear);
   const year = years.includes(selectedYear) ? selectedYear : analytics.currentYear;
   const availableMonths = year === analytics.currentYear ? monthOptions.slice(0, analytics.currentMonth) : monthOptions;
   const effectiveMonth = month !== "all" && Number(month) > availableMonths.length ? "all" : month;
@@ -48,7 +52,7 @@ function WithdrawalChart({ analytics }: { analytics: AdminFinancialAnalytics }) 
       <Field label="Withdrawal Month"><Select value={effectiveMonth} onChange={(event) => setMonth(event.target.value)}><option value="all">All months</option>{availableMonths.map((label, index) => <option key={label} value={index + 1}>{label}</option>)}</Select></Field>
     </div>
     <MoneyBarChart points={points} color="#d7ab3d" />
-    <p className="mt-3 text-xs text-charcoal/65 dark:text-white/65">{analytics.withdrawalSource === "withdrawal_master" ? "Dated withdrawal amounts from Withdrawal_Master; pending requests excluded" : analytics.withdrawalSource === "transaction_ledger" ? "Completed withdrawal transactions; pending requests excluded" : "Paid withdrawal records by payment date; pending requests excluded"}</p>
+    <p className="mt-3 text-xs text-charcoal/65 dark:text-white/65">{analytics.withdrawalSource === "combined_records" ? "Per-client master history, completed ledger or paid request records; one source per client" : analytics.withdrawalSource === "withdrawal_master" ? "Dated withdrawal amounts from Withdrawal_Master; pending requests excluded" : analytics.withdrawalSource === "transaction_ledger" ? "Completed withdrawal transactions; pending requests excluded" : "Paid withdrawal records by payment date; pending requests excluded"}</p>
   </AdminCard>;
 }
 

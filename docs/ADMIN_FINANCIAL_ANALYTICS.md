@@ -62,15 +62,17 @@ existing request sheet. Pending approval cards count actionable requests, not
 read-only history. A matching explicit client ID and withdrawal ID deduplicates
 the list across tabs; matching amount/date alone never removes a legitimate row.
 Analytics still use the complete primary history source once per request.
-Client API reads and permissions are unchanged and never return all-client history.
+V23 client history reads include only that client's master rows and portal
+requests, never all-client history. Historical records cannot be cancelled;
+request creation and approval write destinations remain unchanged.
 Admin linked-record matching trims and ignores case but never rewrites client codes.
 
 ## Charts
 
 - V21 selects admin financial source tabs in explicit alias priority, not workbook position. Investment_Master precedes investment records/catalogues; Transaction_Register precedes raw/legacy transaction tabs. Withdrawal_Master supplies read-only admin history and analytics; it does not replace the withdrawal approval workflow. Read sources remain visible in admin-only Chart data sources.
-- Monthly Investment: January through the current month of the present India calendar year, chronological, with zero amounts for genuine no-activity months.
+- Monthly Investment has a year filter. Current years stop at the as-of month; past years show all twelve months, with zero amounts for genuine no-activity months. The initial year is the latest year with activity when the current year is empty.
 - Monthly Investment prefers dated Investment_Master principal records. Blank historical master status is accepted when date and client ID exist; explicit pending/rejected records are excluded. Without usable master records, prefer completed investment/deposit ledger entries, then funded investment records. Never add both sources together.
-- Monthly Withdrawals prefers dated Withdrawal_Master amounts. Blank master status represents recorded history, not a paid workflow request. Explicit pending, approved-but-unpaid, rejected and cancelled records are excluded. Without eligible master records, use completed withdrawal ledger entries, then paid workflow records with payment dates. Never combine master and ledger totals.
+- Monthly Withdrawals selects usable dated Withdrawal_Master amounts per client. Blank master status represents recorded history, not a paid workflow request. Explicit pending, approved-but-unpaid, rejected and cancelled records are excluded. For each client without usable master records, use completed withdrawal ledger entries, then paid workflow records with payment dates. Never add sources together for the same client. Invalid dates are warned and future records are excluded. A nonempty master for one client no longer suppresses other clients' records. Initial period selects the latest activity year if the current year is empty.
 - Year and month filters operate on the same backend snapshot without new API calls. All months gives monthly totals; a selected month gives daily totals. Previous years show twelve months; current periods stop at the as-of month/day.
 - Monthly Payout Report: dated completed payout/interest ledger entries, not expected monthly returns grouped by investment start date.
 - Indian `dd/MM/yyyy`, ISO dates, Apps Script Date values, and spreadsheet date serials are supported. Invalid/impossible dates are excluded with warnings. Future dates are excluded from actual-activity charts.
@@ -88,7 +90,7 @@ Admin linked-record matching trims and ignores case but never rewrites client co
 
 Deploy the complete `google-apps-script/Code.gs` as a new version of the existing
 deployment. Expected marker:
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_21_DASHBOARD_COLUMNS_V22`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_24_CLIENT_HISTORY_CHARTS_V23`.
 
 Sign in as admin, open Dashboard then Reports, and verify matching card values.
 Check monthly investment against dated Investment_Master amounts for the
@@ -105,4 +107,4 @@ appear in both Withdrawal Management and the linked client's details, read-only.
 Automated tests cover the calculations, source precedence, dates, role separation,
 request-local read reuse, card rendering, and interactive month/year filtering.
 Live financial reconciliation requires an authenticated admin session and the
-V22 Apps Script deployment; a successful build or health response does not prove it.
+V23 Apps Script deployment; a successful build or health response does not prove it.

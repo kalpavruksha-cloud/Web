@@ -7,7 +7,7 @@
 - Frontend local URL: `http://localhost:5173`
 - Backend local URL: `http://localhost:8080/api`
 
-## Dashboard Columns Upgrade (V22)
+## Client History and Charts Upgrade (V23)
 
 The dashboard and analytics now use one shared `/api/dashboard` snapshot instead
 of eight overlapping module requests. This upgrade requires both the web release
@@ -18,7 +18,7 @@ and the updated `google-apps-script/Code.gs` deployment:
 3. Select Version > New version, then Deploy. Keep Execute as: Me and the existing access configuration.
 4. Keep the existing deployment URL to avoid changing Vercel environment variables.
 5. Open the existing `/exec?action=deploymentTest` URL. The marker must be
-   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_21_DASHBOARD_COLUMNS_V22`.
+   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_24_CLIENT_HISTORY_CHARTS_V23`.
 6. After the GitHub-triggered Vercel deployment succeeds, reload the portal and sign in as admin.
 
 The admin dashboard should make a single `/api/dashboard` request for its records,
@@ -36,7 +36,10 @@ Distribution or Client Registration Trend. See
 V22 reads DASHBOARD Present Investment and Monthly Payout for the same web/PWA
 dashboards. Present Investment supplies available/net investment, and Monthly
 Payout supplies the per-client monthly schedule used for the unpaid remainder.
-Until Apps Script V22 is deployed, these new column mappings are unavailable.
+V23 adds the 12-month client portfolio series, scoped client withdrawal history,
+per-client withdrawal-chart fallbacks, and the admin client financial summary.
+The investment year selector is part of the web release; financial history and
+client-summary payloads require Apps Script V23.
 The web release shows an explicit analytics
 availability notice rather than empty or invented financial charts.
 
@@ -45,6 +48,12 @@ should resolve to Transaction_Register when present, and investments to
 Investment_Master, regardless of workbook tab order. Use Refresh data to refetch
 the snapshot without a full page reload. Verify known monthly totals against the
 selected source; health checks do not validate private financial amounts.
+Sign in as two different clients and confirm that each sees only their own
+withdrawal history, no cancel action for historical records, and 12 months of
+portfolio history. Test a client with only a current snapshot: earlier months
+must remain empty. Open admin Clients > View and reconcile the four totals with
+that client's DASHBOARD row. Change investment year and withdrawal year/month;
+confirm displayed and exported totals use the selected period.
 For Current Portfolio, check the first/last displayed months and the reconciliation
 between history closing balance and the current DASHBOARD total. A difference
 is a source-data reconciliation issue, not a value to override automatically.

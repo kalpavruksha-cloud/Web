@@ -1,5 +1,24 @@
 # Google Apps Script Integration
 
+## Client History and Charts (V23)
+
+V23 returns a 12-month, client-scoped portfolio series from complete normalized
+investment/ledger/withdrawal history. Opening balances precede the visible window;
+unknown months remain empty. A current snapshot is not invented historical growth.
+Clients now see their own read-only Withdrawal_Master history alongside portal
+requests, newest first, and cannot cancel historical entries. Client and admin
+financial reads use the same source priority and Indian date/currency handling.
+
+Withdrawal charts choose usable dated master records per client, then completed
+ledger entries or paid requests for clients without usable master history. Sources
+are not added together for the same client. Invalid dates produce warnings. The
+admin investment chart has a year filter; both charts initially select the latest
+activity year when the present year has no activity.
+
+Admin client details reuse the existing dashboard snapshot and display four
+client-linked DASHBOARD totals. No routes, authentication flow, spreadsheets or
+write destinations have been added or changed.
+
 ## DASHBOARD Columns (V22)
 
 V22 reads the existing DASHBOARD columns Present Investment and Monthly Payout.
@@ -43,7 +62,7 @@ approval workflows or adding a persistent data cache.
 
 Replace the complete `Code.gs` and deploy **New version** on the existing deployment.
 Verify `?action=deploymentTest` returns
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_21_DASHBOARD_COLUMNS_V22`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_24_CLIENT_HISTORY_CHARTS_V23`.
 The web release explicitly flags unavailable analytics until this deployment
 is updated. Do not change the deployment URL unless necessary.
 
@@ -77,7 +96,7 @@ To enable the single-request dashboard, replace the existing script with the
 complete `Code.gs` in this directory, then use **Deploy > Manage deployments >
 Edit > Version: New version > Deploy**. Keep the existing deployment and URL.
 Check `?action=deploymentTest` for marker
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_21_DASHBOARD_COLUMNS_V22`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_24_CLIENT_HISTORY_CHARTS_V23`.
 
 Until that deployment is updated, the web portal loads the summary first and
 limits legacy collection requests to two at a time. The optimized Apps Script

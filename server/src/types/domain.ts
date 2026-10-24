@@ -165,7 +165,7 @@ export type AdminFinancialAnalytics = {
   currentYear: number;
   currentMonth: number;
   investmentSource: "transaction_ledger" | "investment_records" | "investment_master";
-  withdrawalSource: "transaction_ledger" | "paid_withdrawals" | "withdrawal_master";
+  withdrawalSource: "transaction_ledger" | "paid_withdrawals" | "withdrawal_master" | "combined_records";
   investmentMonths: Array<{ month: string; amount: number }>;
   withdrawalMonths: Array<{ month: string; amount: number }>;
   payoutMonths: Array<{ month: string; amount: number }>;
@@ -199,6 +199,13 @@ export type DashboardSummary = {
   monthlyReturn: number;
   walletBalance: number;
   availableBalance?: number;
+  portfolioHistory?: {
+    asOf: string;
+    months: Array<{ month: string; amount: number | null }>;
+    source: "recorded_balances" | "recorded_cash_flow" | "current_snapshot";
+    matchesCurrentPortfolio: boolean;
+  };
+  adminClientSummaries?: Array<{ clientId: string; totalInvestment: number | null; totalWithdrawal: number | null; totalPayout: number | null; totalPortfolio: number | null }>;
   activeInvestments: number;
   pendingWithdrawals: number;
   referralEarnings: number;

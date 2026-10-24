@@ -25,7 +25,9 @@ All protected endpoints require the secure `session` HTTP-only cookie issued by 
 - `GET /api/withdrawals`
   Admin responses include read-only `Withdrawal_Master` history alongside portal
   requests. History has `recordSource: "withdrawal_master"` and `readOnly: true`.
-  Client responses remain scoped to the existing client request history.
+  Client responses include only that client's portal requests and read-only master
+  history. No all-client history is returned to clients. Historical records cannot
+  be cancelled through the client API.
 
 - `POST /api/withdrawals`
 - `PUT /api/withdrawals/:id/approve` admin
@@ -49,6 +51,22 @@ All protected endpoints require the secure `session` HTTP-only cookie issued by 
 - `GET /api/clients/:id` admin extension
 - `POST /api/clients` admin extension
 - `PUT /api/clients/:id` admin extension
+
+## Dashboard History and Summaries (V23)
+
+Client dashboard responses now include `portfolioHistory` with `asOf`, `months`
+(exactly 12 `{month, amount}` records), `source`, and `matchesCurrentPortfolio`.
+`amount: null` means unavailable history, not zero. This uses the complete scoped
+history, not the recent-transactions preview. A current-only snapshot occupies
+only the final month. Admin-only `adminClientSummaries` contains client IDs and
+`totalInvestment`, `totalWithdrawal`, `totalPayout`, `totalPortfolio`, with null
+for missing/invalid totals. It is absent from client responses. The existing
+`/api/dashboard` and `/api/client/dashboard` endpoints are reused.
+
+Investment and transaction normalization/source priority are consistent across
+roles while client reads stay scoped. Withdrawals use one usable primary source
+per client; `withdrawalSource: combined_records` means different clients use
+different primary sources, not that the same withdrawal is added across sources.
 
 ## Dashboard Columns (V22)
 
