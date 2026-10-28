@@ -7,7 +7,7 @@
 - Frontend local URL: `http://localhost:5173`
 - Backend local URL: `http://localhost:8080/api`
 
-## Charts and CLIENTS Payout Date Upgrade (V25)
+## Verified Ledger Charts Upgrade (V26)
 
 The dashboard and analytics now use one shared `/api/dashboard` snapshot instead
 of eight overlapping module requests. This upgrade requires both the web release
@@ -18,7 +18,7 @@ and the updated `google-apps-script/Code.gs` deployment:
 3. Select Version > New version, then Deploy. Keep Execute as: Me and the existing access configuration.
 4. Keep the existing deployment URL to avoid changing Vercel environment variables.
 5. Open the existing `/exec?action=deploymentTest` URL. The marker must be
-   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_28_CLIENT_PAYOUT_DATE_V25`.
+   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_28_APPROVED_LEDGER_CHARTS_V26`.
 6. After the GitHub-triggered Vercel deployment succeeds, reload the portal and sign in as admin.
 
 The admin dashboard should make a single `/api/dashboard` request for its records,
@@ -51,6 +51,14 @@ release adds a separate Scheduled Payout Date column, including client print and
 CSV. Full dates and recurring days are supported; actual transaction dates are
 not changed. Service-worker v20 updates the static shell. No new sheet, formula,
 financial record, backend route, or authentication flow is required.
+V26 corrects a verified live mapping mismatch: Approved is a posted transaction
+status in this workbook, as shown by its DASHBOARD SUMIFS formulas. Approved
+read-only Withdrawal_Master history is accepted too, while approved-but-unpaid
+portal requests remain excluded. No spreadsheet-status edits are required or
+performed. Redeploy Code.gs even if V24/V25 was deployed previously; GitHub/Vercel
+does not publish Google Apps Script versions. A read-only audit independently
+reconciled the corrected chart series against the real register and closing
+portfolio against DASHBOARD before release.
 The web release shows an explicit analytics
 availability notice rather than empty or invented financial charts.
 

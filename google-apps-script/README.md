@@ -1,5 +1,27 @@
 # Google Apps Script Integration
 
+## Verified Approved Ledger Status (V26)
+
+The owner-authorized read-only workbook audit found that all populated
+Transaction_Register rows use Approved, and DASHBOARD SUMIFS explicitly treats
+that status as posted. V26 accepts Approved ledger transactions in payout,
+transaction-flow, portfolio and payout-remainder calculations. It also accepts
+Approved read-only Withdrawal_Master history, without treating approved portal
+withdrawal requests as paid. No spreadsheet amounts, dates, statuses or formulas
+are changed. Existing V25 client payout-date support is included.
+
+Expected marker:
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_28_APPROVED_LEDGER_CHARTS_V26`.
+Replace the full Code.gs, save, and deploy a New version of the existing Web App.
+Publishing this repository does not deploy Apps Script automatically.
+
+An in-memory audit against the live effective values produced monthly payout,
+withdrawal and transaction-flow series, independently reconciled
+against the register. Closing portfolio matched DASHBOARD. Private financial rows
+were not committed; regression tests reproduce the verified shape with synthetic
+amounts and client IDs. Portal authentication and source-data permissions are
+unchanged. See docs/SPREADSHEET_MAPPING.md for the verified fields.
+
 ## CLIENTS Payout Date (V25)
 
 Full replacement Code.gs includes all V24 chart fixes and the existing CLIENTS

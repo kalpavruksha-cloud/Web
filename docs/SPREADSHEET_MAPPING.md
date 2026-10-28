@@ -6,11 +6,45 @@
 - Apps Script URL in local env: `https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec`
 - Backend remains the only browser-facing integration layer.
 
+## Verified Approved Ledger Mapping (V26)
+
+After the owner granted access on 28 October 2026, a read-only audit verified the
+actual workbook headers, representative formulas and effective financial values.
+No credentials, spreadsheet records, formulas, statuses or sharing settings were
+changed. The workbook's DASHBOARD SUMIFS formulas explicitly aggregate `Approved`
+TRANSACTIONS entries; those entries are formula-linked to Transaction_Register.
+
+Transaction_Register columns: A Trx ID, B Date, C Client ID, D Client, E Transaction,
+F Credit, G Payout, H Withdrawal, I Status. The populated ledger rows in the
+audited snapshot used Approved. Before V26 the completed-transaction filter excluded
+every row, producing empty payout, withdrawal and transaction-flow charts. V26
+accepts Approved as posted **ledger** status without changing the stored status.
+Credit plus Payout supplies client credit; Withdrawal supplies debit. Amounts are
+not counted from both Transaction_Register and its derived TRANSACTIONS tab.
+
+Withdrawal_Master headers are Withdrawal ID, Client ID, Client Name, Withdrawal
+Date, Withdrawal Amount (INR symbol), Status, Notes. Its Approved historical rows
+are accepted only when marked readOnly with recordSource withdrawal_master. An
+approved-but-unpaid portal request is still excluded. Investment_Master uses
+Investment Date, Investment Amount (INR symbol) and Monthly ROI %. Existing header
+normalization already handles the currency suffix. No speculative header repair
+or financial-data rewrite was needed.
+
+The fixed mapper was executed against authorized effective cell values in memory.
+Independent per-month sums from the ledger matched the transaction-flow, payout
+and withdrawal series. Reconstructed closing portfolio matched
+the DASHBOARD total. The client payout-day values normalized successfully;
+there were no unlinked ledger client IDs. Raw financial rows were not saved in the
+repository or added as test fixtures. Tests use synthetic values with the verified
+header/status shape. These are audit results for that snapshot, not a claim that
+the remotely deployed Apps Script already contains V26.
+
 ## CLIENTS Payout Date (V25)
 
-The user reports adding `Date of payout` to CLIENTS. Direct connector access on
-28 October 2026 returned permission denied, so live cell values are not yet verified
-and have not been edited. No financial records or formulas are rewritten.
+The `Date of payout` header is verified at CLIENTS!J1. Its populated cells contain recurring
+day numbers rather than full historical payment dates. The initial access denial
+was resolved by the owner's grant; the later read-only audit verified the values.
+No financial records or formulas are rewritten.
 
 The mapper recognizes Date of payout / Payout Date / Scheduled Payout Date with
 the existing case/space/underscore normalization. A full calendar date becomes
@@ -30,8 +64,8 @@ no new API or database is introduced.
 
 ## Admin Chart Mapping (V24)
 
-Withdrawal_Master is the user-confirmed tab name. Its exact live row-1 headers
-have not been supplied/verified. Supported explicit date aliases: Payment Date,
+Withdrawal_Master and its row-1 headers were verified in the V26 audit above.
+Supported explicit date aliases: Payment Date,
 Paid Date, Paid On, Withdrawal Date, Withdraw Date, Withdrawn Date, Date of
 Withdrawal, Withdrawal Dt, Transaction Date, Date. Amount aliases: Amount,
 Withdrawal Amount, Withdraw Amount, Withdrawn Amount, Withdrawal, Debit, Debit
@@ -70,8 +104,10 @@ The user-provided screenshot on 21 October 2026 shows:
 | Present Investment (G) | `presentInvestment` | Current client investment. The displayed formula is `=B2-D2`, Total Invested minus Total Withdrawal. Supplies available balance and admin net investment when valid. |
 | Monthly Payout (H) | `monthlyPayout` | Direct monetary monthly schedule, separate from historical Total Payout. Supplies the per-client admin scheduled amount before subtracting completed payments assigned to the current month. |
 
-The H-column formula was not visible. The implementation reads the sheet's numeric
-amounts; it does not calculate or assume a percentage. No formulas are written back.
+The H-column formula was not visible in the initial screenshot. The later
+authorized audit verified representative cells calculated from the G-column balance. The
+implementation still reads the sheet's computed numeric amounts; it does not
+hardcode that percentage. No formulas are written back.
 Client responses include only that client's rows. Admin aggregates client rows and
 excludes unlinked footer totals from these new fields. Any blank/error cell makes
 the aggregate unavailable rather than returning a partial total; explicit zero is
@@ -79,9 +115,10 @@ valid. Missing columns stay absent for legacy compatibility. `Monthly Payout` is
 the schedule, not the unpaid remainder or all-time payouts. The remainder remains
 the sum of per-client max(schedule minus assigned completed payments, zero).
 
-This mapping is grounded in the supplied screenshot and regression tests. Direct
-Google Sheets access returned 403, so live formulas and all client totals still
-require verification in an authorized admin session after deploying V22.
+This mapping is grounded in the supplied screenshot and regression tests. The
+initial Google Sheets access returned 403. After the owner's later grant, the V26
+audit verified live headers, representative formulas and chart/portfolio totals.
+An authenticated portal check after deploying V26 remains a separate final step.
 
 ## Header Normalization
 

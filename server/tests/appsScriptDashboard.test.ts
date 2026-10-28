@@ -183,7 +183,7 @@ describe("Apps Script dashboard snapshot", () => {
     const result = harness.snapshot();
     expect(result.adminAnalytics?.investmentMonths).toEqual([{ month: "2026-01", amount: 10000 }, { month: "2026-02", amount: 20000 }]);
     expect(result.adminAnalytics?.withdrawalSource).toBe("withdrawal_master");
-    expect(result.adminAnalytics?.withdrawalMonths).toEqual([{ month: "2026-03", amount: 2000 }, { month: "2026-04", amount: 3000 }]);
+    expect(result.adminAnalytics?.withdrawalMonths).toEqual([{ month: "2026-03", amount: 2000 }, { month: "2026-04", amount: 10000 }]);
     expect(result.admin?.pendingWithdrawalAmount).toBe(5000);
     expect(result.adminAnalytics?.sources?.find((item) => item.module === "withdrawal_history")?.sheet).toBe("Withdrawal_Master");
     expect(result.adminData?.withdrawals.filter((row) => row.readOnly)).toHaveLength(5);
@@ -359,6 +359,45 @@ function analytics(investments: Array<Record<string, unknown>>, transactions: Ar
 }
 
 describe("admin financial analytics", () => {
+  it("accepts the verified workbook's Approved ledger status and separate payout/withdrawal columns", () => {
+    const harness = createSpreadsheetHarness();
+    const register = vi.fn(() => [["Trx ID", "Date", "Client ID", "Client", "Transaction", "Credit", "Payout", "Withdrawal", "Status"],
+      ["T-1", "2026-09-01", "C001", "Test client", "Investment", 100000, "", "", "Approved"],
+      ["T-2", "2026-09-05", "C001", "Test client", "Monthly Payout", "", 2500, "", "Approved"],
+      ["T-3", "2026-09-10", "C001", "Test client", "Withdrawal", "", "", 1000, "Approved"],
+      ["T-4", "2026-09-15", "C001", "Test client", "Monthly Payout", "", 9000, "", "Pending"]]);
+    harness.getSheets.mockReturnValue([...harness.getSheets(), { getName: () => "Transaction_Register", getSheetId: () => 99, getDataRange: () => ({ getValues: register }) }]);
+    const result = harness.snapshot();
+    expect(result.adminAnalytics?.payoutMonths).toEqual([{ month: "2026-09", amount: 2500 }]);
+    expect(result.adminAnalytics?.withdrawalMonths).toEqual([{ month: "2026-09", amount: 1000 }]);
+    expect(result.adminAnalytics?.transactionFlowMonths).toEqual([{ month: "2026-09", credit: 102500, debit: 1000, net: 101500, count: 3 }]);
+    expect(result.adminAnalytics?.excludedTransactionStatuses).toEqual({ pending: 1 });
+    expect(result.adminData?.transactions.find((row) => row.id === "T-2")?.status).toBe("approved");
+  });
+
+  it("accepts approved master history but never treats an approved portal request as a paid withdrawal", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`buildAdminFinancialAnalytics([], [],
+      [{clientId:"C001",paymentDate:"2026-10-01",status:"approved",amount:9000}],0,new Date("2026-10-28T06:30:00Z"),
+      {withdrawalHistory:[
+        {clientId:"C001",paymentDate:"2026-09-01",status:"approved",amount:1000,recordSource:"withdrawal_master",readOnly:true},
+        {clientId:"C001",paymentDate:"2026-09-02",status:"pending",amount:8000,recordSource:"withdrawal_master",readOnly:true},
+        {clientId:"C002",paymentDate:"2026-09-01",status:"approved",amount:7000}]})`, harness.context) as AnalyticsResult;
+    expect(result.withdrawalSource).toBe("withdrawal_master");
+    expect(result.withdrawalMonths).toEqual([{ month: "2026-09", amount: 1000 }]);
+    expect(result.completedWithdrawalTotal).toBe(1000);
+  });
+
+  it("uses Approved payout entries in the scheduled remainder without including pending payments", () => {
+    const result = analytics([{ clientId: "C001", status: "active", monthlyReturn: 1000 }], [
+      { clientId: "C001", type: "monthly_payout", status: "approved", date: "2026-10-05", credit: 600, debit: 0 },
+      { clientId: "C001", type: "monthly_payout", status: "pending", date: "2026-10-05", credit: 400, debit: 0 }
+    ], []);
+    expect(result.paidMonthlyPayout).toBe(600);
+    expect(result.remainingMonthlyPayout).toBe(400);
+    expect(result.payoutMonths).toEqual([{ month: "2026-10", amount: 600 }]);
+  });
+
   it("keeps later ledger months when the same client has older withdrawal master history", () => {
     const harness = createSpreadsheetHarness();
     const result = runInContext(`buildAdminFinancialAnalytics([], [
@@ -372,13 +411,13 @@ describe("admin financial analytics", () => {
     expect(result.completedWithdrawalTotal).toBe(3500);
   });
 
-  it("maps explicit historical withdrawal headers and excludes uncompleted history", () => {
+  it("maps explicit historical withdrawal headers including approved master history", () => {
     const harness = createSpreadsheetHarness();
     const historyRead = vi.fn(() => [["Client_ID", "Withdrawal Dt", "Withdraw Amount", "Withdrawal Status"],
       ["C001", "15/09/2026", "INR 2,500", "Withdrawn"], ["C001", "20/09/2026", 8000, "Approved"]]);
     harness.getSheets.mockReturnValue([...harness.getSheets(), { getName: () => "Withdrawal_Master", getSheetId: () => 94, getDataRange: () => ({ getValues: historyRead }) }]);
     const result = harness.snapshot();
-    expect(result.adminAnalytics?.withdrawalMonths).toEqual([{ month: "2026-09", amount: 2500 }]);
+    expect(result.adminAnalytics?.withdrawalMonths).toEqual([{ month: "2026-09", amount: 10500 }]);
     expect(result.adminAnalytics?.sources?.find((row) => row.module === "withdrawal_history")?.warnings).toEqual([]);
     expect(historyRead).toHaveBeenCalledTimes(1);
   });

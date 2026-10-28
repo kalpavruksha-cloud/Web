@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_28_CLIENT_PAYOUT_DATE_V25";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_28_APPROVED_LEDGER_CHARTS_V26";
 var DASHBOARD_READ_CONTEXT = null;
 
 var REQUIRED_SHEETS = [
@@ -520,7 +520,8 @@ function adminCalendarDay(value) {
 }
 
 function adminTransactionPosted(row) {
-  return ["completed", "posted", "paid", "success", "successful", "settled"].indexOf(row.status) >= 0;
+  // DASHBOARD SUMIFS treats Approved ledger rows as posted; this is not request approval.
+  return ["approved", "completed", "posted", "paid", "success", "successful", "settled"].indexOf(row.status) >= 0;
 }
 
 function buildAdminFinancialAnalytics(investments, transactions, withdrawals, totalInvested, now, history) {
@@ -542,7 +543,8 @@ function buildAdminFinancialAnalytics(investments, transactions, withdrawals, to
       || (history && history.preferInvestmentMaster && row.statusProvided === false && row.clientId && row.startDate);
   });
   var recordedWithdrawals = ((history && history.withdrawalHistory) || []).filter(function(row) {
-    return ["recorded", "paid", "withdrawn", "completed", "posted", "settled", "success", "successful"].indexOf(row.status) >= 0;
+    return ["recorded", "paid", "withdrawn", "completed", "posted", "settled", "success", "successful"].indexOf(row.status) >= 0
+      || (row.status === "approved" && row.recordSource === "withdrawal_master" && row.readOnly === true);
   });
   var useInvestmentRecords = !!(history && history.preferInvestmentMaster && recordedInvestments.some(function(row) { var date = adminCalendarDay(row.startDate); return date && date <= today && row.principalAmount > 0; }));
   var investmentSource = useInvestmentRecords ? "investment_master" : investmentLedger.length ? "transaction_ledger" : "investment_records";

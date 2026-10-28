@@ -80,6 +80,13 @@ in client responses. `payoutMonths` now includes debit reversals as signed amoun
 it is actual payment history, not the current DASHBOARD payout schedule. All report
 filters reuse the same snapshot; no new API or financial calculation in the UI.
 
+V26 recognizes Approved as a posted ledger status, matching the verified
+Transaction_Register and DASHBOARD SUMIFS convention. The normalized transaction
+still exposes `status: approved`; it is not rewritten to paid. Approved historical
+withdrawals enter charts only with readOnly true and recordSource withdrawal_master.
+Approved workflow requests remain unpaid and excluded until marked paid. Existing
+API shapes, client scoping and permissions are unchanged.
+
 ## Client Payout Schedule (V25)
 
 Profile responses add `payoutDate`, read from CLIENTS Date of payout. Transaction

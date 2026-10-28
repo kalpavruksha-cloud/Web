@@ -1,5 +1,24 @@
 # Admin Financial Analytics
 
+## Verified Workbook Status (V26)
+
+A read-only live audit on 28 October 2026 confirmed that DASHBOARD aggregates
+Approved transaction rows and that all populated Transaction_Register entries use
+that status. The former posted-status whitelist excluded the entire real ledger.
+V26 accepts Approved ledger rows without changing spreadsheet statuses. Approved
+Withdrawal_Master history is accepted only when identified as read-only historical
+master data; Approved portal requests remain unpaid. Pending/rejected/cancelled
+ledger rows remain excluded. The actual workbook's separate Credit, Payout and
+Withdrawal columns are normalized without adding the derived TRANSACTIONS tab.
+
+Independent ledger sums matched all corrected monthly series in the audited
+snapshot, and reconstructed closing portfolio matched DASHBOARD. Scheduled and
+remaining payout amounts were available. Payouts exceeding a client's current
+schedule remain flagged rather than reducing another client's unpaid amount.
+One historical template row with no usable date is excluded, not given a fake date.
+No financial sheet edits were needed. Redeploy Apps Script V26 to activate this
+mapping in the portal; repository publication alone does not update the script.
+
 ## Cards Used on Both Pages
 
 Dashboard and Reports render the same `AdminOverviewCards` component. Financial
@@ -72,7 +91,7 @@ Admin linked-record matching trims and ignores case but never rewrites client co
 - V21 selects admin financial source tabs in explicit alias priority, not workbook position. Investment_Master precedes investment records/catalogues; Transaction_Register precedes raw/legacy transaction tabs. Withdrawal_Master supplies read-only admin history and analytics; it does not replace the withdrawal approval workflow. Read sources remain visible in admin-only Chart data sources.
 - Monthly Investment has a year filter. Current years stop at the as-of month; past years show all twelve months, with zero amounts for genuine no-activity months. The initial year is the latest year with activity when the current year is empty.
 - Monthly Investment prefers dated Investment_Master principal records. Blank historical master status is accepted when date and client ID exist; explicit pending/rejected records are excluded. Without usable master records, prefer completed investment/deposit ledger entries, then funded investment records. Never add both sources together.
-- V24 Monthly Withdrawals selects usable dated Withdrawal_Master amounts per client and calendar month. Blank master status represents recorded history, not a paid workflow request. Explicit pending, approved-but-unpaid, rejected and cancelled records are excluded. For each client/month without usable master records, use completed withdrawal ledger entries, then paid workflow records with payment dates. Never add different sources for the same client/month. Invalid dates are warned and future records are excluded. Old master months no longer suppress later ledger months for the same client. Initial period selects the latest activity year if the current year is empty. This is source precedence, not fuzzy row matching: if a master month is only partially maintained, reconcile it at the source rather than merging ambiguous ledger duplicates.
+- V24 Monthly Withdrawals selects usable dated Withdrawal_Master amounts per client and calendar month. Blank master status represents recorded history, not a paid workflow request. V26 accepts Approved read-only master records, consistent with the verified workbook; approved-but-unpaid portal requests stay excluded, as do pending/rejected/cancelled entries. For each client/month without usable master records, use posted withdrawal ledger entries, then paid workflow records with payment dates. Never add different sources for the same client/month. Invalid dates are warned and future records are excluded. Old master months no longer suppress later ledger months for the same client. Initial period selects the latest activity year if the current year is empty. This is source precedence, not fuzzy row matching: if a master month is only partially maintained, reconcile it at the source rather than merging ambiguous ledger duplicates.
 - Year and month filters operate on the same backend snapshot without new API calls. All months gives monthly totals; a selected month gives daily totals. Previous years show twelve months; current periods stop at the as-of month/day.
 - Monthly Payout Report: signed dated completed payout/interest ledger entries (credit minus debit, including reversals), not expected monthly returns grouped by investment start date. Year-filtered bars remain visible with just one recorded month. Missing months within a returned dated series are zero-activity months, not invented payments.
 - Transaction Flow: monthly completed ledger credit/debit bars with the net total above the chart. Equal credit/debit does not hide real activity. Year filters select the most recent activity, including debit-only years. V24 adds transactionFlowMonths; older deployments retain net-only bars and show an upgrade notice.
@@ -91,7 +110,7 @@ Admin linked-record matching trims and ignores case but never rewrites client co
 
 Deploy the complete `google-apps-script/Code.gs` as a new version of the existing
 deployment. Expected marker:
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_27_ADMIN_REPORT_CHARTS_V24`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_28_APPROVED_LEDGER_CHARTS_V26`.
 
 Sign in as admin, open Dashboard then Reports, and verify matching card values.
 Check monthly investment against dated Investment_Master amounts for the
