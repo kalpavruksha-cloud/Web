@@ -1,5 +1,41 @@
 # Google Apps Script Integration
 
+## CLIENTS Payout Date (V25)
+
+Full replacement Code.gs includes all V24 chart fixes and the existing CLIENTS
+Date of payout mapping. Expected marker:
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_28_CLIENT_PAYOUT_DATE_V25`.
+Save and deploy a New version of the same existing deployment, retaining its URL.
+No spreadsheet data migration or formula rewrite is required.
+
+Profiles expose payoutDate; transactions expose scheduledPayoutDate, joined by
+client ID and scoped for clients. A full date or recurring day of month is
+supported. Blank/invalid schedules are not fabricated. The actual transaction
+Date is never overwritten by today's schedule, and charts retain actual payment
+dates. Duplicate client IDs with conflicting schedules return null.
+
+## Admin Report Charts (V24)
+
+Deploy the complete Code.gs as a new version of the existing Web App. The marker
+is `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_27_ADMIN_REPORT_CHARTS_V24`.
+Monthly withdrawal source priority now applies per client **and calendar month**:
+Withdrawal_Master, then completed withdrawal ledger entries, then paid requests.
+An older master month no longer suppresses that client's later ledger months.
+Within a month only one source is used; rows are not guessed to be duplicates by
+amount/date. Reconcile incomplete sources within the same month in the spreadsheet.
+
+Historical aliases include Withdrawal Dt, Withdraw Amount and Debit Amount;
+`Withdrawn` is accepted as a completed historical status. Missing column warnings
+use the same aliases as the mapper. Explicit payout/interest amount columns and
+specific payout/withdrawal type aliases are normalized. Unknown categories are
+not treated as payouts. Payout history uses signed credit minus debit, including
+reversals; future/undated payments are excluded from dated totals.
+
+`adminAnalytics.transactionFlowMonths` adds monthly credit, debit, net and count
+from completed dated ledger rows. The existing transactionMonths net series stays
+compatible. Report charts use visible bars even for a single month, year filters,
+and the same dashboard snapshot; no new API, database, or authentication flow.
+
 ## Client History and Charts (V23)
 
 V23 returns a 12-month, client-scoped portfolio series from complete normalized
@@ -9,9 +45,9 @@ Clients now see their own read-only Withdrawal_Master history alongside portal
 requests, newest first, and cannot cancel historical entries. Client and admin
 financial reads use the same source priority and Indian date/currency handling.
 
-Withdrawal charts choose usable dated master records per client, then completed
-ledger entries or paid requests for clients without usable master history. Sources
-are not added together for the same client. Invalid dates produce warnings. The
+V23 chose usable dated master records per client, then completed ledger entries
+or paid requests for clients without usable master history. V24 narrows this
+precedence to each client/month so later activity is retained. Invalid dates produce warnings. The
 admin investment chart has a year filter; both charts initially select the latest
 activity year when the present year has no activity.
 

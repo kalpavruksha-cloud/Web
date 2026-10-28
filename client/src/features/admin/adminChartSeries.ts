@@ -25,7 +25,15 @@ export function chartYears(points: Array<{ month: string; amount: number }>, cur
 }
 
 export function latestActivityYear(points: Array<{ month: string; amount: number }>, currentYear: number) {
-  return chartYears(points, currentYear).find((year) => points.some((row) => Number(row.month.slice(0, 4)) === year && row.amount > 0)) ?? currentYear;
+  return chartYears(points, currentYear).find((year) => points.some((row) => Number(row.month.slice(0, 4)) === year && row.amount !== 0)) ?? currentYear;
+}
+
+export function transactionFlowSeries(points: NonNullable<AdminFinancialAnalytics["transactionFlowMonths"]>, year: number, currentYear: number, currentMonth: number) {
+  const byMonth = new Map(points.map((row) => [row.month, row]));
+  return monthlyChartSeries([], year, currentYear, currentMonth).map((row, index) => {
+    const value = byMonth.get(`${year}-${String(index + 1).padStart(2, "0")}`);
+    return { label: row.label, credit: value?.credit ?? 0, debit: value?.debit ?? 0, net: value?.net ?? 0, count: value?.count ?? 0 };
+  });
 }
 
 export function portfolioChartSeries(analytics: AdminFinancialAnalytics) {

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import type { AdminFinancialAnalytics, DashboardSummary } from "../../types/domain";
 import { AdminOverviewCards } from "./AdminOverviewCards";
-import { AdminMoneyCharts } from "./AdminMoneyCharts";
+import { AdminMoneyCharts, AdminPayoutChart, AdminTransactionFlowChart } from "./AdminMoneyCharts";
 import type { AdminCollections } from "./adminUtils";
 
 vi.mock("recharts", () => ({
@@ -106,6 +106,24 @@ describe("shared admin dashboard and report financial views", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Apps Script V20");
     result.rerender(<AdminMoneyCharts analytics={{ ...analytics, warnings: ["Payment dates are missing."] }} />);
     expect(screen.getByRole("status")).toHaveTextContent("Payment dates are missing.");
+  });
+
+  it("selects the latest activity when a previously empty withdrawal snapshot refreshes", () => {
+    const result = render(<AdminMoneyCharts analytics={{ ...analytics, withdrawalMonths: [], withdrawalDays: [] }} />);
+    result.rerender(<AdminMoneyCharts analytics={{ ...analytics, withdrawalMonths: [{ month: "2025-06", amount: 7000 }], withdrawalDays: [] }} />);
+    expect(screen.getByLabelText("Withdrawal Year")).toHaveValue("2025");
+    expect(screen.getByText("\u20b97,000")).toBeInTheDocument();
+  });
+
+  it("surfaces unsupported withdrawal headers next to the charts instead of hiding the cause in diagnostics", () => {
+    render(<AdminMoneyCharts analytics={{ ...analytics, sources: [{ module: "withdrawal_history", sheet: "Withdrawal_Master", recordCount: 5, headers: ["Unknown Amount"], warnings: ["Missing withdrawal amount column."] }] }} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Withdrawal_Master: Missing withdrawal amount column.");
+  });
+
+  it("does not present an unavailable payout or flow series as zero", () => {
+    render(<><AdminPayoutChart /><AdminTransactionFlowChart /></>);
+    expect(screen.getAllByRole("status")).toHaveLength(2);
+    expect(screen.queryByText("\u20b90")).not.toBeInTheDocument();
   });
 
   it("keeps filters valid when a background snapshot advances into a new year", () => {

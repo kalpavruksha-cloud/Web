@@ -64,9 +64,32 @@ for missing/invalid totals. It is absent from client responses. The existing
 `/api/dashboard` and `/api/client/dashboard` endpoints are reused.
 
 Investment and transaction normalization/source priority are consistent across
-roles while client reads stay scoped. Withdrawals use one usable primary source
-per client; `withdrawalSource: combined_records` means different clients use
-different primary sources, not that the same withdrawal is added across sources.
+roles while client reads stay scoped. V24 withdrawals use one usable primary source
+per client/calendar month; `withdrawalSource: combined_records` means different
+client/month groups use different primary sources, not that a withdrawal is added
+across sources.
+
+## Admin Report Series (V24)
+
+The existing admin `/api/dashboard` response adds
+`adminAnalytics.transactionFlowMonths`: `{month, credit, debit, net, count}[]`.
+Only completed dated ledger records up to the as-of date are included. Existing
+`transactionMonths` remains the signed net series. Equal credit and debit produce
+zero net but preserve both gross amounts. These all-client series are never sent
+in client responses. `payoutMonths` now includes debit reversals as signed amounts;
+it is actual payment history, not the current DASHBOARD payout schedule. All report
+filters reuse the same snapshot; no new API or financial calculation in the UI.
+
+## Client Payout Schedule (V25)
+
+Profile responses add `payoutDate`, read from CLIENTS Date of payout. Transaction
+responses add `scheduledPayoutDate` from the matching client row. Both are optional
+YYYY-MM-DD strings or day-of-month strings 1-31; null means invalid/conflicting
+schedule. Profile omits unset dates; a matched transaction uses an empty string
+for an unset schedule, while an absent transaction field means unavailable (for
+example an older deployment or unmatched client). The current schedule does not replace the
+historical transaction `date`. Client endpoints continue returning only the
+signed-in client's records. Existing endpoints and permissions are unchanged.
 
 ## Dashboard Columns (V22)
 

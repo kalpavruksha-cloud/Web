@@ -1,7 +1,7 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminFinancialAnalytics } from "../../types/domain";
-import { AdminMoneyCharts } from "./AdminMoneyCharts";
+import { AdminMoneyCharts, AdminPayoutChart, AdminTransactionFlowChart } from "./AdminMoneyCharts";
 import { AdminChartSources, AdminOverviewCharts } from "./AdminOverviewCharts";
 
 let measuredWidth = 420;
@@ -33,6 +33,49 @@ const analytics: AdminFinancialAnalytics = {
 };
 
 describe("real Recharts rendering", () => {
+  it("renders a single payout month as a visible bar and switches its year", async () => {
+    const view = render(<AdminPayoutChart analytics={{ ...analytics, payoutMonths: [{ month: "2025-02", amount: 1500 }] }} />);
+    await waitFor(() => expect(view.container.querySelectorAll(".recharts-bar-rectangle path").length).toBeGreaterThan(0));
+    expect(screen.getByLabelText("Payout Year")).toHaveValue("2025");
+    expect(screen.getByText("\u20b91,500")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Payout Year"), { target: { value: "2026" } });
+    expect(screen.getByRole("status")).toHaveTextContent("No completed activity");
+  });
+
+  it("renders both transaction bars when credit and debit exactly balance", async () => {
+    measuredWidth = 320;
+    const view = render(<AdminTransactionFlowChart analytics={{ ...analytics, transactionFlowMonths: [{ month: "2025-06", credit: 5000, debit: 5000, net: 0, count: 2 }] }} />);
+    await waitFor(() => expect(view.container.querySelectorAll(".recharts-bar-rectangle path").length).toBeGreaterThanOrEqual(2));
+    expect(screen.getByLabelText("Transaction Year")).toHaveValue("2025");
+    expect(screen.getByText("Credit")).toBeInTheDocument();
+    expect(screen.getByText("Debit")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(Number(view.container.querySelector(".recharts-wrapper > svg")?.getAttribute("width"))).toBe(320);
+  });
+
+  it("renders a previous debit-only net series on an older Apps Script without inventing a breakdown", async () => {
+    const view = render(<AdminTransactionFlowChart analytics={{ ...analytics, transactionMonths: [{ month: "2025-04", amount: -1000 }] }} />);
+    await waitFor(() => expect(view.container.querySelectorAll(".recharts-bar-rectangle path").length).toBeGreaterThan(0));
+    expect(screen.getByLabelText("Transaction Year")).toHaveValue("2025");
+    expect(screen.getByRole("status")).toHaveTextContent("Only net flow is available");
+    expect(screen.queryByText("Credit")).not.toBeInTheDocument();
+  });
+
+  it("keeps each withdrawal and payout canvas visible at mobile and desktop widths", async () => {
+    for (const width of [320, 1080]) {
+      measuredWidth = width;
+      const view = render(<><AdminMoneyCharts analytics={analytics} /><AdminPayoutChart analytics={{ ...analytics, payoutMonths: [{ month: "2026-10", amount: 1000 }] }} /></>);
+      const card = screen.getByRole("heading", { name: "Monthly Withdrawals" }).closest("section")!;
+      expect(within(card).getByText("\u20b95,000")).toBeInTheDocument();
+      await waitFor(() => expect(card.querySelectorAll(".recharts-bar-rectangle path").length).toBeGreaterThan(0));
+      for (const chart of view.container.querySelectorAll(".recharts-wrapper > svg")) {
+        expect(Number(chart.getAttribute("width"))).toBe(width);
+        expect(Number(chart.getAttribute("height"))).toBe(288);
+      }
+      view.unmount();
+    }
+  });
+
   it("renders nonzero SVG bars from the supplied backend series", async () => {
     const view = render(<AdminMoneyCharts analytics={analytics} />);
     await waitFor(() => expect(view.container.querySelectorAll(".recharts-bar-rectangle path").length).toBeGreaterThan(0));

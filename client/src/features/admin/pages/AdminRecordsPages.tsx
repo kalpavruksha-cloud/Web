@@ -1,16 +1,16 @@
 import { useState, type FormEvent, type ReactElement, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Activity, BarChart3, Download, ExternalLink, Eye, FileText, Plus, Printer, RefreshCw, Save } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, Cell, Legend, Pie, PieChart, Tooltip, XAxis, YAxis } from "recharts";
+import { Cell, Legend, Pie, PieChart, Tooltip } from "recharts";
 import { useAction, useDashboard, useResource } from "../../../api/queries";
 import { useAdminOverview } from "../useAdminOverview";
 import { AdminOverviewCards } from "../AdminOverviewCards";
-import { AdminMoneyCharts } from "../AdminMoneyCharts";
+import { AdminMoneyCharts, AdminPayoutChart, AdminTransactionFlowChart } from "../AdminMoneyCharts";
 import { AdminChartFrame } from "../AdminChartFrame";
 import { ErrorState } from "../../../components/State";
 import { useToast } from "../../../context/ToastContext";
 import type { ClientDocument, ClientNotification, Investment, PortalSettings, Profile, Referral, SpreadsheetSchema, Transaction, Withdrawal } from "../../../types/domain";
-import { formatCurrency, formatDate } from "../../../utils/format";
+import { formatCurrency, formatDate, formatPayoutDate } from "../../../utils/format";
 import { AdminCard, AdminLoading, AdminPage, AdminTable, CommandButton, Field, Input, Select, StatusBadge } from "../AdminComponents";
 import { computeAdminMetrics, exportCsv, isStatus, recentActivity, sameClientId, title } from "../adminUtils";
 
@@ -191,6 +191,7 @@ export function AdminTransactions() {
         { key: "id", header: "Tx ID", render: (row) => row.id },
         { key: "date", header: "Date", render: (row) => formatDate(row.date) },
         { key: "client", header: "Client", render: (row) => row.clientId },
+        { key: "payoutDate", header: "Scheduled Payout Date", render: (row) => formatPayoutDate(row.scheduledPayoutDate) },
         { key: "type", header: "Type", render: (row) => title(row.type) },
         { key: "description", header: "Description", render: (row) => row.description },
         { key: "credit", header: "Credit", render: (row) => formatCurrency(row.credit) },
@@ -325,9 +326,7 @@ export function AdminReports() {
   if (!overview.data) return <ErrorState title="Reports unavailable" message={overview.error instanceof Error ? overview.error.message : undefined} />;
   const data = overview.data;
   const portfolioByCategory = (data.dashboard.adminAnalytics?.portfolioDistribution ?? []).map((row) => ({ name: row.name, value: row.amount })).filter((row) => row.value > 0);
-  const monthlyReturns = (data.dashboard.adminAnalytics?.payoutMonths ?? []).map((row) => ({ month: row.month, value: row.amount }));
   const withdrawalByStatus = (data.dashboard.adminAnalytics?.withdrawalStatus ?? []).map((row) => ({ name: row.name, value: row.amount })).filter((row) => row.value > 0);
-  const transactionFlow = (data.dashboard.adminAnalytics?.transactionMonths ?? []).map((row) => ({ month: row.month, value: row.amount }));
   const recentTransactions = [...data.transactions].sort((a, b) => sortableDateValue(b.date) - sortableDateValue(a.date)).slice(0, 8);
   const recentWithdrawals = [...data.withdrawals].sort((a, b) => sortableDateValue(b.requestDate) - sortableDateValue(a.requestDate)).slice(0, 8);
   const withdrawalRows = data.withdrawals.map((row) => ({
@@ -339,28 +338,27 @@ export function AdminReports() {
     paymentReference: row.paymentReference
   }));
   const portfolioRows = portfolioByCategory.map((row) => ({ category: row.name, value: row.value }));
-  const monthlyReturnRows = monthlyReturns.map((row) => ({ month: row.month, monthlyReturn: row.value }));
 
   return <AdminPage title="Reports and Analytics" eyebrow="Visual reports generated from live spreadsheet records" actions={<><CommandButton tone="secondary" disabled={overview.isFetching} onClick={() => void overview.refetch()}><RefreshCw className="h-4 w-4" />Refresh data</CommandButton><CommandButton tone="secondary" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print</CommandButton></>}>
+    {overview.error && <ErrorState title="Report refresh failed" message="The last loaded reports are shown. The latest spreadsheet data could not be retrieved." />}
     <AdminOverviewCards data={data} />
     <div className="mt-6"><AdminMoneyCharts analytics={data.dashboard.adminAnalytics} /></div>
 
-    <div className="mt-6 grid gap-6 xl:grid-cols-3">
+    <div className="mt-6 grid gap-6 xl:grid-cols-2">
       <ReportPanel title="Portfolio Report" subtitle={data.dashboard.adminAnalytics?.portfolioDistributionSource === "dashboard_clients" ? "Current spreadsheet portfolio by client" : data.dashboard.adminAnalytics?.portfolioDistributionBasis === "principal" ? "Recorded principal by category or plan" : "Current investment value grouped by category or plan"} action={<CommandButton tone="secondary" onClick={() => exportCsv("portfolio-report.csv", portfolioRows)}><Download className="h-4 w-4" /> Export</CommandButton>}>
         {portfolioByCategory.length ? <ReportChartBox><PieChart accessibilityLayer><Pie data={portfolioByCategory} dataKey="value" nameKey="name" innerRadius="35%" outerRadius="65%" paddingAngle={4} isAnimationActive={false}>{portfolioByCategory.map((_, index) => <Cell key={index} fill={reportChartColors[index % reportChartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Legend /></PieChart></ReportChartBox> : <ReportEmpty label="No portfolio values returned by spreadsheet." />}
       </ReportPanel>
       <ReportPanel title="Withdrawal Report" subtitle="Approved, pending, rejected, and paid withdrawal movement" action={<CommandButton tone="secondary" onClick={() => exportCsv("withdrawal-report.csv", withdrawalRows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> Export</CommandButton>}>
         {withdrawalByStatus.length ? <ReportChartBox small><PieChart accessibilityLayer><Pie data={withdrawalByStatus} dataKey="value" nameKey="name" outerRadius="65%" paddingAngle={4} isAnimationActive={false}>{withdrawalByStatus.map((_, index) => <Cell key={index} fill={reportChartColors[index % reportChartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Legend /></PieChart></ReportChartBox> : <ReportEmpty label="No withdrawal amounts returned by spreadsheet." />}
       </ReportPanel>
-      <ReportPanel title="Monthly Payout Report" subtitle="Recorded payout and interest transactions by calendar month" action={<CommandButton tone="secondary" onClick={() => exportCsv("monthly-payout-report.csv", monthlyReturnRows)}><Download className="h-4 w-4" /> Export</CommandButton>}>
-        {monthlyReturns.length ? <ReportChartBox small><AreaChart data={monthlyReturns}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatCompactRupeeAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#d7ab3d" fill="#d7ab3d33" strokeWidth={3} /></AreaChart></ReportChartBox> : <ReportEmpty label="No dated completed payout or interest transactions were returned." />}
-      </ReportPanel>
     </div>
 
-    <div className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-      <ReportPanel title="Transaction Flow" subtitle="Credit minus debit by month across transaction records">
-        {transactionFlow.length ? <ReportChartBox small><AreaChart data={transactionFlow}><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" /><XAxis dataKey="month" /><YAxis tickFormatter={formatCompactRupeeAxis} /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Area type="monotone" dataKey="value" stroke="#153bb7" fill="#153bb733" strokeWidth={3} /></AreaChart></ReportChartBox> : <ReportEmpty label="No dated transaction flow returned by spreadsheet." />}
-      </ReportPanel>
+    <div className="mt-6 grid gap-6 xl:grid-cols-2">
+      <AdminPayoutChart analytics={data.dashboard.adminAnalytics} />
+      <AdminTransactionFlowChart analytics={data.dashboard.adminAnalytics} />
+    </div>
+
+    <div className="mt-6">
       <ReportPanel title="Report Health" subtitle="Records available for admin analysis">
         <div className="grid gap-3 sm:grid-cols-2">
           <MiniStat label="Clients" value={data.clients.length} />
@@ -499,13 +497,6 @@ function MiniStat({ label, value }: { label: string; value: number }) {
     <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-gold-700 dark:text-gold-100">{label}</p>
     <p className="mt-2 font-display text-2xl font-extrabold text-navy-900 dark:text-ivory">{value}</p>
   </div>;
-}
-
-function formatCompactRupeeAxis(value: unknown) {
-  const amount = Number(value || 0);
-  if (Math.abs(amount) >= 100000) return `₹${(amount / 100000).toFixed(amount % 100000 === 0 ? 0 : 1)}L`;
-  if (Math.abs(amount) >= 1000) return `₹${(amount / 1000).toFixed(amount % 1000 === 0 ? 0 : 1)}K`;
-  return `₹${amount}`;
 }
 
 function sortableDateValue(value?: string) {

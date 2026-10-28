@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { dailyChartSeries, monthlyChartSeries, portfolioChartSeries } from "./adminChartSeries";
+import { dailyChartSeries, latestActivityYear, monthlyChartSeries, portfolioChartSeries, transactionFlowSeries } from "./adminChartSeries";
 import type { AdminFinancialAnalytics } from "../../types/domain";
 
 describe("admin financial chart periods", () => {
+  it("selects debit-only activity years and keeps separate credit/debit values", () => {
+    expect(latestActivityYear([{ month: "2025-02", amount: -500 }], 2026)).toBe(2025);
+    const points = transactionFlowSeries([{ month: "2025-02", credit: 1000, debit: 1000, net: 0, count: 2 }], 2025, 2026, 10);
+    expect(points).toHaveLength(12);
+    expect(points[1]).toEqual({ label: "Feb", credit: 1000, debit: 1000, net: 0, count: 2 });
+    expect(points[0]).toEqual({ label: "Jan", credit: 0, debit: 0, net: 0, count: 0 });
+  });
   it("shows exactly 24 portfolio months without filling unknown months with fake zeroes", () => {
     const points = portfolioChartSeries({ currentYear: 2026, currentMonth: 10,
       portfolioHistoryMonths: [{ month: "2026-01", amount: 1000 }, { month: "2026-10", amount: 0 }]

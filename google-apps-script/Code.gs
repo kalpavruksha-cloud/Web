@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_24_CLIENT_HISTORY_CHARTS_V23";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_28_CLIENT_PAYOUT_DATE_V25";
 var DASHBOARD_READ_CONTEXT = null;
 
 var REQUIRED_SHEETS = [
@@ -542,7 +542,7 @@ function buildAdminFinancialAnalytics(investments, transactions, withdrawals, to
       || (history && history.preferInvestmentMaster && row.statusProvided === false && row.clientId && row.startDate);
   });
   var recordedWithdrawals = ((history && history.withdrawalHistory) || []).filter(function(row) {
-    return ["recorded", "paid", "completed", "posted", "settled", "success", "successful"].indexOf(row.status) >= 0;
+    return ["recorded", "paid", "withdrawn", "completed", "posted", "settled", "success", "successful"].indexOf(row.status) >= 0;
   });
   var useInvestmentRecords = !!(history && history.preferInvestmentMaster && recordedInvestments.some(function(row) { var date = adminCalendarDay(row.startDate); return date && date <= today && row.principalAmount > 0; }));
   var investmentSource = useInvestmentRecords ? "investment_master" : investmentLedger.length ? "transaction_ledger" : "investment_records";
@@ -587,8 +587,8 @@ function buildAdminFinancialAnalytics(investments, transactions, withdrawals, to
     return ["payout", "interest", "interest_credit", "monthly_return", "monthly_payout"].indexOf(row.type) >= 0;
   });
   var payoutDays = adminDailyAmounts(payoutLedger.map(function(row) {
-    return { date: row.date, amount: Math.max(row.credit - row.debit, 0) };
-  }), today, "payout", warnings);
+    return { date: row.date, amount: row.credit - row.debit };
+  }), today, "payout", warnings, true);
   var payoutRemainder = buildAdminPayoutRemainder(eligible, payoutLedger, missing ? null : Math.round(estimate * 100) / 100, now, warnings);
   var portfolioEvents = investmentPoints.concat(withdrawalPoints.map(function(row) {
     return { date: row.date, amount: -row.amount, clientId: row.clientId };
@@ -611,7 +611,7 @@ function buildAdminFinancialAnalytics(investments, transactions, withdrawals, to
     remainingMonthlyPayout: payoutRemainder.remaining,
     payoutEstimateMissingRecords: missing,
     completedWithdrawalTotal: sum(withdrawalPoints, "amount"),
-    recordedPayoutTotal: sum(payoutLedger, "credit") - sum(payoutLedger, "debit")
+    recordedPayoutTotal: sum(payoutDays, "amount")
   };
 }
 
@@ -625,7 +625,8 @@ function adminWithdrawalPoints(history, ledger, requests, today, warnings) {
       if (date > today) return;
       var value = amount(row);
       if (!isFinite(value) || value <= 0) return;
-      var key = normalizeText(row.clientId) || "__unlinked__";
+      // Prefer one source per client and month, not a client's entire lifetime.
+      var key = (normalizeText(row.clientId) || "__unlinked__") + "|" + date.slice(0, 7);
       if (!groups[key]) groups[key] = { withdrawal_master: [], transaction_ledger: [], paid_withdrawals: [] };
       groups[key][source].push({ date: date, amount: value, clientId: row.clientId });
     });
@@ -742,13 +743,13 @@ function reconcileAdminPortfolio(analytics, currentValue) {
   if (Math.abs(difference) >= 0.01) analytics.warnings.push("Recorded portfolio history differs from the current DASHBOARD total by INR " + difference + ". Historical values have not been adjusted to hide the difference.");
 }
 
-function adminDailyAmounts(points, today, label, warnings) {
+function adminDailyAmounts(points, today, label, warnings, signed) {
   var totals = {};
   var invalid = 0;
   points.forEach(function(row) {
     var day = adminCalendarDay(row.date);
     if (!day) { invalid += 1; return; }
-    if (day > today || row.amount <= 0) return;
+    if (day > today || !isFinite(row.amount) || (signed ? row.amount === 0 : row.amount <= 0)) return;
     totals[day] = (totals[day] || 0) + row.amount;
   });
   if (invalid) warnings.push(String(invalid) + " " + label + " records have missing or invalid dates and are excluded from the dated charts.");
@@ -794,8 +795,8 @@ function mapAdminWithdrawal(row) {
 
 function mapAdminWithdrawalHistory(row) {
   var result = mapAdminWithdrawal(row);
-  result.paymentDate = adminCalendarDay(first(row, ["Payment Date", "Paid Date", "Paid On", "Withdrawal Date", "Withdraw Date", "Withdrawn Date", "Date of Withdrawal", "Transaction Date", "Date"]));
-  result.amount = adminMoney(first(row, ["Amount", "Withdrawal Amount", "Withdrawn Amount", "Debit"]));
+  result.paymentDate = adminCalendarDay(first(row, ["Payment Date", "Paid Date", "Paid On", "Withdrawal Date", "Withdraw Date", "Withdrawn Date", "Date of Withdrawal", "Withdrawal Dt", "Transaction Date", "Date"]));
+  result.amount = adminMoney(first(row, ["Amount", "Withdrawal Amount", "Withdraw Amount", "Withdrawn Amount", "Withdrawal", "Debit", "Debit Amount"]));
   result.status = normalizeOptionalStatus(first(row, ["Status", "Payment Status", "Withdrawal Status"])) || "recorded";
   result.requestDate = adminCalendarDay(first(row, ["Request Date", "Requested Date"]));
   result.recordSource = "withdrawal_master";
@@ -815,7 +816,7 @@ function mapAdminTransaction(row) {
   var result = mapTransaction(row);
   result.clientId = cleanString(first(row, ["Client ID", "Client Code", "Customer ID", "Investor ID", "Client"]));
   result.date = adminCalendarDay(first(row, ["Date", "Transaction Date", "Txn Date", "Value Date"]));
-  result.type = normalizeStatus(first(row, ["Type", "Transaction Type", "Transaction", "Txn Type", "Transaction Category"]));
+  result.type = adminTransactionType(first(row, ["Type", "Transaction Type", "Transaction", "Txn Type", "Transaction Category"]));
   result.status = normalizeStatus(first(row, ["Status", "Transaction Status", "Posting Status"]) || "completed");
   var payoutPeriod = first(row, ["Payout Period", "Payout Month", "For Month", "Accrual Month"]);
   result.payoutPeriodProvided = payoutPeriod !== "";
@@ -823,6 +824,9 @@ function mapAdminTransaction(row) {
   var credit = first(row, ["Credit", "Credit Amount", "Amount Credit", "Cr"]);
   var debit = first(row, ["Debit", "Debit Amount", "Amount Debit", "Dr"]);
   var amount = first(row, ["Amount", "Transaction Amount", "Value"]);
+  if (amount === "" && ["payout", "interest", "interest_credit", "monthly_return", "monthly_payout"].indexOf(result.type) >= 0) {
+    amount = first(row, ["Payout Amount", "Interest Amount", "Monthly Payout Amount", "Payout", "Interest"]);
+  }
   if (credit !== "") result.credit = adminMoney(credit);
   if (debit !== "") result.debit = adminMoney(debit);
   var balance = first(row, ["Balance", "Running Balance", "Closing Balance", "Net Balance"]);
@@ -836,6 +840,15 @@ function mapAdminTransaction(row) {
   return result;
 }
 
+function adminTransactionType(value) {
+  var type = normalizeOptionalStatus(value).replace(/-/g, "_");
+  var aliases = {
+    withdraw: "withdrawal", withdrawal_payment: "withdrawal", capital_withdrawal: "withdrawal", withdrawl: "withdrawal",
+    payout_credit: "payout", interest_payout: "payout", monthly_interest: "monthly_payout", interest_payment: "payout"
+  };
+  return Object.prototype.hasOwnProperty.call(aliases, type) ? aliases[type] : type || "pending";
+}
+
 function mapAdminProfile(row) {
   var result = mapProfile(row);
   result.registrationDate = adminCalendarDay(first(row, ["Registration Date", "Created Date", "Created At", "Joining Date", "Account Opening Date", "Registered On"]));
@@ -845,9 +858,9 @@ function mapAdminProfile(row) {
 function adminSourceWarnings(module, headers) {
   var requirements = {
     investments: [["investment date", "Start Date", "Investment Date", "Invested Date", "Date of Investment", "Investment Start Date", "Date"], ["principal", "Principal Amount", "Amount", "Invested Amount", "Investment Amount"]],
-    transactions: [["transaction date", "Date", "Transaction Date", "Txn Date", "Value Date"], ["transaction type", "Type", "Transaction Type", "Transaction", "Txn Type", "Transaction Category"], ["amount", "Credit", "Credit Amount", "Amount Credit", "Cr", "Debit", "Debit Amount", "Amount Debit", "Dr", "Amount", "Transaction Amount", "Value"]],
+    transactions: [["transaction date", "Date", "Transaction Date", "Txn Date", "Value Date"], ["transaction type", "Type", "Transaction Type", "Transaction", "Txn Type", "Transaction Category"], ["amount", "Credit", "Credit Amount", "Amount Credit", "Cr", "Debit", "Debit Amount", "Amount Debit", "Dr", "Amount", "Transaction Amount", "Value", "Payout Amount", "Interest Amount", "Monthly Payout Amount", "Payout", "Interest"]],
     withdrawals: [["withdrawal amount", "Amount", "Requested Amount", "Withdrawal Amount"], ["payment date", "Payment Date", "Paid Date", "Withdrawal Date", "Paid On"]],
-    withdrawal_history: [["withdrawal date", "Payment Date", "Paid Date", "Paid On", "Withdrawal Date", "Withdraw Date", "Withdrawn Date", "Date of Withdrawal", "Transaction Date", "Date"], ["withdrawal amount", "Amount", "Withdrawal Amount", "Withdrawn Amount", "Debit"]],
+    withdrawal_history: [["withdrawal date", "Payment Date", "Paid Date", "Paid On", "Withdrawal Date", "Withdraw Date", "Withdrawn Date", "Date of Withdrawal", "Withdrawal Dt", "Transaction Date", "Date"], ["withdrawal amount", "Amount", "Withdrawal Amount", "Withdraw Amount", "Withdrawn Amount", "Withdrawal", "Debit", "Debit Amount"]],
     clients: [["registration date", "Registration Date", "Created Date", "Created At", "Joining Date", "Account Opening Date", "Registered On"]]
   };
   return (requirements[module] || []).filter(function(aliases) { return findHeaderIndex(headers, aliases.slice(1)) < 0; }).map(function(aliases) {
@@ -860,10 +873,23 @@ function addAdminOverviewSeries(analytics, clients, investments, transactions, w
   var completed = transactions.filter(adminTransactionPosted);
   var dated = completed.filter(function(row) { return row.date && row.date <= today; });
   var flow = {};
+  var creditDebit = {};
   dated.forEach(function(row) {
     var month = row.date.slice(0, 7);
     flow[month] = (flow[month] || 0) + row.credit - row.debit;
+    if (!creditDebit[month]) creditDebit[month] = { month: month, credit: 0, debit: 0, net: 0, count: 0 };
+    creditDebit[month].credit += row.credit;
+    creditDebit[month].debit += row.debit;
+    creditDebit[month].count += 1;
   });
+  analytics.transactionFlowMonths = Object.keys(creditDebit).sort().map(function(month) {
+    var row = creditDebit[month];
+    row.credit = Math.round(row.credit * 100) / 100;
+    row.debit = Math.round(row.debit * 100) / 100;
+    row.net = Math.round((row.credit - row.debit) * 100) / 100;
+    return row;
+  });
+  if (completed.some(function(row) { return !row.date; })) analytics.warnings.push("Completed transactions with missing or invalid dates are excluded from monthly transaction flow.");
   analytics.transactionMonths = Object.keys(flow).sort().map(function(month) { return { month: month, amount: Math.round(flow[month] * 100) / 100 }; });
   var running = 0;
   analytics.portfolioMonths = analytics.transactionMonths.map(function(row) {
@@ -974,7 +1000,24 @@ function updateInvestment(payload) {
 }
 
 function getTransactions(payload) {
-  return readModule(payload, ["Transaction_Register", "Transaction Register", "Raw_Transactions", "Raw Transactions", "TRANSACTIONS", "Transaction", "Transactions", "Ledger"], mapAdminTransaction, true, payload.role === "admin" ? "transactions" : "", true);
+  var transactions = readModule(payload, ["Transaction_Register", "Transaction Register", "Raw_Transactions", "Raw Transactions", "TRANSACTIONS", "Transaction", "Transactions", "Ledger"], mapAdminTransaction, true, payload.role === "admin" ? "transactions" : "", true);
+  if (!transactions.length) return transactions;
+  var clients = readModule(payload, ["CLIENTS", "Client", "Clients", "Profile"], function(row) {
+    return { clientId: first(row, ["Client ID", "Client Code", "Customer ID", "Investor ID"]), payoutDate: clientPayoutDate(first(row, ["Date of payout", "Payout Date", "Scheduled Payout Date"])) };
+  }, true);
+  var dates = Object.create(null);
+  clients.forEach(function(client) {
+    var key = normalizeText(client.clientId);
+    if (!key) return;
+    // Conflicting duplicate client schedules are unavailable, never chosen arbitrarily.
+    if (Object.prototype.hasOwnProperty.call(dates, key) && dates[key] !== client.payoutDate) dates[key] = null;
+    else dates[key] = client.payoutDate;
+  });
+  transactions.forEach(function(row) {
+    var key = normalizeText(row.clientId);
+    if (Object.prototype.hasOwnProperty.call(dates, key)) row.scheduledPayoutDate = dates[key] === undefined ? "" : dates[key];
+  });
+  return transactions;
 }
 
 function getTransaction(payload) {
@@ -1712,6 +1755,7 @@ function mapProfile(row) {
     mobile: first(row, ["Mobile", "Phone"]),
     email: first(row, ["Email"]),
     dateOfBirth: first(row, ["Date of Birth", "DOB"]),
+    payoutDate: clientPayoutDate(first(row, ["Date of payout", "Payout Date", "Scheduled Payout Date"])),
     address: first(row, ["Address"]),
     pan: first(row, ["PAN"]),
     aadhaar: first(row, ["Aadhaar", "Aadhar"]),
@@ -1725,6 +1769,16 @@ function mapProfile(row) {
     riskProfile: first(row, ["Risk Profile"]),
     accountStatus: normalizeStatus(first(row, ["Account Status", "Status"]))
   };
+}
+
+function clientPayoutDate(value) {
+  if (value === undefined || value === null || cleanString(value) === "") return undefined;
+  if (value instanceof Date) return adminCalendarDay(value) || null;
+  var text = cleanString(value);
+  var day = text.match(/^(\d{1,2})(?:st|nd|rd|th)?(?:\s+(?:of\s+)?(?:each|every)\s+month)?$/i);
+  if (day) return Number(day[1]) >= 1 && Number(day[1]) <= 31 ? String(Number(day[1])) : null;
+  if (typeof value === "number" || /\b\d{4}\b/.test(text)) return adminCalendarDay(value) || null;
+  return null;
 }
 
 function mapInvestment(row) {

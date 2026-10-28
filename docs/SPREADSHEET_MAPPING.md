@@ -6,6 +6,50 @@
 - Apps Script URL in local env: `https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec`
 - Backend remains the only browser-facing integration layer.
 
+## CLIENTS Payout Date (V25)
+
+The user reports adding `Date of payout` to CLIENTS. Direct connector access on
+28 October 2026 returned permission denied, so live cell values are not yet verified
+and have not been edited. No financial records or formulas are rewritten.
+
+The mapper recognizes Date of payout / Payout Date / Scheduled Payout Date with
+the existing case/space/underscore normalization. A full calendar date becomes
+YYYY-MM-DD; a recurring day 1-31 (including `15th` or `15th of each month`) becomes
+a day string. It is displayed as a recurring schedule, not an invented next date.
+Blank/missing profile cells stay undefined; invalid or conflicting duplicate client
+dates become null. Profile exposes payoutDate; transactions expose scheduledPayoutDate,
+using an empty string for a matched client's unset schedule. An absent transaction
+schedule is unavailable, not evidence that the client has no configured payout date.
+Matching uses trimmed case-insensitive Client ID, without rewriting client codes.
+
+This is a client's current schedule, not proof that a historical payout occurred.
+The actual transaction Date and monthly payment-history chart dates are unchanged.
+Client reads remain session-scoped. Transaction print/CSV include the separate
+Scheduled Payout Date column. The dashboard reuses its request-local CLIENTS read;
+no new API or database is introduced.
+
+## Admin Chart Mapping (V24)
+
+Withdrawal_Master is the user-confirmed tab name. Its exact live row-1 headers
+have not been supplied/verified. Supported explicit date aliases: Payment Date,
+Paid Date, Paid On, Withdrawal Date, Withdraw Date, Withdrawn Date, Date of
+Withdrawal, Withdrawal Dt, Transaction Date, Date. Amount aliases: Amount,
+Withdrawal Amount, Withdraw Amount, Withdrawn Amount, Withdrawal, Debit, Debit
+Amount. Client-ID normalization remains unchanged. Missing columns are reported
+in the admin source panel; unrelated fields are never inferred as money or dates.
+
+V24 source priority is per client/month: usable completed/recorded master rows,
+then completed withdrawal ledger rows, then paid portal requests. Sources within
+the same client/month are not added. Dates and monetary amounts are normalized
+before aggregation. Historical blank status stays recorded; Withdrawn is accepted.
+
+Monthly Payout Report uses completed payout/interest transactions and signed
+credit minus debit, not DASHBOARD's current Monthly Payout schedule. Explicit
+Payout Amount, Interest Amount, Monthly Payout Amount, Payout or Interest can supply
+the amount for a recognized payout type when generic Amount/Credit/Debit are absent.
+Transaction Flow adds monthly credit, debit, net and count from the same completed
+ledger. No new spreadsheet columns, sheets, formulas or write destinations.
+
 ## DASHBOARD Columns (V22)
 
 V23 additionally sends admin-only per-client totals from Total Invested, Total

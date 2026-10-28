@@ -7,7 +7,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../context/ThemeContext";
 import { useToast } from "../../../context/ToastContext";
 import type { ClientDocument, ClientNotification, Profile, Referral, Transaction, Withdrawal } from "../../../types/domain";
-import { formatCurrency, formatDate } from "../../../utils/format";
+import { formatCurrency, formatDate, formatPayoutDate } from "../../../utils/format";
 import {
   ClientButton,
   ClientCard,
@@ -144,7 +144,21 @@ export function ClientTransactionsPage() {
     return true;
   });
   const selectClass = "rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm font-semibold dark:border-white/10 dark:bg-white/5";
-  return <ClientPage title="Transactions" actions={<><ClientButton tone="secondary" onClick={() => exportCsv("client-transactions.csv", rows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> CSV</ClientButton><ClientButton tone="secondary" onClick={() => printTransactions(rows)}><Printer className="h-4 w-4" /> Print</ClientButton></>}><ClientCard className="mb-5"><SectionTitle title="Filters" subtitle="Filter by type, status, and transaction date" /><div className="grid gap-3 md:grid-cols-4"><ClientField label="Type"><select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className={selectClass}><option value="">All types</option>{types.map((type) => <option key={type} value={type}>{statusText(type)}</option>)}</select></ClientField><ClientField label="Status"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={selectClass}><option value="">All statuses</option>{statuses.map((status) => <option key={status} value={status}>{statusText(status)}</option>)}</select></ClientField><ClientField label="From Date"><ClientInput type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></ClientField><ClientField label="To Date"><ClientInput type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></ClientField></div><div className="mt-4"><ClientButton tone="secondary" onClick={() => { setTypeFilter(""); setStatusFilter(""); setFromDate(""); setToDate(""); }}>Clear Filters</ClientButton></div></ClientCard><ClientCard><ClientTable rows={rows} pageSize={20} columns={[{ key: "id", header: "Transaction ID", render: (row) => row.id }, { key: "date", header: "Date", render: (row) => formatDate(row.date) }, { key: "type", header: "Type", render: (row) => statusText(row.type) }, { key: "description", header: "Description", render: (row) => row.description }, { key: "credit", header: "Credit", render: (row) => formatCurrency(row.credit) }, { key: "debit", header: "Debit", render: (row) => formatCurrency(row.debit) }, { key: "balance", header: "Balance", render: (row) => formatCurrency(row.balance) }, { key: "reference", header: "Reference", render: (row) => row.reference }, { key: "status", header: "Status", render: (row) => <ClientStatus value={row.status} /> }]} /></ClientCard></ClientPage>;
+  return <ClientPage title="Transactions" actions={<><ClientButton tone="secondary" onClick={() => exportCsv("client-transactions.csv", rows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> CSV</ClientButton><ClientButton tone="secondary" onClick={() => printTransactions(rows)}><Printer className="h-4 w-4" /> Print</ClientButton></>}>
+    <ClientCard className="mb-5"><SectionTitle title="Filters" subtitle="Filter by type, status, and transaction date" /><div className="grid gap-3 md:grid-cols-4"><ClientField label="Type"><select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className={selectClass}><option value="">All types</option>{types.map((type) => <option key={type} value={type}>{statusText(type)}</option>)}</select></ClientField><ClientField label="Status"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={selectClass}><option value="">All statuses</option>{statuses.map((status) => <option key={status} value={status}>{statusText(status)}</option>)}</select></ClientField><ClientField label="From Date"><ClientInput type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></ClientField><ClientField label="To Date"><ClientInput type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></ClientField></div><div className="mt-4"><ClientButton tone="secondary" onClick={() => { setTypeFilter(""); setStatusFilter(""); setFromDate(""); setToDate(""); }}>Clear Filters</ClientButton></div></ClientCard>
+    <ClientCard><ClientTable rows={rows} pageSize={20} columns={[
+      { key: "id", header: "Transaction ID", render: (row) => row.id },
+      { key: "date", header: "Date", render: (row) => formatDate(row.date) },
+      { key: "payoutDate", header: "Scheduled Payout Date", render: (row) => formatPayoutDate(row.scheduledPayoutDate) },
+      { key: "type", header: "Type", render: (row) => statusText(row.type) },
+      { key: "description", header: "Description", render: (row) => row.description },
+      { key: "credit", header: "Credit", render: (row) => formatCurrency(row.credit) },
+      { key: "debit", header: "Debit", render: (row) => formatCurrency(row.debit) },
+      { key: "balance", header: "Balance", render: (row) => formatCurrency(row.balance) },
+      { key: "reference", header: "Reference", render: (row) => row.reference },
+      { key: "status", header: "Status", render: (row) => <ClientStatus value={row.status} /> }
+    ]} /></ClientCard>
+  </ClientPage>;
 }
 
 function printTransactions(rows: Transaction[]) {
@@ -153,6 +167,7 @@ function printTransactions(rows: Transaction[]) {
     <tr>
       <td>${escapePrintValue(row.id)}</td>
       <td>${escapePrintValue(formatDate(row.date))}</td>
+      <td>${escapePrintValue(formatPayoutDate(row.scheduledPayoutDate))}</td>
       <td>${escapePrintValue(statusText(row.type))}</td>
       <td>${escapePrintValue(row.description)}</td>
       <td class="money">${escapePrintValue(formatCurrency(row.credit))}</td>
@@ -177,7 +192,7 @@ function printTransactions(rows: Transaction[]) {
     th { background: #0b2f25; color: #fffaf0; padding: 9px 7px; text-align: left; text-transform: uppercase; }
     td { border-bottom: 1px solid #dfe8e2; padding: 8px 7px; vertical-align: top; }
     .money { text-align: right; white-space: nowrap; }
-  </style></head><body><h1>Kalpavruksha Wealth - Transaction Statement</h1><p>Printed ${escapePrintValue(printedAt)}. Showing ${rows.length} filtered transaction records.</p><table><thead><tr><th>Transaction ID</th><th>Date</th><th>Type</th><th>Description</th><th>Credit</th><th>Debit</th><th>Balance</th><th>Reference</th><th>Status</th></tr></thead><tbody>${tableRows || '<tr><td colspan="9">No transactions available for this filter.</td></tr>'}</tbody></table></body></html>`);
+  </style></head><body><h1>Kalpavruksha Wealth - Transaction Statement</h1><p>Printed ${escapePrintValue(printedAt)}. Showing ${rows.length} filtered transaction records.</p><table><thead><tr><th>Transaction ID</th><th>Date</th><th>Scheduled Payout Date</th><th>Type</th><th>Description</th><th>Credit</th><th>Debit</th><th>Balance</th><th>Reference</th><th>Status</th></tr></thead><tbody>${tableRows || '<tr><td colspan="10">No transactions available for this filter.</td></tr>'}</tbody></table></body></html>`);
   printWindow.document.close();
   printWindow.focus();
   window.setTimeout(() => printWindow.print(), 250);

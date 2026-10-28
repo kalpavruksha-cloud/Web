@@ -7,7 +7,7 @@
 - Frontend local URL: `http://localhost:5173`
 - Backend local URL: `http://localhost:8080/api`
 
-## Client History and Charts Upgrade (V23)
+## Charts and CLIENTS Payout Date Upgrade (V25)
 
 The dashboard and analytics now use one shared `/api/dashboard` snapshot instead
 of eight overlapping module requests. This upgrade requires both the web release
@@ -18,7 +18,7 @@ and the updated `google-apps-script/Code.gs` deployment:
 3. Select Version > New version, then Deploy. Keep Execute as: Me and the existing access configuration.
 4. Keep the existing deployment URL to avoid changing Vercel environment variables.
 5. Open the existing `/exec?action=deploymentTest` URL. The marker must be
-   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_24_CLIENT_HISTORY_CHARTS_V23`.
+   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_28_CLIENT_PAYOUT_DATE_V25`.
 6. After the GitHub-triggered Vercel deployment succeeds, reload the portal and sign in as admin.
 
 The admin dashboard should make a single `/api/dashboard` request for its records,
@@ -40,6 +40,17 @@ V23 adds the 12-month client portfolio series, scoped client withdrawal history,
 per-client withdrawal-chart fallbacks, and the admin client financial summary.
 The investment year selector is part of the web release; financial history and
 client-summary payloads require Apps Script V23.
+V24 fixes withdrawal precedence per client/month and signed payout history, and
+adds separate monthly credit/debit transaction-flow totals. The matching web
+release adds visible payout bars, credit/debit bars and report year filters.
+Deploy both parts. An older script shows an explicit net-only flow notice instead
+of inventing a credit/debit breakdown. Service-worker version v19 replaces old
+static assets without clearing authentication or storing business records.
+V25 reads CLIENTS Date of payout into profiles and transaction rows. The web
+release adds a separate Scheduled Payout Date column, including client print and
+CSV. Full dates and recurring days are supported; actual transaction dates are
+not changed. Service-worker v20 updates the static shell. No new sheet, formula,
+financial record, backend route, or authentication flow is required.
 The web release shows an explicit analytics
 availability notice rather than empty or invented financial charts.
 
@@ -54,6 +65,16 @@ portfolio history. Test a client with only a current snapshot: earlier months
 must remain empty. Open admin Clients > View and reconcile the four totals with
 that client's DASHBOARD row. Change investment year and withdrawal year/month;
 confirm displayed and exported totals use the selected period.
+Open Reports: select a year containing one payout month and confirm a visible bar.
+Compare signed payout totals with completed payments and reversals, excluding
+future/pending rows. A month with equal credit and debit must still show two
+transaction bars even though net flow is zero. Compare Monthly Withdrawals on
+Dashboard and Reports for the same year/month; confirm an older master month
+does not hide a later completed ledger month for the same client.
+Verify Scheduled Payout Date for two different clients against their CLIENTS rows.
+Test both a full date and a recurring day; transaction Date must stay unchanged.
+Confirm client print/CSV include the schedule. A missing value must show Not set,
+not another client's date or a fabricated date.
 For Current Portfolio, check the first/last displayed months and the reconciliation
 between history closing balance and the current DASHBOARD total. A difference
 is a source-data reconciliation issue, not a value to override automatically.

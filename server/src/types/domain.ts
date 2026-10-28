@@ -36,6 +36,7 @@ export type Profile = {
   mobile?: string;
   email?: string;
   dateOfBirth?: string;
+  payoutDate?: string | null;
   registrationDate?: string;
   address?: string;
   pan?: string;
@@ -74,6 +75,7 @@ export type Transaction = {
   id: string;
   clientId: string;
   date?: string;
+  scheduledPayoutDate?: string | null;
   type: string;
   description?: string;
   credit: number;
@@ -90,7 +92,7 @@ export type Withdrawal = {
   requestDate?: string;
   bankAccount?: string;
   remarks?: string;
-  status: "pending" | "approved" | "rejected" | "paid" | "recorded" | "completed" | "posted" | "settled" | "success" | "successful" | "cancelled";
+  status: "pending" | "approved" | "rejected" | "paid" | "recorded" | "withdrawn" | "completed" | "posted" | "settled" | "success" | "successful" | "cancelled";
   approvalDate?: string;
   paymentReference?: string;
   paymentDate?: string;
@@ -181,6 +183,7 @@ export type AdminFinancialAnalytics = {
   portfolioDistributionSource?: "investment_records" | "dashboard_clients";
   portfolioDistributionBasis?: "current_portfolio" | "current_value" | "principal";
   transactionMonths?: Array<{ month: string; amount: number }>;
+  transactionFlowMonths?: Array<{ month: string; credit: number; debit: number; net: number; count: number }>;
   registrationMonths?: Array<{ month: string; count: number }>;
   withdrawalStatus?: Array<{ name: string; amount: number }>;
   sources?: Array<{ module: string; sheet: string | null; recordCount: number; headers: string[]; warnings: string[] }>;

@@ -228,6 +228,46 @@ describe("Apps Script dashboard snapshot", () => {
 });
 
 describe("client history and linked financial totals", () => {
+  it("joins CLIENTS Date of payout by client without replacing historical transaction dates", () => {
+    const harness = createSpreadsheetHarness();
+    harness.rows.CLIENTS[0].push(" Date of payout ");
+    harness.rows.CLIENTS[1].push("15/11/2026");
+    harness.rows.CLIENTS[2].push(20);
+    const result = harness.snapshot();
+    expect(result.adminData?.transactions.find((row) => row.clientId === "C001")).toMatchObject({ date: "2026-01-01", scheduledPayoutDate: "2026-11-15" });
+    expect(result.adminData?.transactions.find((row) => row.clientId === "C002")).toMatchObject({ date: "2026-02-01", scheduledPayoutDate: "20" });
+    expect(harness.reads.CLIENTS).toHaveBeenCalledTimes(1);
+    const client = runInContext('getTransactions({role:"client",clientId:"C001"})', harness.context) as Array<{ clientId: string; scheduledPayoutDate?: string }>;
+    expect(client).toHaveLength(1);
+    expect(client[0].scheduledPayoutDate).toBe("2026-11-15");
+    expect(client.some((row) => row.clientId === "C002")).toBe(false);
+  });
+
+  it("reads schedule edits on the next request and does not guess blank or conflicting dates", () => {
+    const harness = createSpreadsheetHarness();
+    harness.rows.CLIENTS[0].push("date_of_payout");
+    harness.rows.CLIENTS[1].push("5th");
+    harness.rows.CLIENTS[2].push("");
+    const rows = () => runInContext('getTransactions({role:"admin"})', harness.context) as Array<{ clientId: string; scheduledPayoutDate?: string | null }>;
+    expect(rows()[0].scheduledPayoutDate).toBe("5");
+    expect(rows()[1].scheduledPayoutDate).toBe("");
+    harness.rows.CLIENTS[1][3] = 10;
+    expect(rows()[0].scheduledPayoutDate).toBe("10");
+    harness.rows.CLIENTS.push([" c001 ", "Duplicate", "active", 15]);
+    expect(rows()[0].scheduledPayoutDate).toBeNull();
+  });
+
+  it("normalizes only explicit calendar dates or recurring payout days", () => {
+    const harness = createSpreadsheetHarness();
+    expect(runInContext('clientPayoutDate(new Date("2026-10-28T00:00:00Z"))', harness.context)).toBe("2026-10-28");
+    expect(runInContext('clientPayoutDate("21st of every month")', harness.context)).toBe("21");
+    expect(runInContext('clientPayoutDate("31/02/2026")', harness.context)).toBeNull();
+    expect(runInContext('clientPayoutDate("32")', harness.context)).toBeNull();
+    expect(runInContext('clientPayoutDate("pending")', harness.context)).toBeNull();
+    expect(runInContext('clientPayoutDate("")', harness.context)).toBeUndefined();
+    expect(runInContext('mapProfile({"Client ID":"C001","Date of payout":"10th"}).payoutDate', harness.context)).toBe("10");
+  });
+
   it("builds 12 client months from the entire ledger, including its opening balance", () => {
     const harness = createSpreadsheetHarness();
     harness.rows.Investment_Master = [harness.rows.Investment_Master[0]];
@@ -319,6 +359,62 @@ function analytics(investments: Array<Record<string, unknown>>, transactions: Ar
 }
 
 describe("admin financial analytics", () => {
+  it("keeps later ledger months when the same client has older withdrawal master history", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`buildAdminFinancialAnalytics([], [
+      {clientId:"C001",date:"2026-03-10",type:"withdrawal",status:"paid",debit:1000,credit:0},
+      {clientId:"C001",date:"2026-09-10",type:"withdrawal",status:"paid",debit:2000,credit:0}],
+      [{clientId:"C001",paymentDate:"2026-09-10",status:"paid",amount:2000},
+       {clientId:"C001",paymentDate:"2026-10-10",status:"paid",amount:500}],0,new Date("2026-10-27T08:00:00Z"),
+      {withdrawalHistory:[{clientId:"C001",paymentDate:"2026-03-10",status:"recorded",amount:1000}]})`, harness.context) as AnalyticsResult;
+    expect(result.withdrawalSource).toBe("combined_records");
+    expect(result.withdrawalMonths).toEqual([{ month: "2026-03", amount: 1000 }, { month: "2026-09", amount: 2000 }, { month: "2026-10", amount: 500 }]);
+    expect(result.completedWithdrawalTotal).toBe(3500);
+  });
+
+  it("maps explicit historical withdrawal headers and excludes uncompleted history", () => {
+    const harness = createSpreadsheetHarness();
+    const historyRead = vi.fn(() => [["Client_ID", "Withdrawal Dt", "Withdraw Amount", "Withdrawal Status"],
+      ["C001", "15/09/2026", "INR 2,500", "Withdrawn"], ["C001", "20/09/2026", 8000, "Approved"]]);
+    harness.getSheets.mockReturnValue([...harness.getSheets(), { getName: () => "Withdrawal_Master", getSheetId: () => 94, getDataRange: () => ({ getValues: historyRead }) }]);
+    const result = harness.snapshot();
+    expect(result.adminAnalytics?.withdrawalMonths).toEqual([{ month: "2026-09", amount: 2500 }]);
+    expect(result.adminAnalytics?.sources?.find((row) => row.module === "withdrawal_history")?.warnings).toEqual([]);
+    expect(historyRead).toHaveBeenCalledTimes(1);
+  });
+
+  it("charts signed payout reversals, excluding future and undated payments from totals", () => {
+    const result = analytics([], [
+      { clientId: "C001", type: "payout", status: "posted", date: "2026-09-01", credit: 1000, debit: 0 },
+      { clientId: "C001", type: "payout", status: "posted", date: "2026-09-02", credit: 0, debit: 200 },
+      { clientId: "C001", type: "payout", status: "posted", date: "2026-10-01", credit: 0, debit: 100 },
+      { clientId: "C001", type: "payout", status: "posted", date: "2026-11-01", credit: 9999, debit: 0 },
+      { clientId: "C001", type: "payout", status: "posted", date: "", credit: 9999, debit: 0 }
+    ], []);
+    expect(result.payoutMonths).toEqual([{ month: "2026-09", amount: 800 }, { month: "2026-10", amount: -100 }]);
+    expect(result.recordedPayoutTotal).toBe(700);
+  });
+
+  it("maps payout amount and specific transaction type aliases without guessing unrelated categories", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext('mapAdminTransaction({"Txn Date":"15/09/2026","Txn Type":"Interest Payment","Payout Amount":"INR 1,500"})', harness.context);
+    expect(result).toMatchObject({ type: "payout", date: "2026-09-15", credit: 1500, debit: 0 });
+    expect(runInContext('adminTransactionType("Withdrawal-Paid")', harness.context)).toBe("withdrawal_paid");
+    expect(runInContext('adminTransactionType("Bank Transfer")', harness.context)).toBe("bank_transfer");
+  });
+
+  it("returns both credit and debit flow even when the net monthly amount is zero", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`var balancedFlow={asOf:"2026-10-27T08:00:00Z",investmentMonths:[],warnings:[]};
+      addAdminOverviewSeries(balancedFlow,[],[],[
+        {date:"2026-09-01",status:"posted",credit:5000,debit:0},
+        {date:"2026-09-02",status:"posted",credit:0,debit:5000},
+        {date:"2026-09-03",status:"pending",credit:9000,debit:0},
+        {date:"2026-11-01",status:"posted",credit:9000,debit:0}],[],[]); balancedFlow;`, harness.context) as AdminFinancialAnalytics;
+    expect(result.transactionMonths).toEqual([{ month: "2026-09", amount: 0 }]);
+    expect(result.transactionFlowMonths).toEqual([{ month: "2026-09", credit: 5000, debit: 5000, net: 0, count: 2 }]);
+  });
+
   it("selects a usable withdrawal source per client instead of dropping clients missing from the master", () => {
     const harness = createSpreadsheetHarness();
     const result = runInContext(`buildAdminFinancialAnalytics([], [
