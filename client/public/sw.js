@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v22-pending-payout-clients";
+const CACHE_VERSION = "kalpavruksha-pwa-v23-registration-form";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 

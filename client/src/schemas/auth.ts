@@ -8,6 +8,8 @@ export const loginFormSchema = z.object({
 
 export type LoginFormValues = z.infer<typeof loginFormSchema>;
 
+export const registrationGenderOptions = ["Male", "Female", "Other", "Prefer not to say"] as const;
+
 export const registerFormSchema = z.object({
   fullName: z.string().trim().min(2, "Enter your full name"),
   email: z.string().trim().email("Enter a valid email"),
@@ -16,7 +18,7 @@ export const registerFormSchema = z.object({
   occupation: z.string().optional(),
   riskProfile: z.enum(["Low", "Medium", "High"]).default("Medium"),
   dateOfBirth: z.string().optional(),
-  gender: z.string().optional()
+  gender: z.enum(["", ...registrationGenderOptions]).optional()
 });
 
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
