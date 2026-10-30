@@ -353,17 +353,31 @@ function appendRegistrationDashboard(payload, clientId) {
     if (values.slice(1).some(function(row) { return normalizeLogin(row[clientIndex]) === normalizeLogin(clientId); })) {
       throw coded("DUPLICATE_RECORD", "A dashboard record already exists for this client");
     }
-    var nextRow = sheet.getLastRow() + 1;
-    sheet.appendRow(headers.map(function(header) { return first(record, [header]); }));
+    var nextRow = 0;
+    for (var candidate = 1; candidate < values.length; candidate++) {
+      if (!cleanString(values[candidate][clientIndex]) && formulas[candidate] && formulas[candidate][clientIndex]
+        && values[candidate].every(function(value) { return value === "" || value === 0; })) {
+        nextRow = candidate + 1;
+        break;
+      }
+    }
+    if (nextRow) {
+      // Earlier INDEX/COUNTIF rows must see this ID before it enters the transaction ledger.
+      sheet.getRange(nextRow, clientIndex + 1).setValue(clientId);
+    } else {
+      nextRow = sheet.getLastRow() + 1;
+      sheet.appendRow(headers.map(function(header) { return first(record, [header]); }));
+    }
     // Native R1C1 templates preserve the workbook's formulas without guessing financial rules.
     headers.forEach(function(header, column) {
       if (findHeaderIndex(financialHeaders, [header]) < 0) return;
       for (var row = 1; row < values.length; row++) {
         if (cleanString(values[row][clientIndex]) && formulas[row] && formulas[row][column]) {
           sheet.getRange(nextRow, column + 1).setFormulaR1C1(formulas[row][column]);
-          break;
+          return;
         }
       }
+      sheet.getRange(nextRow, column + 1).setValue(0);
     });
     audit(payload, "append", sheet.getName(), clientId);
     return record;

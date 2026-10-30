@@ -20,8 +20,10 @@ be used for login.
 Registration writes now match existing headers by normalized name, preserving a
 ClientId even when the header contains trailing whitespace. New DASHBOARD rows
 initialize all seven financial fields, including Present Investment and Monthly
-Payout, and inherit existing financial formulas in native R1C1 form. Only the new
-row is written; existing client rows and financial records are not rewritten.
+Payout, and inherit existing financial formulas in native R1C1 form. A verified
+unused formula-generated Client ID slot is reserved before appending a new row,
+so later transaction-driven ID formulas already see the registered ID. Only the
+new account's slot is written; existing client/financial records are not rewritten.
 Where no existing formula template is available, a new unfunded account starts
 with explicit zero values, matching the existing registration convention.
 

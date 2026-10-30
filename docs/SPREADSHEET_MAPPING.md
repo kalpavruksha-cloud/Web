@@ -34,10 +34,14 @@ investment records. Native formula-copy preserved absolute source ranges and
 adjusted relative client-row references. Both fields then contained valid zero
 values for those unfunded clients, making the admin aggregates complete again.
 
-Future registrations initialize all existing financial columns and inherit
+Future registrations reserve an unused per-row Client ID formula slot when one
+is available, rather than appending an ID below the transaction-driven INDEX/
+COUNTIF list where it could later appear twice. A blank-ID row with existing
+amounts is never reused. Otherwise registration appends a new account row.
+Registrations initialize all existing financial columns and inherit
 financial formula templates from a populated client row, using native R1C1
 references rather than a second implementation of workbook financial rules.
-Template copying affects the newly appended row only. Where no template exists,
+Template copying affects the new account's row only. Where no template exists,
 the new unfunded account has explicit zero opening values.
 
 ## Verified Approved Ledger Mapping (V26)

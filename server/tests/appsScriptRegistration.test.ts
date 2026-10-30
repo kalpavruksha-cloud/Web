@@ -91,4 +91,27 @@ describe("new-registration DASHBOARD financial cells", () => {
     expect(harness.append()).toBeNull();
     expect(harness.sheet.appendRow).not.toHaveBeenCalled();
   });
+
+  it("reserves an unused formula-generated client slot instead of appending a future duplicate", () => {
+    const harness = registrationHarness();
+    harness.rows.push(["", "", "", "", "", "", "", ""]);
+    harness.templates.push(["=IFERROR(INDEX(TRANSACTIONS!C3,1),\"\")", "", "", "", "", "", "", ""]);
+    harness.append();
+    expect(harness.sheet.appendRow).not.toHaveBeenCalled();
+    expect(harness.rows).toHaveLength(3);
+    expect(harness.rows[2][0]).toBe("C002");
+    expect(harness.formulaWrites).toHaveLength(7);
+    expect(harness.formulaWrites.every((write) => write.row === 3)).toBe(true);
+  });
+
+  it("never overwrites a row with amounts just because its Client ID is blank", () => {
+    const harness = registrationHarness();
+    harness.rows.push(["", 50000, "", "", "", "", "", ""]);
+    harness.templates.push(["=IFERROR(INDEX(TRANSACTIONS!C3,1),\"\")"]);
+    harness.append();
+    expect(harness.rows[2][0]).toBe("");
+    expect(harness.rows[2][1]).toBe(50000);
+    expect(harness.rows[3][0]).toBe("C002");
+    expect(harness.sheet.appendRow).toHaveBeenCalledOnce();
+  });
 });
