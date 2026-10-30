@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
@@ -50,5 +50,10 @@ describe("admin dashboard and report chart wiring", () => {
     const flow = screen.getByRole("heading", { name: "Transaction Flow" }).closest("section")!;
     expect(within(flow).getByTestId("chart-data")).toHaveTextContent('"credit":6000,"debit":6000');
     expect(within(flow).queryByRole("status")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "View pending clients" }));
+    expect(screen.getByRole("heading", { name: "Pending Client Payouts" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hide pending clients" })).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Hide pending clients" }));
+    expect(screen.queryByRole("heading", { name: "Pending Client Payouts" })).not.toBeInTheDocument();
   });
 });

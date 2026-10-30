@@ -49,7 +49,11 @@ export function useAdminOverview() {
       resources.forEach(({ key }) => queryClient.setQueryData([`admin-${key}`, undefined], overview[key]));
       return overview;
     },
-    staleTime: 5 * 60_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     retry: false
   });
 }

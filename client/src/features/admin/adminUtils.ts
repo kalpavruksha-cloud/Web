@@ -154,5 +154,6 @@ function sortableDate(value?: string) {
 
 function csvCell(value: unknown) {
   const text = String(value ?? "");
-  return `"${text.replace(/"/g, "\"\"")}"`;
+  const safe = typeof value === "string" && /^\s*[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${safe.replace(/"/g, "\"\"")}"`;
 }

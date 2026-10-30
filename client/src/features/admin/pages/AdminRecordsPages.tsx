@@ -5,6 +5,7 @@ import { Cell, Legend, Pie, PieChart, Tooltip } from "recharts";
 import { useAction, useDashboard, useResource } from "../../../api/queries";
 import { useAdminOverview } from "../useAdminOverview";
 import { AdminOverviewCards } from "../AdminOverviewCards";
+import { AdminPendingPayouts } from "../AdminPendingPayouts";
 import { AdminMoneyCharts, AdminPayoutChart, AdminTransactionFlowChart } from "../AdminMoneyCharts";
 import { AdminChartFrame } from "../AdminChartFrame";
 import { ErrorState } from "../../../components/State";
@@ -322,26 +323,30 @@ export function AdminNotifications() {
 
 export function AdminReports() {
   const overview = useAdminOverview();
+  const [payoutView, setPayoutView] = useState<"current" | "upcoming" | null>(null);
   if (overview.isPending) return <AdminLoading label="Preparing live analytics" />;
   if (!overview.data) return <ErrorState title="Reports unavailable" message={overview.error instanceof Error ? overview.error.message : undefined} />;
   const data = overview.data;
   const portfolioByCategory = (data.dashboard.adminAnalytics?.portfolioDistribution ?? []).map((row) => ({ name: row.name, value: row.amount })).filter((row) => row.value > 0);
   const withdrawalByStatus = (data.dashboard.adminAnalytics?.withdrawalStatus ?? []).map((row) => ({ name: row.name, value: row.amount })).filter((row) => row.value > 0);
   const recentTransactions = [...data.transactions].sort((a, b) => sortableDateValue(b.date) - sortableDateValue(a.date)).slice(0, 8);
-  const recentWithdrawals = [...data.withdrawals].sort((a, b) => sortableDateValue(b.requestDate) - sortableDateValue(a.requestDate)).slice(0, 8);
+  const recentWithdrawals = [...data.withdrawals].sort((a, b) => sortableDateValue(b.paymentDate || b.requestDate || b.approvalDate) - sortableDateValue(a.paymentDate || a.requestDate || a.approvalDate)).slice(0, 8);
   const withdrawalRows = data.withdrawals.map((row) => ({
     requestId: row.id,
     clientId: row.clientId,
     amount: row.amount,
     status: row.status,
     requestDate: row.requestDate,
+    paymentDate: row.paymentDate,
+    recordSource: row.recordSource,
     paymentReference: row.paymentReference
   }));
   const portfolioRows = portfolioByCategory.map((row) => ({ category: row.name, value: row.value }));
 
   return <AdminPage title="Reports and Analytics" eyebrow="Visual reports generated from live spreadsheet records" actions={<><CommandButton tone="secondary" disabled={overview.isFetching} onClick={() => void overview.refetch()}><RefreshCw className="h-4 w-4" />Refresh data</CommandButton><CommandButton tone="secondary" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print</CommandButton></>}>
     {overview.error && <ErrorState title="Report refresh failed" message="The last loaded reports are shown. The latest spreadsheet data could not be retrieved." />}
-    <AdminOverviewCards data={data} />
+    <AdminOverviewCards data={data} onPendingPayoutClick={() => setPayoutView((view) => view === "current" ? null : "current")} onUpcomingPayoutClick={() => setPayoutView((view) => view === "upcoming" ? null : "upcoming")} pendingPayoutsOpen={payoutView === "current"} upcomingPayoutsOpen={payoutView === "upcoming"} />
+    {payoutView && <AdminPendingPayouts key={payoutView} analytics={data.dashboard.adminAnalytics} mode={payoutView} />}
     <div className="mt-6"><AdminMoneyCharts analytics={data.dashboard.adminAnalytics} /></div>
 
     <div className="mt-6 grid gap-6 xl:grid-cols-2">
@@ -382,7 +387,7 @@ export function AdminReports() {
       <ReportPanel title="Recent Withdrawals" subtitle="Latest withdrawal workflow records">
         <AdminTable rows={recentWithdrawals} pageSize={4} columns={[
           { key: "id", header: "Request", render: (row) => row.id },
-          { key: "date", header: "Date", render: (row) => formatDate(row.requestDate) },
+          { key: "date", header: "Date", render: (row) => formatDate(row.paymentDate || row.requestDate || row.approvalDate) },
           { key: "client", header: "Client", render: (row) => row.clientId },
           { key: "amount", header: "Amount", render: (row) => formatCurrency(row.amount) },
           { key: "status", header: "Status", render: (row) => <StatusBadge value={row.status} /> }

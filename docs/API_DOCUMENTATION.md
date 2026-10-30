@@ -109,6 +109,41 @@ separately as `admin.remainingMonthlyPayout`. No additional endpoint is needed.
 
 ## Diagnostics
 
+### Admin Payout Estimate Details (V27)
+
+The existing admin `GET /api/dashboard` response adds
+`adminAnalytics.pendingPayouts` and `pendingPayoutWarnings`. No endpoint is added.
+Client responses never expose this all-client breakdown.
+
+Each row contains clientId, clientName, period (payout month), scheduledAmount,
+recordedAmount, remainingAmount, dueDate, nextScheduledDate, dueStatus and note.
+`pendingPayouts` contains positive current-month balances. `upcomingPayouts`
+contains next-month estimated balances and `upcomingPayoutPeriod` identifies that
+period. `admin.payoutCalendarReady` and `adminAnalytics.payoutCalendarReady`
+indicate verified calendar terms. `upcomingPayoutAmount` appears in both objects.
+When ready, scheduledMonthlyPayout, paidMonthlyPayout and remainingMonthlyPayout
+refer to the current cycle, not the old comparison of today's run-rate with this
+month's payments. `payoutScheduleSource` is investment_calendar. The original
+DASHBOARD monthlyPayout remains the current monthly run-rate, not an amount overdue.
+
+Names and recurring payout days come from CLIENTS. Short months clamp a configured
+day to month end. Missing, conflicting or out-of-period explicit dates remain
+unavailable, not an invented default. No schedule/amount is supplied by the browser.
+
+An omitted array means the deployed script does not support the details. Null
+means source matching is incomplete. An empty array means no positive balance
+remains according to the existing ledger calculation. Sub-paise floating residuals
+do not become payable rows. Unconfirmed calendars do not publish partial totals.
+
+The snapshot is not a bank settlement reconciliation. Current-month new funding
+starts in the following calendar month's schedule, as in the verified workbook.
+Schedules use explicit Investment_Master monthly ROI percentage points, funded
+dates, maturity (when present), proportional recorded withdrawals as of the due
+date and CLIENTS payout days. Generic annual/unspecified ROI is not converted.
+Next-period prepayments count only with an explicit matching payout period;
+future-dated payments never count. Overpayments never offset other clients.
+No payment or withdrawal mutation is performed by this drill-down.
+
 - `GET /api/system/health` public diagnostic with no secrets.
 - `GET /api/admin/spreadsheet-schema` admin-only schema inspection.
 

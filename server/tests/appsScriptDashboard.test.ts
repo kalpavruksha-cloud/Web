@@ -359,6 +359,109 @@ function analytics(investments: Array<Record<string, unknown>>, transactions: Ar
 }
 
 describe("admin financial analytics", () => {
+  it("separates this month's eligible coupons from new funding first payable next month", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`var calendarInvestments=[
+      {clientId:"C001",principalAmount:100000,startDate:"2026-01-10",monthlyPayoutRate:2.5,statusProvided:false},
+      {clientId:"C001",principalAmount:20000,startDate:"2026-10-08",monthlyPayoutRate:2.5,statusProvided:false}];
+      var calendarPayments=[{clientId:"C001",type:"payout",status:"approved",date:"2026-10-05",credit:2500,debit:0}];
+      var calendarClients=[{clientId:"C001",fullName:"First client",payoutDate:"5"}];
+      var calendarResult=buildAdminFinancialAnalytics(calendarInvestments,calendarPayments,[],120000,new Date("2026-10-29T08:00:00Z"),{preferInvestmentMaster:true,dashboardRows:[{clientId:"C001",monthlyPayout:3000}],clients:calendarClients});
+      applyAdminPayoutCalendar(calendarResult,calendarInvestments,calendarPayments,[],calendarClients,new Date("2026-10-29T08:00:00Z"),true,[{clientId:"C001",monthlyPayout:3000}]); calendarResult;`, harness.context) as AnalyticsResult;
+    expect(result.payoutCalendarReady).toBe(true);
+    expect(result.estimatedMonthlyPayout).toBe(2500);
+    expect(result.remainingMonthlyPayout).toBe(0);
+    expect(result.pendingPayouts).toEqual([]);
+    expect(result.upcomingPayoutAmount).toBe(3000);
+    expect(result.upcomingPayouts?.[0]).toMatchObject({remainingAmount:3000,dueDate:"2026-11-05",period:"2026-11",dueStatus:"upcoming"});
+    expect(runInContext('mapAdminInvestment({"Monthly ROI %":2.5}).monthlyPayoutRate', harness.context)).toBe(2.5);
+  });
+
+  it("uses withdrawals as of the cycle date and preserves mixed explicit monthly rates", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`var mixed={asOf:"2026-10-29T08:00:00Z",warnings:[]};
+      applyAdminPayoutCalendar(mixed,[
+        {clientId:"C001",principalAmount:100000,startDate:"2026-01-10",monthlyPayoutRate:2.5,statusProvided:false},
+        {clientId:"C001",principalAmount:100000,startDate:"2026-10-08",monthlyPayoutRate:3,statusProvided:false}],[],
+        [{clientId:"C001",amount:50000,paymentDate:"2026-10-10",status:"approved",recordSource:"withdrawal_master",readOnly:true}],
+        [{clientId:"C001",payoutDate:"5"}],new Date("2026-10-29T08:00:00Z"),true);mixed;`, harness.context) as AnalyticsResult;
+    expect(result.estimatedMonthlyPayout).toBe(2500);
+    expect(result.upcomingPayoutAmount).toBe(4125);
+  });
+
+  it("applies explicit next-period prepayments but excludes future-dated payments", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`var prepaid={asOf:"2026-10-29T08:00:00Z",warnings:[]};
+      applyAdminPayoutCalendar(prepaid,[{clientId:"C001",principalAmount:100000,startDate:"2026-01-10",monthlyPayoutRate:3,statusProvided:false}],
+        [{clientId:"C001",type:"payout",status:"paid",date:"2026-10-20",credit:1000,debit:0,payoutPeriodProvided:true,payoutPeriod:"2026-11"},
+         {clientId:"C001",type:"payout",status:"paid",date:"2026-11-01",credit:99999,debit:0}],[],[{clientId:"C001",payoutDate:"5"}],new Date("2026-10-29T08:00:00Z"),true);prepaid;`, harness.context) as AnalyticsResult;
+    expect(result.remainingMonthlyPayout).toBe(3000);
+    expect(result.upcomingPayoutAmount).toBe(2000);
+    expect(result.upcomingPayouts?.[0].recordedAmount).toBe(1000);
+  });
+
+  it("does not guess missing monthly rates, client schedules or unsupported non-master calendars", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`var unavailable={asOf:"2026-10-29T08:00:00Z",warnings:[]};
+      applyAdminPayoutCalendar(unavailable,[{clientId:"C001",principalAmount:100000,startDate:"2026-01-10",statusProvided:false}],[],[],[],new Date("2026-10-29T08:00:00Z"),true);unavailable;`, harness.context) as AnalyticsResult;
+    expect(result.payoutCalendarReady).toBe(false);
+    expect(result.pendingPayouts).toBeNull();
+    expect(result.upcomingPayoutAmount).toBeNull();
+  });
+
+  it("returns client balances and CLIENTS due dates behind the unchanged aggregate", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`buildAdminFinancialAnalytics([], [
+      {clientId:" c001 ",type:"payout",status:"approved",date:"2026-10-05",credit:600,debit:0},
+      {clientId:"C002",type:"payout",status:"posted",date:"2026-10-05",credit:5000,debit:0}],[],0,new Date("2026-10-14T08:00:00Z"),
+      {dashboardRows:[{clientId:"C001",monthlyPayout:1500},{clientId:"C002",monthlyPayout:2000}],
+       clients:[{clientId:"C001",fullName:"First client",payoutDate:"5"},{clientId:"C002",fullName:"Second client",payoutDate:"20"}]})`, harness.context) as AnalyticsResult;
+    expect(result.remainingMonthlyPayout).toBe(900);
+    expect(result.pendingPayouts).toEqual([{clientId:"C001",clientName:"First client",period:"2026-10",scheduledAmount:1500,recordedAmount:600,remainingAmount:900,dueDate:"2026-10-05",nextScheduledDate:null,note:"",dueStatus:"overdue"}]);
+  });
+
+  it("flags current-month new funding for cycle review instead of inventing an overdue deadline", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`buildAdminFinancialAnalytics(
+      [{clientId:"C001",startDate:"2026-10-08",principalAmount:200000,statusProvided:false}],[],[],200000,new Date("2026-10-29T08:00:00Z"),
+      {preferInvestmentMaster:true,dashboardRows:[{clientId:"C001",monthlyPayout:5000}],clients:[{clientId:"C001",fullName:"First client",payoutDate:"5"}]})`, harness.context) as AnalyticsResult;
+    expect(result.remainingMonthlyPayout).toBe(5000);
+    expect(result.pendingPayouts?.[0]).toMatchObject({remainingAmount:5000,dueDate:null,nextScheduledDate:"2026-11-05",dueStatus:"review_required"});
+  });
+
+  it("clamps recurring dates, distinguishes due today/upcoming and rejects unverified dates", () => {
+    const harness = createSpreadsheetHarness();
+    expect(runInContext('adminPayoutDueDate("31","2024-02")', harness.context)).toBe("2024-02-29");
+    expect(runInContext('adminPayoutDueDate("31","2026-02")', harness.context)).toBe("2026-02-28");
+    expect(runInContext('adminPayoutDueDate("2026-09-05","2026-10")', harness.context)).toBeNull();
+    const result = runInContext(`buildAdminFinancialAnalytics([],[],[],0,new Date("2026-10-14T08:00:00Z"),
+      {dashboardRows:[{clientId:"C001",monthlyPayout:100},{clientId:"C002",monthlyPayout:200},{clientId:"C003",monthlyPayout:300}],
+       clients:[{clientId:"C001",payoutDate:"14"},{clientId:"C002",payoutDate:"20"},{clientId:"C003",payoutDate:"invalid"}]})`, harness.context) as AnalyticsResult;
+    expect(result.pendingPayouts?.map((row) => row.dueStatus)).toEqual(["due_today","upcoming","date_unavailable"]);
+    expect(result.pendingPayouts?.[2].dueDate).toBeNull();
+    expect(result.pendingPayoutWarnings?.length).toBeGreaterThan(0);
+  });
+
+  it("does not fabricate zero balances for invalid schedules or payment matching data", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`buildAdminFinancialAnalytics([],[],[],0,new Date("2026-10-14T08:00:00Z"),{dashboardRows:[{clientId:"C001",monthlyPayout:null}]})`, harness.context) as AnalyticsResult;
+    expect(result.pendingPayouts).toBeNull();
+    expect(result.remainingMonthlyPayout).toBeNull();
+  });
+
+  it("does not list sub-paise floating point residuals as pending clients", () => {
+    const result = analytics([{clientId:"C001",status:"active",monthlyReturn:7500.000000000001}], [{clientId:"C001",type:"payout",status:"approved",date:"2026-10-05",credit:7500,debit:0}], []);
+    expect(result.remainingMonthlyPayout).toBe(0);
+    expect(result.pendingPayouts).toEqual([]);
+  });
+
+  it("does not select an arbitrary due date from duplicate client profiles", () => {
+    const harness = createSpreadsheetHarness();
+    const result = runInContext(`buildAdminFinancialAnalytics([],[],[],0,new Date("2026-10-14T08:00:00Z"),
+      {dashboardRows:[{clientId:"C001",monthlyPayout:1000}],clients:[{clientId:"C001",payoutDate:"5"},{clientId:" c001 ",payoutDate:"20"}]})`, harness.context) as AnalyticsResult;
+    expect(result.pendingPayouts?.[0]).toMatchObject({clientId:"C001",clientName:"",dueDate:null,dueStatus:"date_unavailable"});
+  });
+
   it("accepts the verified workbook's Approved ledger status and separate payout/withdrawal columns", () => {
     const harness = createSpreadsheetHarness();
     const register = vi.fn(() => [["Trx ID", "Date", "Client ID", "Client", "Transaction", "Credit", "Payout", "Withdrawal", "Status"],

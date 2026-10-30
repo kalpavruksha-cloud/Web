@@ -84,4 +84,16 @@ describe("admin overview loading", () => {
     nextPage.unmount();
     client.clear();
   });
+
+  it("configures quiet live refresh for admin charts and payout history only", async () => {
+    fetchData.mockResolvedValue({ ...dashboard, adminData: records });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children);
+    const hook = renderHook(() => useAdminOverview(), { wrapper });
+    await waitFor(() => expect(hook.result.current.isSuccess).toBe(true));
+    const options = client.getQueryCache().find({ queryKey: ["admin-overview"] })?.options;
+    expect(options).toMatchObject({ staleTime: 30000, refetchInterval: 60000, refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true });
+    hook.unmount();
+    client.clear();
+  });
 });

@@ -54,6 +54,7 @@ export type Investment = {
   monthlyReturn?: number;
   nextPayoutDate?: string;
   payoutFrequency?: string;
+  monthlyPayoutRate?: number;
   currentValue?: number;
   status: string;
   agreementDetails?: string;
@@ -140,6 +141,19 @@ export type AdminDashboardRecords = {
   notifications: ClientNotification[];
 };
 
+export type AdminPendingPayout = {
+  clientId: string;
+  clientName: string;
+  period: string;
+  scheduledAmount: number;
+  recordedAmount: number;
+  remainingAmount: number;
+  dueDate: string | null;
+  nextScheduledDate: string | null;
+  note: string;
+  dueStatus: "overdue" | "due_today" | "upcoming" | "date_unavailable" | "review_required";
+};
+
 export type AdminFinancialAnalytics = {
   asOf: string;
   currentYear: number;
@@ -149,7 +163,14 @@ export type AdminFinancialAnalytics = {
   investmentMonths: Array<{ month: string; amount: number }>;
   withdrawalMonths: Array<{ month: string; amount: number }>;
   payoutMonths: Array<{ month: string; amount: number }>;
-  payoutScheduleSource?: "dashboard" | "investment_records";
+  payoutScheduleSource?: "dashboard" | "investment_records" | "investment_calendar";
+  payoutCalendarReady?: boolean;
+  payoutCalendarWarnings?: string[];
+  upcomingPayouts?: AdminPendingPayout[] | null;
+  upcomingPayoutAmount?: number | null;
+  upcomingPayoutPeriod?: string;
+  pendingPayouts?: AdminPendingPayout[] | null;
+  pendingPayoutWarnings?: string[];
   withdrawalDays: Array<{ date: string; amount: number }>;
   warnings: string[];
   portfolioMonths?: Array<{ month: string; amount: number }>;
@@ -211,6 +232,9 @@ export type DashboardSummary = {
     scheduledMonthlyPayout?: number | null;
     paidMonthlyPayout?: number | null;
     remainingMonthlyPayout?: number | null;
+    payoutCalendarReady?: boolean;
+    upcomingPayoutAmount?: number | null;
+    upcomingPayoutPeriod?: string;
     payoutEstimateMissingRecords?: number;
     totalPayoutAmount?: number;
     totalWithdrawalAmount?: number;

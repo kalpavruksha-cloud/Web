@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Redirect, Route, Switch } from "react-router-dom";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { LoginPage } from "./pages/LoginPage";
@@ -5,7 +6,7 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { HealthPage } from "./pages/HealthPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AboutUsPage } from "./pages/AboutUsPage";
-import { AdminLayout } from "./features/admin/AdminComponents";
+import { AdminLayout, AdminLoading } from "./features/admin/AdminComponents";
 import { AdminDashboard } from "./features/admin/pages/AdminDashboard";
 import {
   AdminActivityLog,
@@ -37,6 +38,8 @@ import {
   FaqPage,
   HelpSupportPage
 } from "./features/client/pages/ClientPages";
+
+const AdminPayoutHistory = lazy(() => import("./features/admin/pages/AdminPayoutHistory").then((module) => ({ default: module.AdminPayoutHistory })));
 
 export function App() {
   return (
@@ -73,6 +76,7 @@ export function App() {
             <Route path="/admin/clients" component={AdminClients} />
             <Route path="/admin/investments" component={AdminInvestments} />
             <Route path="/admin/transactions" component={AdminTransactions} />
+            <Route path="/admin/payout-history" render={() => <Suspense fallback={<AdminLoading label="Loading payout history" />}><AdminPayoutHistory /></Suspense>} />
             <Route path="/admin/withdrawals" component={AdminWithdrawals} />
             <Route path="/admin/documents" component={AdminDocuments} />
             <Route path="/admin/referrals" component={AdminReferrals} />

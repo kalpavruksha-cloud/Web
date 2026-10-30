@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v20-client-payout-date";
+const CACHE_VERSION = "kalpavruksha-pwa-v22-pending-payout-clients";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 

@@ -156,4 +156,58 @@ textarea:focus {
     background: white !important;
     color: black !important;
   }
+  body:has(.admin-payout-history) .admin-layout-content,
+  body:has(.admin-payout-history) .admin-layout-content main {
+    padding: 0 !important;
+    max-width: none !important;
+    transform: none !important;
+  }
+  .admin-payout-history > div:first-child {
+    position: static !important;
+  }
+  .admin-payout-history {
+    page: payout-history;
+  }
+  @page payout-history {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  .admin-payout-history .kv-card,
+  .admin-payout-history .overflow-x-auto {
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    transform: none !important;
+  }
+  .admin-payout-history table {
+    width: 100%;
+    font-size: 9px;
+  }
+  .admin-payout-history th,
+  .admin-payout-history td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 9px;
+  }
+  .admin-payout-history :is(h1, h2, p, td, a),
+  .admin-payout-history tbody span {
+    color: black !important;
+  }
+  .admin-payout-history .kv-card::before {
+    display: none;
+  }
+  .admin-payout-history thead {
+    position: static;
+    display: table-header-group;
+    background: #10382d !important;
+    print-color-adjust: exact;
+  }
+  .admin-payout-history thead th {
+    color: white !important;
+  }
+  .admin-payout-history tr {
+    break-inside: avoid;
+  }
 }

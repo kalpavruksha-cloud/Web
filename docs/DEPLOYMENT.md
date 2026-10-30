@@ -7,6 +7,26 @@
 - Frontend local URL: `http://localhost:5173`
 - Backend local URL: `http://localhost:8080/api`
 
+## Current Payout Calendar Upgrade (V27)
+
+V27 includes the previous V26/V25 fixes and separates current-month ledger balances
+from next-month payout estimates. It adds no sheet, database or API route.
+
+1. Replace the complete Apps Script Code.gs with google-apps-script/Code.gs.
+2. Save, then Manage deployments > Edit the existing Web App > New version > Deploy.
+3. Retain the deployment URL. Verify `?action=deploymentTest` returns
+   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_29_PENDING_PAYOUT_CLIENTS_V27`.
+4. Publish the frontend through the existing GitHub/Vercel workflow.
+5. Sign in as admin. Dashboard should separate Pending This Month and Upcoming
+   Payouts. Reports offers View pending clients and View upcoming clients.
+6. Verify that a newly funded deposit first enters the following month's schedule,
+   and that client dates, filtered exports and per-client totals reconcile.
+
+No spreadsheet amounts/formulas or authentication settings are changed. The
+figures are based on recorded ledger entries, not independent bank settlement.
+Without confirmed monthly rates or recurring payout dates, the new calendar shows
+unavailable rather than inventing balances. GitHub publishing does not deploy GS.
+
 ## Verified Ledger Charts Upgrade (V26)
 
 The dashboard and analytics now use one shared `/api/dashboard` snapshot instead

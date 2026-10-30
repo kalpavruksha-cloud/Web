@@ -84,6 +84,35 @@ describe("real Recharts rendering", () => {
     expect(screen.getByText("₹1,00,000")).toBeInTheDocument();
   });
 
+  it("renders charts when ResizeObserver is unavailable and resizes on window resize", async () => {
+    vi.stubGlobal("ResizeObserver", undefined);
+    measuredWidth = 320;
+    const view = render(<AdminPayoutChart analytics={{ ...analytics, payoutMonths: [{ month: "2026-10", amount: 1000 }] }} />);
+    await waitFor(() => expect(view.container.querySelectorAll(".recharts-bar-rectangle path").length).toBeGreaterThan(0));
+    measuredWidth = 840;
+    fireEvent(window, new Event("resize"));
+    await waitFor(() => expect(Number(view.container.querySelector(".recharts-wrapper > svg")?.getAttribute("width"))).toBe(840));
+  });
+
+  it("retains a usable canvas through a zero-width animated panel and recovers its width", async () => {
+    measuredWidth = 0;
+    const view = render(<AdminPayoutChart analytics={{ ...analytics, payoutMonths: [{ month: "2026-10", amount: 1000 }] }} />);
+    await waitFor(() => expect(view.container.querySelectorAll(".recharts-bar-rectangle path").length).toBeGreaterThan(0));
+    expect(Number(view.container.querySelector(".recharts-wrapper > svg")?.getAttribute("width"))).toBe(320);
+    measuredWidth = 1080;
+    fireEvent(window, new Event("resize"));
+    expect(Number(view.container.querySelector(".recharts-wrapper > svg")?.getAttribute("width"))).toBe(1080);
+  });
+
+  it("shows accessible source values for the selected chart without a separate API call", async () => {
+    render(<AdminPayoutChart analytics={{ ...analytics, payoutMonths: [{ month: "2026-10", amount: 1000 }] }} />);
+    const details = screen.getByText("View chart values").closest("details")!;
+    details.open = true;
+    fireEvent(details, new Event("toggle"));
+    expect(await screen.findByRole("table")).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("\u20b91,000")).toBeInTheDocument();
+  });
+
   it("renders one expanded portfolio chart without distribution or registration panels", async () => {
     measuredWidth = 1280;
     const view = render(<AdminOverviewCharts analytics={analytics} currentValue={100000} />);

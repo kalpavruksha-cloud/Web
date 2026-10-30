@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_28_APPROVED_LEDGER_CHARTS_V26";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_29_PENDING_PAYOUT_CLIENTS_V27";
 var DASHBOARD_READ_CONTEXT = null;
 
 var REQUIRED_SHEETS = [
@@ -427,8 +427,10 @@ function buildDashboardSnapshot(payload) {
     var analytics = buildAdminFinancialAnalytics(investments, transactions, withdrawals, totalInvested, new Date(), {
       preferInvestmentMaster: investmentSource && normalizeKey(investmentSource.sheet) === "investmentmaster",
       withdrawalHistory: withdrawalHistory,
-      dashboardRows: sourceDashboardRows
+      dashboardRows: sourceDashboardRows,
+      clients: clients
     });
+    applyAdminPayoutCalendar(analytics, investments, transactions, withdrawalHistory, clients, new Date(analytics.asOf), investmentSource && normalizeKey(investmentSource.sheet) === "investmentmaster", sourceDashboardRows);
     addAdminOverviewSeries(analytics, clients, investments, transactions, withdrawals, sourceDashboardRows);
     reconcileAdminPortfolio(analytics, currentValue);
     if (response.presentInvestment === null) analytics.warnings.push("DASHBOARD Present Investment has blank or invalid client amounts; its total is unavailable.");
@@ -452,6 +454,9 @@ function buildDashboardSnapshot(payload) {
       scheduledMonthlyPayout: analytics.estimatedMonthlyPayout,
       paidMonthlyPayout: analytics.paidMonthlyPayout,
       remainingMonthlyPayout: analytics.remainingMonthlyPayout,
+      payoutCalendarReady: analytics.payoutCalendarReady,
+      upcomingPayoutAmount: analytics.upcomingPayoutAmount,
+      upcomingPayoutPeriod: analytics.upcomingPayoutPeriod,
       payoutEstimateMissingRecords: analytics.payoutEstimateMissingRecords,
       totalPayoutAmount: hasDashboardRows ? totalPayout : analytics.recordedPayoutTotal,
       totalWithdrawalAmount: actualWithdrawal,
@@ -591,7 +596,7 @@ function buildAdminFinancialAnalytics(investments, transactions, withdrawals, to
   var payoutDays = adminDailyAmounts(payoutLedger.map(function(row) {
     return { date: row.date, amount: row.credit - row.debit };
   }), today, "payout", warnings, true);
-  var payoutRemainder = buildAdminPayoutRemainder(eligible, payoutLedger, missing ? null : Math.round(estimate * 100) / 100, now, warnings);
+  var payoutRemainder = buildAdminPayoutRemainder(eligible, payoutLedger, missing ? null : Math.round(estimate * 100) / 100, now, warnings, history && history.clients, history && history.preferInvestmentMaster ? investments : []);
   var portfolioEvents = investmentPoints.concat(withdrawalPoints.map(function(row) {
     return { date: row.date, amount: -row.amount, clientId: row.clientId };
   }), payoutLedger.map(function(row) { return { date: row.date, amount: row.credit - row.debit, clientId: row.clientId }; }),
@@ -611,6 +616,8 @@ function buildAdminFinancialAnalytics(investments, transactions, withdrawals, to
     estimatedMonthlyPayout: missing ? null : Math.round(estimate * 100) / 100,
     paidMonthlyPayout: payoutRemainder.paid,
     remainingMonthlyPayout: payoutRemainder.remaining,
+    pendingPayouts: payoutRemainder.clients,
+    pendingPayoutWarnings: payoutRemainder.warnings,
     payoutEstimateMissingRecords: missing,
     completedWithdrawalTotal: sum(withdrawalPoints, "amount"),
     recordedPayoutTotal: sum(payoutDays, "amount")
@@ -657,17 +664,28 @@ function adminPayoutPeriod(value) {
   return day ? day.slice(0, 7) : "";
 }
 
-function buildAdminPayoutRemainder(eligible, payments, scheduled, now, warnings) {
+function buildAdminPayoutRemainder(eligible, payments, scheduled, now, warnings, clients, investments, targetPeriod) {
   var today = adminCalendarDay(now);
-  var month = today.slice(0, 7);
+  var month = targetPeriod || today.slice(0, 7);
   var due = Object.create(null);
   var paid = Object.create(null);
+  var clientIds = Object.create(null);
+  var profiles = Object.create(null);
+  var duplicateProfiles = Object.create(null);
+  var detailWarnings = [];
   var missingClient = false;
   var invalidPayment = false;
   eligible.forEach(function(row) {
     var clientId = normalizeText(row.clientId);
     if (!clientId) { missingClient = true; return; }
+    clientIds[clientId] = cleanString(row.clientId);
     due[clientId] = (due[clientId] || 0) + (row.monthlyReturn || 0);
+  });
+  (clients || []).forEach(function(row) {
+    var clientId = normalizeText(row.clientId);
+    if (!clientId) return;
+    if (profiles[clientId]) duplicateProfiles[clientId] = true;
+    profiles[clientId] = row;
   });
   payments.forEach(function(row) {
     if (!adminTransactionPosted(row)) return;
@@ -685,8 +703,141 @@ function buildAdminPayoutRemainder(eligible, payments, scheduled, now, warnings)
   var remaining = Object.keys(due).reduce(function(total, clientId) { return total + Math.max(due[clientId] - Math.max(paid[clientId] || 0, 0), 0); }, 0);
   if (missingClient || invalidPayment) warnings.push("Monthly payout remainder is unavailable: a schedule or completed payout has a missing client ID, payment date, or invalid payout period.");
   var unapplied = Object.keys(paid).reduce(function(total, clientId) { return total + Math.max(paid[clientId] - (due[clientId] || 0), 0); }, 0);
-  if (unapplied > 0) warnings.push("INR " + Math.round(unapplied * 100) / 100 + " of recorded payouts exceeds or has no matching client schedule this month; it does not reduce other clients' remaining payouts.");
-  return { paid: invalidPayment ? null : Math.round(paidTotal * 100) / 100, remaining: scheduled === null || missingClient || invalidPayment ? null : Math.round(remaining * 100) / 100 };
+  var unappliedAmount = Math.round(unapplied * 100) / 100;
+  if (unappliedAmount > 0) warnings.push("INR " + unappliedAmount + " of recorded payouts exceeds or has no matching client schedule " + (targetPeriod ? "for " + targetPeriod : "this month") + "; it does not reduce other clients' remaining payouts.");
+  var remainderAvailable = scheduled !== null && !missingClient && !invalidPayment;
+  var pendingClients = remainderAvailable ? Object.keys(due).map(function(clientId) {
+    var recorded = Math.max(paid[clientId] || 0, 0);
+    var unpaid = Math.round(Math.max(due[clientId] - recorded, 0) * 100) / 100;
+    if (unpaid <= 0) return null;
+    var profile = !duplicateProfiles[clientId] && profiles[clientId];
+    var dueDate = profile ? adminPayoutDueDate(profile.payoutDate, month) : null;
+    var hasNewFunding = (investments || []).some(function(row) {
+      var date = adminCalendarDay(row.startDate);
+      return normalizeText(row.clientId) === clientId && date && date.slice(0, 7) === month && date <= today
+        && (row.statusProvided === false || ["active", "closed", "matured", "completed", "posted", "paid", "settled"].indexOf(row.status) >= 0);
+    });
+    var nextMonth = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 1)).toISOString().slice(0, 7);
+    var nextScheduledDate = hasNewFunding && profile ? adminPayoutDueDate(profile.payoutDate, nextMonth) : null;
+    if (!dueDate) detailWarnings.push("Confirm CLIENTS Date of payout for " + clientIds[clientId] + "; a current-month due date could not be verified.");
+    return {
+      clientId: profile && cleanString(profile.clientId) || clientIds[clientId],
+      clientName: profile && cleanString(profile.fullName) || "",
+      period: month,
+      scheduledAmount: Math.round(due[clientId] * 100) / 100,
+      recordedAmount: Math.round(recorded * 100) / 100,
+      remainingAmount: unpaid,
+      dueDate: hasNewFunding ? null : dueDate,
+      nextScheduledDate: nextScheduledDate,
+      note: hasNewFunding ? "New funding this month can contribute next-cycle amounts to the current run-rate estimate. Confirm the cycle balance before treating it as overdue." : "",
+      dueStatus: hasNewFunding ? "review_required" : !dueDate ? "date_unavailable" : dueDate < today ? "overdue" : dueDate === today ? "due_today" : "upcoming"
+    };
+  }).filter(function(row) { return row !== null; }).sort(function(a, b) {
+    return (a.dueDate || "9999").localeCompare(b.dueDate || "9999") || a.clientId.localeCompare(b.clientId);
+  }) : null;
+  var remainingTotal = remainderAvailable ? Math.round(remaining * 100) / 100 : null;
+  if (pendingClients && Math.abs(sum(pendingClients, "remainingAmount") - remainingTotal) >= 0.01) {
+    detailWarnings.push("Per-client amounts rounded to paise differ from the aggregate remainder. Reconcile source precision before making payments.");
+  }
+  return { paid: invalidPayment ? null : Math.round(paidTotal * 100) / 100, remaining: remainingTotal, clients: pendingClients, warnings: detailWarnings };
+}
+
+function adminPayoutDueDate(value, month) {
+  var schedule = clientPayoutDate(value);
+  if (typeof schedule !== "string") return null;
+  if (/^\d{1,2}$/.test(schedule)) {
+    var year = Number(month.slice(0, 4));
+    var monthNumber = Number(month.slice(5, 7));
+    var lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+    return month + "-" + ("0" + Math.min(Number(schedule), lastDay)).slice(-2);
+  }
+  return /^\d{4}-\d{2}-\d{2}$/.test(schedule) && schedule.slice(0, 7) === month ? schedule : null;
+}
+
+function applyAdminPayoutCalendar(analytics, investments, transactions, withdrawalHistory, clients, now, nativeMaster, dashboardRows) {
+  var today = adminCalendarDay(now);
+  var month = today.slice(0, 7);
+  var nextMonth = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 1)).toISOString().slice(0, 7);
+  var warnings = [];
+  var profiles = Object.create(null);
+  var duplicates = Object.create(null);
+  clients.forEach(function(row) {
+    var id = normalizeText(row.clientId);
+    if (profiles[id]) duplicates[id] = true;
+    profiles[id] = row;
+  });
+  var funded = investments.filter(function(row) {
+    var start = adminCalendarDay(row.startDate);
+    return row.clientId && start && start <= today && row.principalAmount > 0
+      && (row.statusProvided === false || row.status === "active");
+  });
+  var incomplete = !nativeMaster;
+  investments.forEach(function(row) { if (row.principalAmount > 0 && (!row.clientId || !adminCalendarDay(row.startDate))) incomplete = true; });
+  (dashboardRows || []).forEach(function(row) {
+    if (row.monthlyPayout > 0 && !funded.some(function(investment) { return normalizeText(investment.clientId) === normalizeText(row.clientId); })) incomplete = true;
+  });
+  funded.forEach(function(row) {
+    var id = normalizeText(row.clientId);
+    if (typeof row.monthlyPayoutRate !== "number" || !isFinite(row.monthlyPayoutRate) || row.monthlyPayoutRate < 0 || duplicates[id] || !profiles[id]
+      || !adminPayoutDueDate(profiles[id].payoutDate, month) || !adminPayoutDueDate(profiles[id].payoutDate, nextMonth)) incomplete = true;
+  });
+  var history = withdrawalHistory.filter(function(row) {
+    return row.readOnly === true && row.recordSource === "withdrawal_master"
+      && ["approved", "recorded", "paid", "withdrawn", "completed", "posted", "settled", "success", "successful"].indexOf(row.status) >= 0;
+  });
+  history.forEach(function(row) { if (row.amount > 0 && (!row.clientId || !adminCalendarDay(row.paymentDate))) incomplete = true; });
+  analytics.payoutCalendarReady = false;
+  analytics.pendingPayouts = null;
+  analytics.upcomingPayouts = null;
+  analytics.upcomingPayoutAmount = null;
+  analytics.upcomingPayoutPeriod = nextMonth;
+  analytics.payoutCalendarWarnings = warnings;
+  if (incomplete) {
+    warnings.push("Cycle-specific payouts are unavailable: confirm Investment_Master monthly ROI terms, funded dates and unique CLIENTS payout dates. The old run-rate comparison is not a verified amount due.");
+    return;
+  }
+  var payments = transactions.filter(function(row) { return ["payout", "interest", "interest_credit", "monthly_return", "monthly_payout"].indexOf(row.type) >= 0; });
+  function periodBalance(period) {
+    var due = Object.create(null);
+    Object.keys(profiles).forEach(function(id) {
+      if (duplicates[id]) return;
+      var date = adminPayoutDueDate(profiles[id].payoutDate, period);
+      if (!date) return;
+      var principal = 0;
+      var coupon = 0;
+      funded.forEach(function(row) {
+        if (normalizeText(row.clientId) !== id || row.startDate > date) return;
+        principal += row.principalAmount;
+        // The verified workbook starts each deposit's first payout in the following calendar month.
+        if (row.startDate.slice(0, 7) < period && (!row.maturityDate || row.maturityDate >= date)) coupon += row.principalAmount * row.monthlyPayoutRate / 100;
+      });
+      var withdrawn = history.reduce(function(total, row) {
+        var paidDate = adminCalendarDay(row.paymentDate);
+        return normalizeText(row.clientId) === id && paidDate <= today && paidDate <= date ? total + row.amount : total;
+      }, 0);
+      due[id] = { clientId: profiles[id].clientId, monthlyReturn: principal ? coupon * Math.max(0, 1 - withdrawn / principal) : 0 };
+    });
+    var schedule = Object.keys(due).map(function(id) { return due[id]; });
+    return { scheduled: sum(schedule, "monthlyReturn"), balance: buildAdminPayoutRemainder(schedule, payments, sum(schedule, "monthlyReturn"), now, warnings, clients, [], period) };
+  }
+  var current = periodBalance(month);
+  var upcoming = periodBalance(nextMonth);
+  if (current.balance.remaining === null || upcoming.balance.remaining === null) return;
+  analytics.payoutCalendarReady = true;
+  analytics.payoutScheduleSource = "investment_calendar";
+  analytics.payoutEstimateMissingRecords = 0;
+  analytics.estimatedMonthlyPayout = Math.round(current.scheduled * 100) / 100;
+  analytics.paidMonthlyPayout = current.balance.paid;
+  analytics.remainingMonthlyPayout = current.balance.remaining;
+  analytics.pendingPayouts = current.balance.clients;
+  analytics.upcomingPayouts = upcoming.balance.clients;
+  analytics.upcomingPayoutAmount = upcoming.balance.remaining;
+  analytics.pendingPayoutWarnings = current.balance.warnings.concat(upcoming.balance.warnings);
+  analytics.warnings = analytics.warnings.filter(function(warning) {
+    return warning.indexOf("of recorded payouts exceeds or has no matching client schedule this month;") < 0
+      && warning.indexOf("The current-month payout estimate is unavailable") !== 0
+      && warning !== "Investment payout terms are missing for the recorded invested balance.";
+  }).concat(warnings);
 }
 
 function buildAdminPortfolioHistory(events, transactions, now, warnings) {
@@ -782,6 +933,8 @@ function mapAdminInvestment(row) {
   var explicitMonthly = first(row, ["Monthly Return", "Monthly Payout", "Monthly Interest", "Monthly Payout Amount"]);
   var parsedMonthly = adminMoney(explicitMonthly, NaN);
   result.monthlyReturn = isFinite(parsedMonthly) ? parsedMonthly : undefined;
+  var explicitMonthlyRate = adminMoney(first(row, ["Monthly ROI %", "Monthly ROI", "Monthly Return Rate %"]), NaN);
+  result.monthlyPayoutRate = isFinite(explicitMonthlyRate) ? explicitMonthlyRate : undefined;
   return result;
 }
 

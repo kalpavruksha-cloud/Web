@@ -40,6 +40,32 @@ component calculations.
 
 ## Payout Requirements
 
+### Payout Estimate Drill-Down (V27)
+
+At the owner's request, Reports separates Pending This Month and Upcoming Payouts.
+The two cards open current/next-period client lists with names, scheduled/recorded/
+balance amounts, CLIENTS dates, status, search and CSV export. No financial record
+or spreadsheet formula is changed. The calendars reuse one admin snapshot.
+
+V27 uses verified Investment_Master monthly ROI percentage points and funding
+dates. The workbook pays each deposit first in the following calendar month, so
+new funding no longer inflates the current-month pending balance. Withdrawals are
+applied proportionally at the cycle's date; future-dated records are excluded.
+Next month includes all eligible clients and explicit prepayments for that period.
+These remain ledger-based estimates, not independently verified bank debt.
+Missing terms or unique recurring CLIENTS dates make the calendar unavailable;
+generic ROI is never assumed monthly. No partial or fabricated totals are shown.
+
+The old DASHBOARD monthlyPayout column remains the current monthly run-rate.
+It is not used as the current cycle's due balance. When calendar-ready,
+payoutScheduleSource is investment_calendar and existing admin schedule/remainder
+fields describe the current cycle. Client portal calculations are unchanged.
+
+Deploy the updated complete Code.gs as a new version of the existing deployment:
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_29_PENDING_PAYOUT_CLIENTS_V27`.
+Then publish the frontend. Older deployments show an explicit unavailable message,
+not a fabricated empty list. No new spreadsheet tab or API route is required.
+
 V22 prefers each client's explicit DASHBOARD Monthly Payout amount for the
 monthly schedule and remainder. It does not add investment-master amounts again.
 A missing/error/negative payout in an existing DASHBOARD schedule makes the
@@ -108,9 +134,45 @@ Admin linked-record matching trims and ignores case but never rewrites client co
 
 ## Deployment and Verification
 
+### Admin Chart Rendering And Payout History (2026-10-29)
+
+- Admin charts measure their container and pass explicit numeric canvas dimensions
+  to Recharts. Temporary zero-width animated panels retain their last usable
+  width. Window resize remains supported when ResizeObserver is unavailable.
+- Withdrawal, payout and flow charts expose a selectable-period values table
+  alongside the visual chart. Values come from the same backend analytics series;
+  the frontend does not substitute generated payments for missing source data.
+- The shared admin overview refreshes every 60 seconds while visible, on reconnect,
+  and on focus when stale after 30 seconds. Dashboard, Reports and Payout History
+  share one query and retain their existing snapshot during background refreshes.
+  Client query defaults and authentication are unchanged.
+- `/admin/payout-history` uses the existing admin-protected `/dashboard` response.
+  No backend API or Apps Script action was duplicated or added. Payout/interest
+  ledger entries and reversals are joined by normalized exact client ID to the
+  existing profile and backend `adminClientSummaries`.
+- Filters cover client name/ID, posting status, payout date range, net payout
+  range, current client investment/withdrawal ranges, client plan context and sort.
+  Default selection is posted/completed ledger entries, including Approved ledger
+  records, not pending withdrawal approvals. Twenty rows are paginated on screen;
+  CSV and print include every filtered row, not only the visible page.
+- Investment, withdrawal and portfolio columns are current client totals from the
+  backend, not historical balances on each payout date. They are never added up
+  across repeated payout rows. Missing amounts stay unavailable rather than zero.
+- Client plan names come only from actual client-linked investment records. They
+  are context, not an allocation of a cumulative payout to a particular plan.
+  Investment_Master without plan links displays Not linked; never infer a client
+  plan from the investment-plan catalogue or a matching amount.
+- Raw numeric payout precision is preserved in exports; screen currency formatting
+  does not rewrite source records. CSV text cells guard against formula injection.
+- PWA static-cache version is v21. API responses remain network-only and no
+  business data or authentication is cleared for the asset update.
+- This release is frontend-only: no spreadsheet formula edits or Code.gs redeploy
+  are needed. Publish the client build through the existing GitHub/Vercel workflow.
+  A live authenticated UI check is still required after deployment.
+
 Deploy the complete `google-apps-script/Code.gs` as a new version of the existing
 deployment. Expected marker:
-`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_28_APPROVED_LEDGER_CHARTS_V26`.
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_29_PENDING_PAYOUT_CLIENTS_V27`.
 
 Sign in as admin, open Dashboard then Reports, and verify matching card values.
 Check monthly investment against dated Investment_Master amounts for the

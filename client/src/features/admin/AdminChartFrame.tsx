@@ -1,9 +1,24 @@
-import type { ReactElement } from "react";
-import { ResponsiveContainer } from "recharts";
+import { cloneElement, useLayoutEffect, useRef, useState, type ReactElement } from "react";
 
 export function AdminChartFrame({ children, height = 288 }: { children: ReactElement; height?: number }) {
-  return <div className="w-full min-w-0" style={{ height, minWidth: 0 }}>
-    <ResponsiveContainer width="100%" height={height} minWidth={0} minHeight={height}>{children}</ResponsiveContainer>
+  const frame = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(320);
+  useLayoutEffect(() => {
+    const element = frame.current;
+    if (!element) return;
+    const measure = () => {
+      const next = Math.floor(element.getBoundingClientRect().width);
+      // Animated/hidden panels can report zero temporarily. Retain the last usable canvas.
+      if (next > 0) setWidth((previous) => previous === next ? previous : next);
+    };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
+    observer?.observe(element);
+    window.addEventListener("resize", measure);
+    return () => { observer?.disconnect(); window.removeEventListener("resize", measure); };
+  }, []);
+  return <div ref={frame} className="w-full min-w-0 overflow-hidden" style={{ height, minWidth: 0 }}>
+    {cloneElement(children as ReactElement<{ width: number; height: number }>, { width, height })}
   </div>;
 }
 

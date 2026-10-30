@@ -88,6 +88,7 @@ export function AdminTransactionFlowChart({ analytics }: { analytics?: AdminFina
     <div className="mb-4 max-w-xs"><Field label="Transaction Year"><Select value={year} onChange={(event) => setSelectedYear(Number(event.target.value))}>{years.map((value) => <option key={value} value={value}>{value}</option>)}</Select></Field></div>
     {hasBreakdown ? <>
       <AdminChartFrame><BarChart data={points} margin={{ top: 12, right: 8, left: 0, bottom: 0 }} accessibilityLayer><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" vertical={false} /><XAxis dataKey="label" minTickGap={12} /><YAxis width={66} tickFormatter={moneyAxis} /><Tooltip formatter={(value, name) => [formatCurrency(Number(value)), name]} /><Legend /><Bar dataKey="credit" name="Credit" fill="#1e7b54" radius={[5, 5, 0, 0]} maxBarSize={30} isAnimationActive={false} /><Bar dataKey="debit" name="Debit" fill="#b68b22" radius={[5, 5, 0, 0]} maxBarSize={30} isAnimationActive={false} /></BarChart></AdminChartFrame>
+      <ChartValues points={points} columns={[{ key: "credit", label: "Credit" }, { key: "debit", label: "Debit" }, { key: "net", label: "Net" }]} />
       {!points.some((point) => point.count > 0 || point.credit !== 0 || point.debit !== 0) && <p role="status" className="mt-2 text-sm text-charcoal/65 dark:text-white/65">No completed transactions are recorded for this period.</p>}
     </> : <><MoneyBarChart points={legacyPoints} color="#153bb7" /><p role="status" className="mt-3 text-sm text-amber-800 dark:text-gold-100">Only net flow is available from this deployment. Deploy Apps Script V24 for separate credit and debit bars.</p></>}
   </AdminCard>;
@@ -104,6 +105,19 @@ const moneyAxis = (value: number) => `\u20b9${Number((value / 1000).toFixed(1))}
 
 function MoneyBarChart({ points, color }: { points: Array<{ label: string; amount: number }>; color: string }) {
   return <><AdminChartFrame><BarChart data={points} margin={{ top: 12, right: 8, left: 0, bottom: 0 }} accessibilityLayer><CartesianGrid strokeDasharray="3 3" stroke="#d6ecde" vertical={false} /><XAxis dataKey="label" minTickGap={12} /><YAxis width={66} tickFormatter={moneyAxis} /><Tooltip formatter={(value) => [formatCurrency(Number(value)), "Amount"]} /><Bar dataKey="amount" fill={color} radius={[5, 5, 0, 0]} maxBarSize={40} isAnimationActive={false} /></BarChart></AdminChartFrame>
+    <ChartValues points={points} columns={[{ key: "amount", label: "Amount" }]} />
     {!points.some((point) => point.amount !== 0) && <p role="status" className="mt-2 text-sm text-charcoal/65 dark:text-white/65">No completed activity is recorded for this period.</p>}
   </>;
+}
+
+function ChartValues({ points, columns }: { points: Array<{ label: string; [key: string]: string | number }>; columns: Array<{ key: string; label: string }> }) {
+  const [open, setOpen] = useState(false);
+  return <details onToggle={(event) => setOpen(event.currentTarget.open)} className="mt-3 border-t border-forest-100 pt-3 text-sm dark:border-white/10">
+    <summary className="cursor-pointer font-semibold text-forest-800 dark:text-gold-100">View chart values</summary>
+    {open && <div className="mt-3 max-h-64 overflow-auto"><table className="w-full text-left text-xs">
+      <caption className="sr-only">Values for the selected chart period</caption>
+      <thead><tr><th scope="col" className="p-2">Period</th>{columns.map((column) => <th key={column.key} scope="col" className="p-2 text-right">{column.label}</th>)}</tr></thead>
+      <tbody>{points.map((point) => <tr key={point.label} className="border-t border-forest-100 dark:border-white/10"><th scope="row" className="p-2 font-medium">{point.label}</th>{columns.map((column) => <td key={column.key} className="p-2 text-right tabular-nums">{formatCurrency(Number(point[column.key]))}</td>)}</tr>)}</tbody>
+    </table></div>}
+  </details>;
 }

@@ -1,5 +1,27 @@
 # Google Apps Script Integration
 
+## Payout Estimate Clients (V27)
+
+The existing admin dashboard response separates current-calendar-month balances
+from next month's estimated payouts, with names and dates from CLIENTS. No new
+API, sheet, financial write or authentication flow is added. Verified
+Investment_Master monthly ROI percentage points and funded dates supply the
+calendar. The workbook starts each deposit's first payout the following calendar
+month. Recorded master withdrawals reduce principal proportionally as of the
+cycle date, consistent with the workbook; explicit maturity dates are respected.
+
+Posted payments, reversals and payout-period allocations reduce only the matching
+client's period balance. Future-dated payments are excluded. Upcoming estimates
+include all eligible clients, not only new deposits, and assume no future source
+changes. Missing terms/dates make the calendar unavailable, not zero. Generated
+Approved ledger rows are not independent proof of bank settlement.
+
+Latest expected marker:
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_29_PENDING_PAYOUT_CLIENTS_V27`.
+Replace the complete Code.gs, save and deploy a New version of the existing Web
+App, retaining the URL. Publish the frontend through the existing GitHub/Vercel
+workflow. Publishing this repository does not update Apps Script automatically.
+
 ## Verified Approved Ledger Status (V26)
 
 The owner-authorized read-only workbook audit found that all populated

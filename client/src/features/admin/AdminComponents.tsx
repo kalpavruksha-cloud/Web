@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  Banknote,
   FileText,
   HeartPulse,
   Home,
@@ -38,6 +39,7 @@ const navItems = [
   { to: "/admin/clients", label: "Clients", icon: Users },
   { to: "/admin/investments", label: "Investments", icon: Landmark },
   { to: "/admin/transactions", label: "Transactions", icon: WalletCards },
+  { to: "/admin/payout-history", label: "Payout History", icon: Banknote },
   { to: "/admin/withdrawals", label: "Withdrawals", icon: Activity },
   { to: "/admin/documents", label: "Documents", icon: FileText },
   { to: "/admin/referrals", label: "Referrals", icon: Users },
@@ -89,7 +91,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
-      <div className={cn("min-h-screen transition-all", !standaloneApp && (collapsed ? "lg:pl-24" : "lg:pl-72"))}>
+      <div className={cn("admin-layout-content min-h-screen transition-all", !standaloneApp && (collapsed ? "lg:pl-24" : "lg:pl-72"))}>
         <header className="no-print sticky top-0 z-30 border-b border-white/50 bg-white/72 px-3 py-2.5 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-navy-950/72 sm:px-4 lg:px-8 lg:py-3">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             <div className="flex min-w-0 items-center gap-3">
@@ -176,7 +178,7 @@ export function StatusBadge({ value }: { value?: string | boolean }) {
   return <span className={cn("inline-flex rounded-full border px-3 py-1.5 text-xs font-extrabold shadow-sm", tone)}>{text}</span>;
 }
 
-export function AdminTable<T>({ rows, columns, searchPlaceholder = "Search records", filters, pageSize = 10 }: { rows: T[]; columns: Column<T>[]; searchPlaceholder?: string; filters?: Array<{ label: string; value: string; predicate: (row: T) => boolean }>; pageSize?: number }) {
+export function AdminTable<T>({ rows, columns, searchPlaceholder = "Search records", filters, pageSize = 10, searchable = true, printAllRows = false }: { rows: T[]; columns: Column<T>[]; searchPlaceholder?: string; filters?: Array<{ label: string; value: string; predicate: (row: T) => boolean }>; pageSize?: number; searchable?: boolean; printAllRows?: boolean }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -194,25 +196,25 @@ export function AdminTable<T>({ rows, columns, searchPlaceholder = "Search recor
 
   return (
     <div>
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <label className="flex min-w-0 max-w-xl flex-1 items-center gap-2 rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5">
+      {(searchable || filters) && <div className="no-print mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        {searchable && <label className="flex min-w-0 max-w-xl flex-1 items-center gap-2 rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5">
           <Search className="h-4 w-4 text-charcoal/45 dark:text-white/45" />
           <span className="sr-only">Search</span>
           <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder={searchPlaceholder} className="w-full bg-transparent" />
-        </label>
+        </label>}
         {filters && (
           <select value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1); }} className="rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm font-semibold dark:border-white/10 dark:bg-charcoal">
             <option value="all">All records</option>
             {filters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         )}
-      </div>
+      </div>}
       <div className="overflow-x-auto rounded-[18px] border border-white/60 bg-white/80 shadow-glass backdrop-blur dark:border-white/10 dark:bg-white/7">
         <table className="min-w-full text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[linear-gradient(90deg,#08152f,#153bb7_54%,#d7ab3d)] text-xs uppercase text-white shadow-sm">
             <tr>{columns.map((column) => <th key={column.key} className="whitespace-nowrap px-5 py-4 font-extrabold tracking-[0.08em]">{column.header}</th>)}</tr>
           </thead>
-          <tbody className="divide-y divide-forest-100 dark:divide-white/10">
+          <tbody className={cn("divide-y divide-forest-100 dark:divide-white/10", printAllRows && "print:hidden")}>
             {visible.length === 0 ? (
               <tr><td colSpan={columns.length} className="px-4 py-10 text-center text-charcoal/60 dark:text-white/60">No spreadsheet records match this view.</td></tr>
             ) : visible.map((row, index) => (
@@ -221,14 +223,15 @@ export function AdminTable<T>({ rows, columns, searchPlaceholder = "Search recor
               </tr>
             ))}
           </tbody>
+          {printAllRows && <tbody className="hidden print:table-row-group">{filtered.map((row, index) => <tr key={index}>{columns.map((column) => <td key={column.key} className="border-b p-2 text-xs">{column.render(row)}</td>)}</tr>)}</tbody>}
         </table>
       </div>
-      <div className="mt-4 flex flex-col justify-between gap-3 text-sm text-charcoal/60 dark:text-white/60 sm:flex-row sm:items-center">
+      <div className="no-print mt-4 flex flex-col justify-between gap-3 text-sm text-charcoal/60 dark:text-white/60 sm:flex-row sm:items-center">
         <span>{filtered.length} records from spreadsheet</span>
         <div className="flex items-center gap-2">
-          <button onClick={() => setPage((value) => Math.max(value - 1, 1))} className="rounded-lg border border-forest-100 px-3 py-2 font-semibold dark:border-white/10">Previous</button>
+          <button disabled={page <= 1} onClick={() => setPage((value) => Math.max(value - 1, 1))} className="rounded-lg border border-forest-100 px-3 py-2 font-semibold disabled:opacity-40 dark:border-white/10">Previous</button>
           <span className="font-bold text-forest-900 dark:text-ivory">Page {Math.min(page, pageCount)} of {pageCount}</span>
-          <button onClick={() => setPage((value) => Math.min(value + 1, pageCount))} className="rounded-lg border border-forest-100 px-3 py-2 font-semibold dark:border-white/10">Next</button>
+          <button disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(value + 1, pageCount))} className="rounded-lg border border-forest-100 px-3 py-2 font-semibold disabled:opacity-40 dark:border-white/10">Next</button>
         </div>
       </div>
     </div>
