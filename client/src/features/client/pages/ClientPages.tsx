@@ -24,6 +24,7 @@ import type { AccountOverview, Agreement, BankDetails, ClientDashboardData, Clie
 import { downloadBase64File, exportCsv, maskLastFour, profileCompletion, statusText } from "../clientUtils";
 import { fallbackFaqs } from "../config/faqs";
 import { ClientPortfolioChart } from "../ClientPortfolioChart";
+import { KycPanel } from "../../kyc/KycPanel";
 
 const documentCategories = ["Aadhaar Card", "PAN Card", "Agreement", "Cancelled Cheque", "Address Proof", "Bank Proof", "Investment Receipt", "Tax Document", "Nominee Proof", "Other"];
 
@@ -295,7 +296,13 @@ export function ClientProfilePage() {
   const data = profile.data;
   const profilePhoto = uploadedPhoto || profileImageSource(data);
   async function submit(event: FormEvent) { event.preventDefault(); await mutation.mutateAsync({ method: "put", url: "/client/profile", body: form }); toast({ title: "Profile update submitted", type: "success" }); }
-  return <ClientPage title="Profile" eyebrow={data?.clientId}><div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]"><ClientCard><div className="flex items-center gap-4">{profilePhoto ? <img src={profilePhoto} alt="" className="h-24 w-24 rounded-full object-cover" /> : <UserCircle className="h-24 w-24 text-forest-700" />}<div><h2 className="font-display text-2xl font-extrabold">{data?.fullName}</h2><p className="text-sm text-charcoal/62 dark:text-white/62">{data?.clientId}</p><ClientStatus value={data?.kycStatus} /></div></div><div className="mt-5"><FileUpload label="Upload profile photo" category="Profile" endpoint="/client/profile/photo" onUploaded={(payload) => { const nextPhoto = String((payload as { profilePhotoPreviewUrl?: string })?.profilePhotoPreviewUrl ?? ""); if (nextPhoto) setUploadedPhoto(nextPhoto); void profile.refetch(); }} /></div></ClientCard><ClientCard><form onSubmit={submit} className="grid gap-3 md:grid-cols-2"><EditableProfileFields data={data} form={form} setForm={setForm} /><ClientField label="Action"><ClientButton type="submit" disabled={mutation.isPending}>Save Editable Fields</ClientButton></ClientField></form></ClientCard></div></ClientPage>;
+  return <ClientPage title="Profile" eyebrow={data?.clientId}>
+    <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+      <ClientCard><div className="flex items-center gap-4">{profilePhoto ? <img src={profilePhoto} alt="" className="h-24 w-24 rounded-full object-cover" /> : <UserCircle className="h-24 w-24 text-forest-700" />}<div><h2 className="font-display text-2xl font-extrabold">{data?.fullName}</h2><p className="text-sm text-charcoal/62 dark:text-white/62">{data?.clientId}</p><ClientStatus value={data?.kycStatus} /></div></div><div className="mt-5"><FileUpload label="Upload profile photo" category="Profile" endpoint="/client/profile/photo" onUploaded={(payload) => { const nextPhoto = String((payload as { profilePhotoPreviewUrl?: string })?.profilePhotoPreviewUrl ?? ""); if (nextPhoto) setUploadedPhoto(nextPhoto); void profile.refetch(); }} /></div></ClientCard>
+      <ClientCard><form onSubmit={submit} className="grid gap-3 md:grid-cols-2"><EditableProfileFields data={data} form={form} setForm={setForm} /><ClientField label="Action"><ClientButton type="submit" disabled={mutation.isPending}>Save Editable Fields</ClientButton></ClientField></form></ClientCard>
+    </div>
+    {data?.clientId && <KycPanel key={data.clientId} clientId={data.clientId} />}
+  </ClientPage>;
 }
 
 export function ClientNotificationsPage() {

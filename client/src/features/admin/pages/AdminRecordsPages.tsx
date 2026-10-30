@@ -6,6 +6,7 @@ import { useAction, useDashboard, useResource } from "../../../api/queries";
 import { useAdminOverview } from "../useAdminOverview";
 import { AdminOverviewCards } from "../AdminOverviewCards";
 import { AdminPendingPayouts } from "../AdminPendingPayouts";
+import { KycPanel } from "../../kyc/KycPanel";
 import { AdminMoneyCharts, AdminPayoutChart, AdminTransactionFlowChart } from "../AdminMoneyCharts";
 import { AdminChartFrame } from "../AdminChartFrame";
 import { ErrorState } from "../../../components/State";
@@ -19,7 +20,7 @@ export function AdminClients() {
   const { data, isLoading, error } = useResource<Profile[]>("admin-clients", "/clients");
   const mutation = useAction<Profile>(["admin-clients", "clients", "dashboard"]);
   const { toast } = useToast();
-  const [form, setForm] = useState({ clientId: "", fullName: "", mobile: "", email: "", pan: "", aadhaar: "", kycStatus: "pending", accountStatus: "active" });
+  const [form, setForm] = useState({ clientId: "", fullName: "", mobile: "", email: "", accountStatus: "active" });
 
   if (isLoading) return <AdminLoading label="Loading client records" />;
   if (error) return <ErrorState title="Client records unavailable" message={error instanceof Error ? error.message : undefined} />;
@@ -39,19 +40,16 @@ export function AdminClients() {
   return (
     <AdminPage title="Client Management" actions={<CommandButton tone="secondary" onClick={() => exportCsv("clients.csv", rows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> Export</CommandButton>}>
       <AdminCard className="mb-6">
-        <form onSubmit={submit} className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <form onSubmit={submit} className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
           <Field label="Client ID"><Input value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })} /></Field>
           <Field label="Name"><Input required value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></Field>
           <Field label="Mobile"><Input value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} /></Field>
           <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-          <Field label="PAN"><Input value={form.pan} onChange={(e) => setForm({ ...form, pan: e.target.value })} /></Field>
-          <Field label="Aadhaar"><Input value={form.aadhaar} onChange={(e) => setForm({ ...form, aadhaar: e.target.value })} /></Field>
-          <Field label="KYC"><Select value={form.kycStatus} onChange={(e) => setForm({ ...form, kycStatus: e.target.value })}><option>pending</option><option>verified</option><option>rejected</option></Select></Field>
           <Field label="Action"><CommandButton type="submit" disabled={mutation.isPending}><Plus className="h-4 w-4" /> Create</CommandButton></Field>
         </form>
       </AdminCard>
       <AdminCard>
-        <AdminTable rows={rows} searchPlaceholder="Search clients by ID, name, PAN, mobile" filters={[
+        <AdminTable rows={rows} searchPlaceholder="Search clients by ID, name, email, mobile" filters={[
           { label: "Active", value: "active", predicate: (row) => isStatus(row.accountStatus, "active") },
           { label: "Inactive", value: "inactive", predicate: (row) => isStatus(row.accountStatus, "inactive") },
           { label: "Pending KYC", value: "kyc", predicate: (row) => !isStatus(row.kycStatus, "verified") }
@@ -64,7 +62,7 @@ export function AdminClients() {
           { key: "aadhaar", header: "Aadhaar", render: (row) => row.aadhaar },
           { key: "kyc", header: "KYC", render: (row) => <StatusBadge value={row.kycStatus} /> },
           { key: "status", header: "Status", render: (row) => <StatusBadge value={row.accountStatus} /> },
-          { key: "actions", header: "Actions", render: (row) => <div className="flex gap-2"><Link className="rounded-lg border border-forest-100 px-3 py-2 text-sm font-bold dark:border-white/10" to={`/admin/clients/${row.clientId}`}>View</Link><CommandButton tone="secondary" onClick={() => updateStatus(row.clientId, "active")}>Activate</CommandButton><CommandButton tone="danger" onClick={() => updateStatus(row.clientId, "inactive")}>Deactivate</CommandButton></div> }
+          { key: "actions", header: "Actions", render: (row) => <div className="flex gap-2"><Link className="rounded-lg border border-forest-100 px-3 py-2 text-sm font-bold dark:border-white/10" to={`/admin/clients/${encodeURIComponent(row.clientId)}`}>View / Review KYC</Link><CommandButton tone="secondary" onClick={() => updateStatus(row.clientId, "active")}>Activate</CommandButton><CommandButton tone="danger" onClick={() => updateStatus(row.clientId, "inactive")}>Deactivate</CommandButton></div> }
         ]} />
       </AdminCard>
     </AdminPage>
@@ -103,6 +101,7 @@ export function AdminClientDetails() {
         <InfoCard label="KYC" value={<StatusBadge value={client.kycStatus} />} />
         <InfoCard label="Status" value={<StatusBadge value={client.accountStatus} />} />
       </div>
+      <KycPanel key={client.clientId} clientId={client.clientId} admin />
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <AdminCard><SectionTitle title="Profile" /><DetailGrid items={client as unknown as Record<string, unknown>} /></AdminCard>
         <AdminCard><SectionTitle title="Investments" /><MiniList rows={clientInvestments.map((row) => `${row.id} - ${row.plan} - ${formatCurrency(row.principalAmount)}`)} /></AdminCard>

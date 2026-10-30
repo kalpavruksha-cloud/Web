@@ -13,6 +13,7 @@ import {
   updateProfile
 } from "../controllers/dataController.js";
 import { clientRead, clientUpload, clientWrite, rejectClientIdOverride } from "../controllers/clientController.js";
+import { kycHandler } from "../controllers/kycController.js";
 import { health, spreadsheetSchema, startup } from "../controllers/systemController.js";
 import { authenticate, clientScope, requireRole } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
@@ -66,6 +67,8 @@ apiRouter.put("/client/documents/:id/replace", validate(clientUploadSchema), asy
 apiRouter.delete("/client/documents/:id", validate(idParamSchema), asyncHandler(clientWrite("archiveClientDocument")));
 apiRouter.get("/client/referrals", asyncHandler(clientRead("getReferrals")));
 apiRouter.get("/client/profile", asyncHandler(clientRead("getProfile")));
+apiRouter.get("/client/kyc", asyncHandler(kycHandler("getKyc")));
+apiRouter.put("/client/kyc", asyncHandler(kycHandler("saveKyc")));
 apiRouter.put("/client/profile", validate(profileUpdateSchema), asyncHandler(clientWrite("updateProfile")));
 apiRouter.post("/client/profile/photo", validate(clientUploadSchema), asyncHandler(clientUpload("uploadProfilePhoto")));
 apiRouter.delete("/client/profile/photo", asyncHandler(clientWrite("removeProfilePhoto")));
@@ -82,6 +85,9 @@ apiRouter.get("/profile", asyncHandler(getProfile));
 apiRouter.put("/profile", validate(profileUpdateSchema), clientScope, asyncHandler(updateProfile));
 
 apiRouter.get("/clients", requireRole("admin"), asyncHandler(list("clients")));
+apiRouter.get("/clients/:id/kyc", requireRole("admin"), validate(idParamSchema), asyncHandler(kycHandler("getKyc", true)));
+apiRouter.put("/clients/:id/kyc", requireRole("admin"), validate(idParamSchema), asyncHandler(kycHandler("saveKyc", true)));
+apiRouter.put("/clients/:id/kyc/review", requireRole("admin"), validate(idParamSchema), asyncHandler(kycHandler("reviewKyc", true)));
 apiRouter.get("/clients/:id", requireRole("admin"), validate(idParamSchema), asyncHandler(getById("clients")));
 apiRouter.post("/clients", requireRole("admin"), asyncHandler(create("clients")));
 apiRouter.put("/clients/:id", requireRole("admin"), validate(idParamSchema), asyncHandler(update("clients")));

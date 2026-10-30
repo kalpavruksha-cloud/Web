@@ -21,6 +21,45 @@ inactive/pending-account enforcement remain unchanged.
 
 ## Client and Admin Data
 
+### KYC Review (V29)
+
+The existing login cookie and role middleware protect these endpoints in Express
+and the Vercel entrypoint. All KYC responses use `Cache-Control: no-store`.
+
+| Endpoint | Permission | Purpose |
+| --- | --- | --- |
+| `GET /api/client/kyc` | Client | Own identity details, revision and supporting documents |
+| `PUT /api/client/kyc` | Client | Submit own PAN/Aadhaar for review |
+| `GET /api/clients/:id/kyc` | Admin | Review a selected client's details/documents |
+| `PUT /api/clients/:id/kyc` | Admin | Correct details before review |
+| `PUT /api/clients/:id/kyc/review` | Admin | Verify, reject or reopen |
+
+Number submissions require `{expectedRevision, pan, aadhaar?}`. PAN is normalized
+to uppercase; Aadhaar spaces are stripped. Omitting Aadhaar retains its saved
+value. A first submission requires both numbers. Format validation does not prove
+identity. Verified details must first be reopened by an admin.
+
+Review accepts `{expectedRevision, decision, remarks?, panDocumentId?,
+aadhaarDocumentId?, confirmDocumentsReviewed?}`. `decision` is `verified`,
+`rejected` or `pending` (reopen). Verification requires both active, client-linked
+PAN/Aadhaar document IDs and `confirmDocumentsReviewed: true`. Rejection/reopening
+requires remarks. Concurrent/evidence changes return 409 KYC_REVISION_CONFLICT.
+Unknown body keys, including role/client scope overrides, are rejected.
+
+Client responses include PAN and `aadhaarLast4`/`aadhaarConfigured`, never full
+saved Aadhaar. Full Aadhaar is restricted to focused admin KYC reads; general
+profiles/lists return masked identity fields. KYC responses also include status,
+remarks, verification date/actor, revision, selected document IDs and document
+metadata. No identity numbers appear in audit messages or request logs.
+
+Apps Script actions `getKyc`, `saveKyc`, `reviewKyc` use POST and an expiring
+HMAC-SHA256 proof bound to action, actor, role, client, revision and submitted
+evidence. Apps Script `PORTAL_JWT_SECRET` must match backend `JWT_SECRET`. Proofs
+are server-only and never URL query parameters. Older deployments return a safe
+KYC_DEPLOYMENT_REQUIRED message; missing setup fails closed. Other existing APIs,
+login and JWT issuance are unchanged. Generic profile/client writes cannot set
+identity numbers or KYC verification status; use these dedicated endpoints.
+
 - `GET /api/dashboard`
 - `GET /api/profile`
 - `PUT /api/profile`

@@ -1,8 +1,43 @@
 # Google Apps Script Integration
 
+## Admin KYC Review (V29)
+
+Latest marker: `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_30_ADMIN_KYC_REVIEW_V29`.
+V29 includes V28 and all earlier fixes. Replace the complete Code.gs; do not paste
+only the new functions. Keep the existing spreadsheet and Web App deployment URL.
+
+Before deploying, open **Project Settings > Script Properties** and add
+`PORTAL_JWT_SECRET` with the exact current backend/Vercel `JWT_SECRET` value.
+Copy it privately; never put it in Code.gs, the spreadsheet, a public URL, a client
+environment variable, a screenshot or a Git commit. This property signs only the
+new server-to-script KYC requests; existing login, JWT cookies and sessions are
+unchanged. If the backend secret is rotated, update this property to match.
+
+Save, then **Deploy > Manage deployments > Edit > New version > Deploy**, executing
+as the owner with backend access. `?action=deploymentTest` must return the V29
+marker and `kycSigningConfigured: true`. This boolean confirms a configured
+32-character-or-longer property, not a successful secret match; verify a legitimate
+signed-in KYC read afterwards. Publishing GitHub/Vercel does not deploy Apps Script.
+
+- Client: **Profile > PAN & Aadhaar Details**, submit numbers; supporting scans
+  continue to use the existing Documents upload flow.
+- Admin: **Clients > View / Review KYC > KYC Verification**. Compare the entered
+  numbers with the selected client-owned PAN and Aadhaar documents, check the
+  review confirmation, choose Verify KYC and confirm. Reject/reopen requires a
+  reason. This is manual document review, not government identity verification.
+- The existing KYC tab is the status authority. Uploading a file alone never
+  verifies a client. No real client is automatically approved by deployment.
+- New KYC writes add audit/evidence columns only in the existing KYC tab. They
+  update the selected DOCUMENTS statuses and append an ACTIVITY_LOG action. No
+  investment, transaction, dashboard formula or credential is rewritten.
+- Verified numbers are locked until admin reopens review. Identity-evidence
+  changes make the status under_review. Stale revisions and duplicate records
+  fail closed. Client responses contain only Aadhaar's last four digits; full
+  Aadhaar is available only to the focused admin review endpoint.
+
 ## Email Login and Registration Totals (V28)
 
-Latest expected marker:
+Historical V28 marker (included in V29):
 `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_30_EMAIL_LOGIN_DASHBOARD_FORMULAS_V28`.
 
 Replace the complete Code.gs and deploy a New version of the existing Web App.

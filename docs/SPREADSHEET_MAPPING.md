@@ -6,6 +6,44 @@
 - Apps Script URL in local env: `https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec`
 - Backend remains the only browser-facing integration layer.
 
+## KYC Authority and Manual Review (V29)
+
+Read-only header inspection on 30 October 2026 confirmed the existing KYC tab has
+`ClientId`, `PAN`, `Aadhaar`, `KYCStatus`, `VerificationDate`, `Remarks`. CLIENTS
+does not contain PAN/Aadhaar columns. DOCUMENTS has `DocumentId`, `ClientId`,
+`DocumentType`, `FileURL`, `UploadDate`, `Status`, `Name`, `Category`, file metadata,
+`Admin Remarks`, `UploadedBy`, `IsActive`. ACTIVITY_LOG has Timestamp, User, Role,
+Action, Module, RecordId, RequestId. No customer identity values were read for this
+inspection and no customer KYC records were changed during implementation.
+
+Previously profile/client views looked for KYC fields in CLIENTS while dashboard
+counts used KYC. V29 joins KYC to CLIENTS by normalized ClientId for both roles
+and counts the resulting effective status. Blank records are pending, not verified.
+Duplicate KYC rows produce review_required in general views and block focused
+review until an administrator resolves the duplicate. Legacy approved/verified
+KYC statuses remain recognized; uploading a document alone is not approval.
+
+Authorized number submissions update only that client's existing KYC record, or
+append one if absent. PAN/Aadhaar cells use text format. Existing header aliases
+are preserved. New review writes append these columns if absent: `Verified By`,
+`Verified Evidence`, `PAN Document ID`, `Aadhaar Document ID`, `Updated At`,
+`Updated By`. They do not write identity numbers into CLIENTS or financial tabs.
+No new spreadsheet or business database is created.
+
+Supporting evidence comes from active, client-owned PAN/Aadhaar DOCUMENTS rows,
+matched by explicit Category/DocumentType aliases. Rejected, archived, deleted
+or inactive evidence cannot be approved. Manual verification updates the two
+selected document statuses/remarks and KYC decision/actor/time/evidence. The
+ACTIVITY_LOG stores the action and client ID, never identity numbers. Saved
+revision/evidence hashes block stale reviews and invalidate approval when identity
+numbers or supporting documents change. File bytes/Drive storage are unchanged.
+
+General profile/list data masks PAN/Aadhaar. Client KYC reads return only saved
+Aadhaar's last four digits; focused admin KYC reads can return full Aadhaar for
+manual comparison. New KYC actions require server-signed POSTs. Set Apps Script
+`PORTAL_JWT_SECRET` privately to the current backend JWT_SECRET; no secret goes
+in the workbook or repository. Format validation is not government verification.
+
 ## Email Identity and Registration Formula Mapping (V28)
 
 The 30 October 2026 read-only inspection verified CLIENTS headers including

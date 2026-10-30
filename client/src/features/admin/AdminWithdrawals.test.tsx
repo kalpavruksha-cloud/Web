@@ -10,6 +10,7 @@ import { useAdminOverview } from "./useAdminOverview";
 vi.mock("../../api/queries", () => ({ useResource: vi.fn(), useAction: () => ({ mutateAsync: vi.fn(), isPending: false }), useDashboard: vi.fn() }));
 vi.mock("../../context/ToastContext", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("./useAdminOverview", () => ({ useAdminOverview: vi.fn() }));
+vi.mock("../kyc/KycPanel", () => ({ KycPanel: ({ clientId, admin }: { clientId: string; admin?: boolean }) => <div>{admin ? "Admin KYC review" : "Client KYC"} for {clientId}</div> }));
 const resource = vi.mocked(useResource);
 const withdrawals: Withdrawal[] = [
   { id: "OLD-1", clientId: " c001 ", amount: 2500, status: "recorded", requestDate: "2026-10-01", paymentDate: "2026-10-01", recordSource: "withdrawal_master", readOnly: true },
@@ -41,6 +42,7 @@ describe("admin historical withdrawals", () => {
     render(<MemoryRouter initialEntries={["/admin/clients/c001"]}><Route path="/admin/clients/:id"><AdminClientDetails /></Route></MemoryRouter>);
     expect(screen.getByText(/OLD-1 -/)).toBeInTheDocument();
     expect(screen.getByText(/REQ-1 -/)).toBeInTheDocument();
+    expect(screen.getByText("Admin KYC review for C001")).toBeInTheDocument();
     expect(screen.queryByText(/REQ-3 -/)).not.toBeInTheDocument();
     expect(within(screen.getByText("Total Investment").closest("section")!).getByText("\u20b91,00,000")).toBeInTheDocument();
     expect(within(screen.getByText("Total Withdrawal").closest("section")!).getByText("\u20b95,000")).toBeInTheDocument();

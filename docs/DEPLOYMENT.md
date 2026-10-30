@@ -7,7 +7,38 @@
 - Frontend local URL: `http://localhost:5173`
 - Backend local URL: `http://localhost:8080/api`
 
-## Current Email Login and Summary Upgrade (V28)
+## Current KYC Review Upgrade (V29)
+
+1. Publish the tested repository changes to the existing GitHub/Vercel project.
+   The PWA cache version is `kalpavruksha-pwa-v25-admin-kyc-review`.
+2. Replace the complete Apps Script Code.gs with `google-apps-script/Code.gs`.
+3. In Apps Script **Project Settings > Script Properties**, set
+   `PORTAL_JWT_SECRET` to the exact current Vercel/backend `JWT_SECRET`. Use the
+   value privately from your existing hosting configuration; do not commit it or
+   expose it to the browser. No new backend environment variable is required.
+4. Save, then **Manage deployments > Edit the existing Web App > New version >
+   Deploy**, executing as the owner and preserving the existing access and URL.
+5. Check `?action=deploymentTest`: marker must be
+   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_30_ADMIN_KYC_REVIEW_V29` and
+   `kycSigningConfigured` true. A true flag checks presence/length, not equality
+   with Vercel. An authorized KYC read must also succeed to verify the match.
+6. Client **Profile > PAN & Aadhaar Details** should load. Admin **Clients >
+   View / Review KYC > KYC Verification** should load the same client record.
+7. Only the authorized admin should compare actual identity details/documents and
+   approve real clients. Do not enter fake KYC numbers or approve clients merely
+   to test a deployment. Reject/reopen requires a reason.
+8. Confirm verified status is reflected in the client profile, admin client list
+   and dashboard KYC count. An old deployment/missing property produces a safe
+   setup error without changing login or approving any records.
+
+The existing KYC sheet receives additional audit/evidence columns on the first
+authorized write. Existing KYC records are joined by normalized ClientId; no bulk
+migration or automatic verification runs. Rotate the Script Property whenever
+the backend JWT secret changes. Local KYC integration tests use a test-only
+secret and in-memory Sheets; live secret matching and real document review
+require the owner deployment above.
+
+## Email Login and Summary Upgrade (V28, Included)
 
 1. Replace the complete Apps Script Code.gs with google-apps-script/Code.gs.
 2. Save, then Manage deployments > Edit the existing Web App > New version > Deploy.

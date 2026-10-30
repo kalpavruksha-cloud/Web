@@ -1,10 +1,26 @@
-const { randomUUID } = require("node:crypto");
+const { randomUUID, createHmac } = require("node:crypto");
+const { z } = require("zod");
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec";
 const DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-const DEPLOYMENT_MARKER = "vercel-native-api-2026-10-06-google-response-recovery-v7";
+const DEPLOYMENT_MARKER = "vercel-native-api-2026-10-30-admin-kyc-v8";
 
 let jwtModulePromise;
+
+const kycNumbersPolicy = z.object({
+  expectedRevision: z.string().min(1).max(128),
+  pan: z.string().trim().toUpperCase().regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "Enter a valid 10-character PAN").optional(),
+  aadhaar: z.string().trim().transform((value) => value.replace(/\s/g, "")).pipe(z.string().regex(/^[2-9][0-9]{11}$/, "Enter a valid 12-digit Aadhaar number")).optional()
+}).strict().refine((value) => value.pan !== undefined || value.aadhaar !== undefined, "Enter PAN or Aadhaar details to save");
+
+const kycReviewPolicy = z.object({
+  expectedRevision: z.string().min(1).max(128), decision: z.enum(["verified", "rejected", "pending"]),
+  remarks: z.string().trim().max(1000).default(""), panDocumentId: z.string().trim().max(200).optional(),
+  aadhaarDocumentId: z.string().trim().max(200).optional(), confirmDocumentsReviewed: z.boolean().default(false)
+}).strict().superRefine((value, ctx) => {
+  if (value.decision === "verified" && (!value.panDocumentId || !value.aadhaarDocumentId || !value.confirmDocumentsReviewed)) ctx.addIssue({ code: "custom", message: "Select both documents and confirm they have been reviewed" });
+  if (value.decision !== "verified" && !value.remarks) ctx.addIssue({ code: "custom", message: "Enter a review reason" });
+});
 
 module.exports = async function handler(req, res) {
   const requestId = String(req.headers["x-request-id"] || randomUUID());
@@ -19,6 +35,7 @@ module.exports = async function handler(req, res) {
 
     const env = getEnv();
     const path = getApiPath(req.url || "/");
+    if (path === "/client/kyc" || /^\/clients\/[^/]+\/kyc(?:\/review)?$/.test(path)) res.setHeader("Cache-Control", "no-store");
 
     if (path === "/system/health" && req.method === "GET") {
       const data = await health(env, requestId);
@@ -135,6 +152,31 @@ async function proxyRoute(req, path, user, env, requestId) {
   const body = ["POST", "PUT", "DELETE"].includes(req.method) ? await readJson(req) : {};
   const query = Object.fromEntries(new URL(req.url || "/", "https://portal.local").searchParams.entries());
   const method = req.method === "GET" ? "GET" : "POST";
+
+  const clientKyc = path === "/client/kyc";
+  const adminKyc = path.match(/^\/clients\/([^/]+)\/kyc(\/review)?$/);
+  if (clientKyc || adminKyc) {
+    if ((clientKyc && user.role !== "client") || (adminKyc && user.role !== "admin")) return { status: 403, body: fail("FORBIDDEN", "You do not have permission to review this KYC record", "Permission denied", requestId) };
+    if (!["GET", "PUT"].includes(req.method) || (adminKyc?.[2] && req.method !== "PUT")) return { status: 405, body: fail("METHOD_NOT_ALLOWED", "This KYC operation is not supported", "Invalid request", requestId) };
+    if (clientKyc && ((body.clientId && body.clientId !== user.clientId) || (query.clientId && query.clientId !== user.clientId))) return { status: 403, body: fail("CLIENT_SCOPE_VIOLATION", "Client ID comes from your secure session", "Permission denied", requestId) };
+    const action = req.method === "GET" ? "getKyc" : adminKyc?.[2] ? "reviewKyc" : "saveKyc";
+    const parsed = action === "getKyc" ? { success: true, data: {} } : (action === "saveKyc" ? kycNumbersPolicy : kycReviewPolicy).safeParse(body);
+    if (!parsed.success) return { status: 400, body: fail("VALIDATION_ERROR", parsed.error.issues.map((issue) => issue.message).join("; "), "Invalid KYC request", requestId) };
+    const payload = { ...parsed.data, role: user.role, actorId: user.id, clientId: clientKyc ? user.clientId : decodeURIComponent(adminKyc[1]) };
+    const issuedAt = Date.now();
+    const message = JSON.stringify(["KYCv1", action, env.spreadsheetId, requestId, String(payload.role || ""), String(payload.actorId || ""), String(payload.clientId || ""), issuedAt,
+      payload.expectedRevision ?? "", payload.pan ?? null, payload.aadhaar ?? null, payload.decision ?? null, payload.remarks ?? "", payload.panDocumentId ?? "", payload.aadhaarDocumentId ?? "", payload.confirmDocumentsReviewed === true]);
+    payload.kycProof = { issuedAt, signature: createHmac("sha256", env.jwtSecret).update(message).digest("base64url") };
+    const upstream = await callAppsScript(env, action, payload, requestId, "POST");
+    if (upstream.success && upstream.data) {
+      if (String(upstream.data.clientId).trim().toLowerCase() !== String(payload.clientId).trim().toLowerCase()) return { status: 502, body: fail("KYC_SCOPE_MISMATCH", "The KYC service returned an unexpected client record.", "KYC unavailable", requestId) };
+      if (user.role === "client") { upstream.data = { ...upstream.data }; delete upstream.data.aadhaar; }
+    }
+    const code = upstream.error?.code;
+    if (code === "INVALID_ACTION") return { status: 503, body: fail("KYC_DEPLOYMENT_REQUIRED", "KYC review requires the latest Apps Script deployment. Please contact the portal administrator.", "KYC unavailable", requestId) };
+    if (!upstream.success && !/^(KYC_|INVALID_KYC_|VERIFIED_KYC_|DUPLICATE_KYC_|INVALID_CLIENT_ID$|FORBIDDEN$)/.test(code || "") && !["APPS_SCRIPT_TIMEOUT", "APPS_SCRIPT_UNAVAILABLE", "APPS_SCRIPT_DEPLOYMENT_UNAVAILABLE", "APPS_SCRIPT_HTTP_ERROR", "INVALID_APPS_SCRIPT_RESPONSE"].includes(code)) return { status: 422, body: fail("KYC_UNAVAILABLE", "KYC could not be completed. Please contact the portal administrator.", "KYC unavailable", requestId) };
+    return { status: upstream.success ? 200 : code === "KYC_REVISION_CONFLICT" ? 409 : ["FORBIDDEN", "KYC_REQUEST_DENIED"].includes(code) ? 403 : code === "KYC_CONFIGURATION_REQUIRED" ? 503 : 422, body: upstream };
+  }
 
   const clientRoutes = [
     ["GET", /^\/client\/dashboard$/, "getClientDashboard"],

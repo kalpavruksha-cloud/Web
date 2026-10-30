@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_30_EMAIL_LOGIN_DASHBOARD_FORMULAS_V28";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_30_ADMIN_KYC_REVIEW_V29";
 var DASHBOARD_READ_CONTEXT = null;
 
 var REQUIRED_SHEETS = [
@@ -29,6 +29,9 @@ var ACTIONS = {
   updateClient: updateClient,
   getProfile: getProfile,
   updateProfile: updateProfile,
+  getKyc: getKyc,
+  saveKyc: saveKyc,
+  reviewKyc: reviewKyc,
   getInvestments: getInvestments,
   getInvestment: getInvestment,
   createInvestment: createInvestment,
@@ -92,6 +95,7 @@ function deploymentTest(payload) {
     doGetAvailable: typeof doGet === "function",
     doPostAvailable: typeof doPost === "function",
     spreadsheetId: payload.spreadsheetId || DEFAULT_SPREADSHEET_ID,
+    kycSigningConfigured: cleanString(PropertiesService.getScriptProperties().getProperty("PORTAL_JWT_SECRET")).length >= 32,
     timestamp: new Date().toISOString()
   };
 }
@@ -453,12 +457,6 @@ function buildDashboardSnapshot(payload) {
   };
   if (payload.role === "admin") {
     var clients = getClients(payload);
-    var allKycRows = readModule(adminPayload || payload, ["KYC"], function(row) {
-      return {
-        clientId: String(first(row, ["ClientId", "Client ID", "CLIENT_ID"]) || ""),
-        kycStatus: normalizeStatus(first(row, ["KYCStatus", "KYC Status", "KYC", "Verification Status", "Status"]) || "pending")
-      };
-    }, false);
     var withdrawalHistory = readAdminWithdrawalHistory(payload);
     var investmentSource = DASHBOARD_READ_CONTEXT.sources.filter(function(source) { return source.module === "investments"; })[0];
     var analytics = buildAdminFinancialAnalytics(investments, transactions, withdrawals, totalInvested, new Date(), {
@@ -473,10 +471,8 @@ function buildDashboardSnapshot(payload) {
     if (response.presentInvestment === null) analytics.warnings.push("DASHBOARD Present Investment has blank or invalid client amounts; its total is unavailable.");
     if (response.monthlyPayout === null) analytics.warnings.push("DASHBOARD Monthly Payout has blank or invalid client amounts; its total is unavailable.");
     analytics.sources = DASHBOARD_READ_CONTEXT.sources;
-    var kycByClient = {};
-    allKycRows.forEach(function(row) { kycByClient[normalizeText(row.clientId)] = row.kycStatus; });
     var verifiedKyc = clients.filter(function(row) {
-      return (kycByClient[normalizeText(row.clientId)] || row.kycStatus) === "verified";
+      return row.kycStatus === "verified";
     }).length;
     var actualWithdrawal = hasDashboardRows ? totalWithdrawal : analytics.completedWithdrawalTotal;
     response.availableBalance = typeof presentInvestment === "number" ? presentInvestment : totalInvested - actualWithdrawal;
@@ -1132,7 +1128,8 @@ function addAdminOverviewSeries(analytics, clients, investments, transactions, w
 }
 
 function getClients(payload) {
-  return readModule(payload, ["CLIENTS", "Client", "Clients", "Profile"], payload.role === "admin" ? mapAdminProfile : mapProfile, false, payload.role === "admin" ? "clients" : "");
+  var profiles = readModule(payload, ["CLIENTS", "Client", "Clients", "Profile"], payload.role === "admin" ? mapAdminProfile : mapProfile, false, payload.role === "admin" ? "clients" : "");
+  return joinKycProfiles(profiles, payload);
 }
 
 function getClient(payload) {
@@ -1140,6 +1137,7 @@ function getClient(payload) {
 }
 
 function createClient(payload) {
+  rejectLegacyKycWrite(payload);
   var spreadsheet = getSpreadsheet(payload);
   var clientsSheet = requireSheet(spreadsheet, ["CLIENTS", "Client", "Clients", "Profile"]);
   var credentialsSheet = findSheet(spreadsheet, ["CLIENT_CREDENTIALS", "Credentials", "Users"]);
@@ -1159,6 +1157,7 @@ function createClient(payload) {
 }
 
 function updateClient(payload) {
+  rejectLegacyKycWrite(payload);
   var updated = updateRecord(payload, ["CLIENTS", "Client", "Clients", "Profile"], "ClientId", payload.id || payload.clientId, payload);
   if (cleanString(first(payload, passwordHeaders()) || payload.password)) {
     upsertCredentialFromClient(payload, payload, cleanString(first(payload, passwordHeaders()) || payload.password));
@@ -1168,11 +1167,226 @@ function updateClient(payload) {
 
 function getProfile(payload) {
   var rows = readModule(payload, ["CLIENTS", "Client", "Clients", "Profile"], mapProfile, true);
+  rows = joinKycProfiles(rows, payload);
   return rows[0] ? attachProfilePhotoPreview(rows[0], payload) : null;
 }
 
 function updateProfile(payload) {
+  rejectLegacyKycWrite(payload);
   return updateRecord(payload, ["CLIENTS", "Client", "Clients", "Profile"], "ClientId", payload.clientId, payload);
+}
+
+function rejectLegacyKycWrite(payload) {
+  if (Object.keys(payload).some(function(key) { return ["pan", "pannumber", "aadhaar", "aadhar", "aadhaarnumber", "aadharnumber", "kyc", "kycstatus", "verificationdate", "verifiedby"].indexOf(normalizeKey(key)) >= 0; })) {
+    throw coded("KYC_REVIEW_REQUIRED", "Use the KYC details and admin review panel for identity changes.");
+  }
+}
+
+function requireKycProof(payload, action) {
+  var secret = PropertiesService.getScriptProperties().getProperty("PORTAL_JWT_SECRET");
+  if (!secret || secret.length < 32) throw coded("KYC_CONFIGURATION_REQUIRED", "KYC service setup is incomplete. Please contact the portal administrator.");
+  var proof = payload.kycProof || {};
+  if (["client", "admin"].indexOf(payload.role) < 0 || !cleanString(payload.actorId) || !cleanString(payload.clientId)
+    || typeof proof.issuedAt !== "number" || Math.floor(proof.issuedAt) !== proof.issuedAt || Math.abs(Date.now() - proof.issuedAt) > 300000) {
+    throw coded("KYC_REQUEST_DENIED", "This KYC request is not authorized.");
+  }
+  var message = JSON.stringify(["KYCv1", action, payload.spreadsheetId || DEFAULT_SPREADSHEET_ID, payload.requestId, String(payload.role || ""), String(payload.actorId || ""), String(payload.clientId || ""), proof.issuedAt,
+    payload.expectedRevision === undefined ? "" : payload.expectedRevision, payload.pan === undefined ? null : payload.pan, payload.aadhaar === undefined ? null : payload.aadhaar,
+    payload.decision === undefined ? null : payload.decision, payload.remarks === undefined ? "" : payload.remarks, payload.panDocumentId || "", payload.aadhaarDocumentId || "", payload.confirmDocumentsReviewed === true]);
+  var expected = Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(message, secret, Utilities.Charset.UTF_8)).replace(/=+$/g, "");
+  var supplied = cleanString(proof.signature);
+  var difference = expected.length ^ supplied.length;
+  for (var i = 0; i < expected.length; i++) difference |= expected.charCodeAt(i) ^ (supplied.charCodeAt(i) || 0);
+  if (difference) throw coded("KYC_REQUEST_DENIED", "This KYC request is not authorized.");
+}
+
+function kycStatusValue(value) {
+  var status = normalizeStatus(value || "pending");
+  if (["verified", "approved"].indexOf(status) >= 0) return "verified";
+  if (["under_review", "under_verification", "submitted", "in_progress"].indexOf(status) >= 0) return "under_review";
+  return status === "rejected" ? "rejected" : "pending";
+}
+
+function kycPan(row) { return cleanString(first(row, ["PAN", "PAN Number"])).toUpperCase(); }
+function kycAadhaar(row) { return cleanString(first(row, ["Aadhaar", "Aadhar", "Aadhaar Number", "Aadhar Number"])).replace(/\s/g, ""); }
+function kycDate(value) { return value instanceof Date ? value.toISOString() : cleanString(value); }
+function maskKycPan(value) { var pan = cleanString(value); return pan ? pan.slice(0, 2) + "*****" + pan.slice(-3) : ""; }
+function maskKycAadhaar(value) { var aadhaar = cleanString(value); return aadhaar ? "XXXX XXXX " + aadhaar.slice(-4) : ""; }
+
+function kycDocumentKind(document) {
+  var type = normalizeKey(document.type);
+  if (["pan", "pancard"].indexOf(type) >= 0) return "pan";
+  if (["aadhaar", "aadhar", "aadhaarcard", "aadharcard"].indexOf(type) >= 0) return "aadhaar";
+  return "";
+}
+
+function activeKycDocuments(documents, clientId) {
+  return documents.filter(function(document) {
+    return normalizeText(document.clientId) === normalizeText(clientId) && document.isActive !== false
+      && ["archived", "deleted"].indexOf(document.status) < 0 && !!kycDocumentKind(document);
+  }).sort(function(a, b) { return String(a.id).localeCompare(String(b.id)); });
+}
+
+function kycHash(value) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, JSON.stringify(value), Utilities.Charset.UTF_8)).replace(/=+$/g, "");
+}
+
+function kycEvidence(row, documents, clientId) {
+  return kycHash([normalizeText(clientId), kycPan(row), kycAadhaar(row), documents.map(function(doc) { return [doc.id, kycDocumentKind(doc), doc.fileId, doc.driveUrl, kycDate(doc.uploadDate)]; })]);
+}
+
+function effectiveKycStatus(row, documents, clientId) {
+  var status = kycStatusValue(first(row, ["KYCStatus", "KYC Status", "Verification Status", "Status"]));
+  var evidence = cleanString(first(row, ["Verified Evidence"]));
+  if (status === "verified" && evidence) {
+    if (evidence !== kycEvidence(row, documents, clientId)) return "under_review";
+    var selected = [cleanString(first(row, ["PAN Document ID"])), cleanString(first(row, ["Aadhaar Document ID"]))];
+    if (selected.some(function(id) { return !documents.some(function(doc) { return doc.id === id && doc.status === "verified"; }); })) return "under_review";
+  }
+  return status;
+}
+
+function joinKycProfiles(profiles, payload) {
+  if (!profiles.length) return profiles;
+  var rows = readModule(payload, ["KYC"], function(row) { return row; }, true);
+  var documents = getDocuments(payload);
+  return profiles.map(function(profile) {
+    var linked = rows.filter(function(row) { return normalizeText(first(row, ["ClientId", "Client ID"])) === normalizeText(profile.clientId); });
+    var record = linked[0] || {};
+    profile.pan = maskKycPan(kycPan(record));
+    profile.aadhaar = maskKycAadhaar(kycAadhaar(record));
+    profile.kycStatus = linked.length > 1 ? "review_required" : effectiveKycStatus(record, activeKycDocuments(documents, profile.clientId), profile.clientId);
+    return profile;
+  });
+}
+
+function kycSnapshot(payload) {
+  var spreadsheet = getSpreadsheet(payload);
+  var profiles = readRowsForClient(requireSheet(spreadsheet, ["CLIENTS", "Client", "Clients", "Profile"]), payload.clientId);
+  if (profiles.length !== 1) throw coded("INVALID_CLIENT_ID", "A unique client profile is required for KYC review.");
+  var sheet = requireSheet(spreadsheet, ["KYC"]);
+  var rows = readRowsForClient(sheet, payload.clientId);
+  if (rows.length > 1) throw coded("DUPLICATE_KYC_RECORDS", "Multiple KYC records exist for this client. Ask the administrator to consolidate them before review.");
+  var row = rows[0] || {};
+  var documents = activeKycDocuments(getDocuments(payload), payload.clientId);
+  if (documents.some(function(document, index) { return !document.id || documents.some(function(other, otherIndex) { return otherIndex !== index && other.id === document.id; }); })) throw coded("DUPLICATE_KYC_DOCUMENTS", "KYC documents need unique record IDs before review. Please contact the administrator.");
+  var status = effectiveKycStatus(row, documents, payload.clientId);
+  var revision = kycHash([normalizeText(payload.clientId), kycPan(row), kycAadhaar(row), first(row, ["KYCStatus", "KYC Status", "Status"]), kycDate(first(row, ["Updated At"])), first(row, ["Remarks"]), first(row, ["Verified Evidence"]), documents.map(function(doc) { return [doc.id, doc.fileId, doc.driveUrl, kycDate(doc.uploadDate), doc.status]; })]);
+  return { sheet: sheet, row: row, documents: documents, revision: revision, status: status };
+}
+
+function kycResponse(payload, snapshot) {
+  var row = snapshot.row;
+  var aadhaar = kycAadhaar(row);
+  return {
+    clientId: payload.clientId, pan: kycPan(row), aadhaarLast4: aadhaar ? aadhaar.slice(-4) : "", aadhaar: payload.role === "admin" ? aadhaar : undefined, aadhaarConfigured: /^[2-9][0-9]{11}$/.test(aadhaar),
+    status: snapshot.status, remarks: cleanString(first(row, ["Remarks"])), verificationDate: kycDate(first(row, ["VerificationDate", "Verification Date"])),
+    verifiedBy: cleanString(first(row, ["Verified By"])), revision: snapshot.revision,
+    panDocumentId: cleanString(first(row, ["PAN Document ID"])), aadhaarDocumentId: cleanString(first(row, ["Aadhaar Document ID"])),
+    documents: snapshot.documents.map(function(doc) { return { id: doc.id, name: doc.name, kind: kycDocumentKind(doc), status: doc.status, uploadDate: kycDate(doc.uploadDate), driveUrl: doc.driveUrl }; })
+  };
+}
+
+function getKyc(payload) {
+  requireKycProof(payload, "getKyc");
+  return kycResponse(payload, kycSnapshot(payload));
+}
+
+function patchKycRow(sheet, clientId, updates, status) {
+  var aliases = { Aadhaar: ["Aadhaar", "Aadhar", "Aadhaar Number", "Aadhar Number"], PAN: ["PAN", "PAN Number"], KYCStatus: ["KYCStatus", "KYC Status", "Verification Status", "Status"] };
+  var headers = getHeaders(sheet);
+  ["ClientId", "KYCStatus"].concat(Object.keys(updates)).forEach(function(key) {
+    if (findHeaderIndex(headers, aliases[key] || [key]) < 0) { sheet.getRange(1, headers.length + 1).setValue(key); headers.push(key); }
+  });
+  var values = sheet.getDataRange().getValues();
+  var idIndex = findHeaderIndex(headers, ["ClientId", "Client ID"]);
+  var matches = [];
+  for (var i = 1; i < values.length; i++) if (normalizeText(values[i][idIndex]) === normalizeText(clientId)) matches.push(i + 1);
+  if (matches.length > 1) throw coded("DUPLICATE_KYC_RECORDS", "Multiple KYC records require administrator review.");
+  var target = matches[0];
+  if (!target) { sheet.appendRow(headers.map(function(_, index) { return index === idIndex ? clientId : ""; })); target = sheet.getLastRow(); }
+  var statusIndex = findHeaderIndex(headers, aliases.KYCStatus);
+  sheet.getRange(target, statusIndex + 1).setValue(status === "verified" ? "under_review" : status);
+  Object.keys(updates).forEach(function(key) {
+    var cell = sheet.getRange(target, findHeaderIndex(headers, aliases[key] || [key]) + 1);
+    if (key === "PAN" || key === "Aadhaar") cell.setNumberFormat("@");
+    var value = updates[key];
+    if (typeof value === "string" && /^\s*[=+@-]/.test(value)) value = "'" + value;
+    cell.setValue(value);
+  });
+  sheet.getRange(target, statusIndex + 1).setValue(status);
+}
+
+function saveKyc(payload) {
+  requireKycProof(payload, "saveKyc");
+  var lock = LockService.getScriptLock(); lock.waitLock(15000);
+  try {
+    var snapshot = kycSnapshot(payload);
+    if (payload.expectedRevision !== snapshot.revision) throw coded("KYC_REVISION_CONFLICT", "KYC details changed. Reload the record before submitting again.");
+    if (snapshot.status === "verified") throw coded("VERIFIED_KYC_LOCKED", "Verified identity details are read-only. Ask an administrator to reopen the KYC review.");
+    var pan = payload.pan === undefined ? kycPan(snapshot.row) : cleanString(payload.pan).toUpperCase();
+    var aadhaar = payload.aadhaar === undefined ? kycAadhaar(snapshot.row) : cleanString(payload.aadhaar).replace(/\s/g, "");
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan) || !/^[2-9][0-9]{11}$/.test(aadhaar)) throw coded("INVALID_KYC_NUMBERS", "Enter a valid PAN and 12-digit Aadhaar number. Existing saved Aadhaar can be retained.");
+    patchKycRow(snapshot.sheet, payload.clientId, { PAN: pan, Aadhaar: aadhaar, Remarks: "", VerificationDate: "", "Verified By": "", "Verified Evidence": "", "PAN Document ID": "", "Aadhaar Document ID": "", "Updated At": new Date(), "Updated By": payload.actorId }, "under_review");
+    audit(payload, "submitKyc", "KYC", payload.clientId);
+    return kycResponse(payload, kycSnapshot(payload));
+  } finally { lock.releaseLock(); }
+}
+
+function reviewKyc(payload) {
+  requireKycProof(payload, "reviewKyc");
+  if (payload.role !== "admin") throw coded("FORBIDDEN", "Only an administrator can verify KYC.");
+  var lock = LockService.getScriptLock(); lock.waitLock(15000);
+  try {
+    var snapshot = kycSnapshot(payload);
+    if (payload.expectedRevision !== snapshot.revision) throw coded("KYC_REVISION_CONFLICT", "KYC details or documents changed. Reload and review the latest record.");
+    if (["verified", "rejected", "pending"].indexOf(payload.decision) < 0) throw coded("INVALID_KYC_DECISION", "Choose a valid KYC decision.");
+    var remarks = cleanString(payload.remarks);
+    if (remarks.length > 1000 || (payload.decision !== "verified" && !remarks)) throw coded("INVALID_KYC_REMARKS", "Enter a review reason of up to 1000 characters.");
+    if (payload.decision === "verified") {
+      if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(kycPan(snapshot.row)) || !/^[2-9][0-9]{11}$/.test(kycAadhaar(snapshot.row))) throw coded("INVALID_KYC_NUMBERS", "Save valid PAN and Aadhaar details before verification.");
+      if (payload.confirmDocumentsReviewed !== true) throw coded("KYC_CONFIRMATION_REQUIRED", "Confirm that the selected documents have been reviewed.");
+      var selectedDocuments = [[payload.panDocumentId, "pan"], [payload.aadhaarDocumentId, "aadhaar"]].map(function(selection) {
+        var matches = snapshot.documents.filter(function(doc) { return doc.id === selection[0] && kycDocumentKind(doc) === selection[1] && doc.status !== "rejected" && /^https:\/\/(drive|docs)\.google\.com\//i.test(doc.driveUrl); });
+        if (matches.length !== 1) throw coded("KYC_DOCUMENTS_REQUIRED", "Select active PAN and Aadhaar documents belonging to this client.");
+        return matches[0];
+      });
+      selectedDocuments.forEach(function(document) { patchKycDocument(payload, document.id, remarks); });
+    }
+    var verified = payload.decision === "verified";
+    patchKycRow(snapshot.sheet, payload.clientId, { Remarks: remarks, VerificationDate: verified ? new Date() : "", "Verified By": verified ? payload.actorId : "", "Verified Evidence": verified ? kycEvidence(snapshot.row, snapshot.documents, payload.clientId) : "", "PAN Document ID": verified ? payload.panDocumentId : "", "Aadhaar Document ID": verified ? payload.aadhaarDocumentId : "", "Updated At": new Date(), "Updated By": payload.actorId }, payload.decision);
+    audit(payload, "reviewKyc_" + payload.decision, "KYC", payload.clientId);
+    return kycResponse(payload, kycSnapshot(payload));
+  } finally { lock.releaseLock(); }
+}
+
+function patchKycDocument(payload, documentId, remarks) {
+  var sheet = requireSheet(getSpreadsheet(payload), ["DOCUMENTS", "Documents", "Document", "Docs"]);
+  var headers = getHeaders(sheet);
+  var values = sheet.getDataRange().getValues();
+  var idIndex = findHeaderIndex(headers, ["DocumentId", "Document ID", "ID"]);
+  var clientIndex = findHeaderIndex(headers, ["ClientId", "Client ID"]);
+  var targets = [];
+  for (var i = 1; i < values.length; i++) if (String(values[i][idIndex]) === documentId && normalizeText(values[i][clientIndex]) === normalizeText(payload.clientId)) targets.push(i + 1);
+  if (targets.length !== 1) throw coded("KYC_DOCUMENTS_REQUIRED", "A unique client-linked document is required.");
+  var statusIndex = findHeaderIndex(headers, ["Status"]);
+  if (statusIndex < 0) throw coded("MISSING_COLUMN", "Document review status is unavailable.");
+  var remarksIndex = findHeaderIndex(headers, ["Admin Remarks"]);
+  if (remarksIndex >= 0) sheet.getRange(targets[0], remarksIndex + 1).setValue(/^\s*[=+@-]/.test(remarks) ? "'" + remarks : remarks);
+  sheet.getRange(targets[0], statusIndex + 1).setValue("verified");
+}
+
+function invalidateKycDocumentReview(payload, category) {
+  if (!kycDocumentKind({ type: category })) return;
+  var lock = LockService.getScriptLock(); lock.waitLock(15000);
+  try {
+    var sheet = findSheet(getSpreadsheet(payload), ["KYC"]);
+    if (!sheet) return;
+    var rows = readRowsForClient(sheet, payload.clientId);
+    if (rows.length !== 1 || kycStatusValue(first(rows[0], ["KYCStatus", "KYC Status", "Status"])) !== "verified") return;
+    patchKycRow(sheet, payload.clientId, { VerificationDate: "", "Verified By": "", "Verified Evidence": "", "PAN Document ID": "", "Aadhaar Document ID": "", "Updated At": new Date(), "Updated By": payload.actorId }, "under_review");
+    audit(payload, "kycDocumentChanged", "KYC", payload.clientId);
+  } finally { lock.releaseLock(); }
 }
 
 function getInvestments(payload) {
@@ -1626,6 +1840,7 @@ function uploadClientDocument(payload) {
     IsActive: true
   });
   logClientActivity(clonePayload(payload, { actionName: "uploadClientDocument", recordId: documentId }));
+  invalidateKycDocumentReview(payload, payload.category);
   return clonePayload(upload, { documentId: documentId, status: "Under Verification" });
 }
 
@@ -1661,6 +1876,7 @@ function replaceClientDocument(payload) {
     Status: "Under Verification"
   });
   logClientActivity(clonePayload(payload, { actionName: "replaceClientDocument", recordId: payload.id }));
+  invalidateKycDocumentReview(payload, existing.type);
   return upload;
 }
 
@@ -1668,6 +1884,7 @@ function archiveClientDocument(payload) {
   var existing = byId(getClientDocuments(payload), payload.id, "id");
   if (existing.status === "verified") throw coded("VERIFIED_DOCUMENT_LOCKED", "Verified documents cannot be deleted directly");
   var result = updateRecord(payload, ["DOCUMENTS", "Documents", "Document", "Docs"], "DocumentId", payload.id, { Status: "archived", IsActive: false });
+  invalidateKycDocumentReview(payload, existing.type);
   logClientActivity(clonePayload(payload, { actionName: "archiveClientDocument", recordId: payload.id }));
   return result;
 }
@@ -1949,8 +2166,8 @@ function mapProfile(row) {
     dateOfBirth: first(row, ["Date of Birth", "DOB"]),
     payoutDate: clientPayoutDate(first(row, ["Date of payout", "Payout Date", "Scheduled Payout Date"])),
     address: first(row, ["Address"]),
-    pan: first(row, ["PAN"]),
-    aadhaar: first(row, ["Aadhaar", "Aadhar"]),
+    pan: maskKycPan(first(row, ["PAN"])),
+    aadhaar: maskKycAadhaar(first(row, ["Aadhaar", "Aadhar"])),
     kycStatus: normalizeStatus(first(row, ["KYC Status", "KYC"])),
     bankAccount: first(row, ["Bank Account", "Account Number"]),
     ifsc: first(row, ["IFSC"]),
@@ -2046,12 +2263,13 @@ function mapDocument(row) {
     id: String(first(row, ["DocumentId", "Document ID", "Doc ID", "ID"]) || ""),
     clientId: String(first(row, ["ClientId", "Client ID", "CLIENT_ID"]) || ""),
     name: String(first(row, ["Name", "Document Name", "DocumentType"]) || "Document"),
-    type: String(first(row, ["Category", "FileType", "File Type", "Type", "Document Type"]) || "Other"),
+    type: String(first(row, ["Category", "Document Type", "Type", "FileType", "File Type"]) || "Other"),
     uploadDate: first(row, ["Upload Date", "Date"]),
     status: normalizeStatus(first(row, ["Status"])),
     driveUrl: driveUrl,
     fileId: first(row, ["GoogleDriveFileId", "Google Drive File ID", "Drive File ID", "File ID"]) || extractDriveFileId(driveUrl),
     fileName: first(row, ["FileName", "File Name", "Name"]),
+    isActive: first(row, ["IsActive", "Is Active"]) === "" ? true : bool(first(row, ["IsActive", "Is Active"])),
     mimeType: first(row, ["MimeType", "Mime Type", "Content Type"]),
     fileSize: number(first(row, ["FileSize", "File Size", "Size"]))
   };
