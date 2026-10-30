@@ -52,6 +52,21 @@ describe("shared admin dashboard and report financial views", () => {
     expect(screen.getAllByText("Not available")).toHaveLength(2);
   });
 
+  it("keeps both financial cards visible when an older response omits their fields", () => {
+    render(<AdminOverviewCards data={data} />);
+    expect(screen.getByText("Present Investment")).toBeInTheDocument();
+    expect(screen.getByText("Monthly Payout")).toBeInTheDocument();
+    expect(screen.getAllByText("Not available")).toHaveLength(2);
+  });
+
+  it("preserves valid zero balances instead of hiding the financial cards", () => {
+    render(<AdminOverviewCards data={{ ...data, dashboard: { ...dashboard, presentInvestment: 0, monthlyPayout: 0 } }} />);
+    expect(screen.getByText("Present Investment")).toBeInTheDocument();
+    expect(screen.getByText("Monthly Payout")).toBeInTheDocument();
+    expect(within(screen.getByText("Present Investment").parentElement!).getByText("\u20b90")).toBeInTheDocument();
+    expect(within(screen.getByText("Monthly Payout").parentElement!).getByText("\u20b90")).toBeInTheDocument();
+  });
+
   it("shows net investment, estimated payout and historical total as distinct figures", () => {
     render(<AdminOverviewCards data={data} />);
     expect(screen.getByText("Net investment: ₹97,000")).toBeInTheDocument();
@@ -66,12 +81,12 @@ describe("shared admin dashboard and report financial views", () => {
 
   it("does not show a missing estimate as zero", () => {
     render(<AdminOverviewCards data={{ ...data, dashboard: { ...dashboard, admin: { ...dashboard.admin!, remainingMonthlyPayout: null } } }} />);
-    expect(screen.getByText("Not available")).toBeInTheDocument();
+    expect(within(screen.getByText("Estimated Monthly Payout").parentElement!).getByText("Not available")).toBeInTheDocument();
   });
 
   it("does not substitute the gross estimate for a remainder on an older deployment", () => {
     render(<AdminOverviewCards data={{ ...data, dashboard: { ...dashboard, admin: { ...dashboard.admin!, remainingMonthlyPayout: undefined } } }} />);
-    expect(screen.getByText("Not available")).toBeInTheDocument();
+    expect(within(screen.getByText("Estimated Monthly Payout").parentElement!).getByText("Not available")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Apps Script V21");
     expect(screen.getByText("Scheduled: ₹1,500")).toBeInTheDocument();
   });

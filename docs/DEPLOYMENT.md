@@ -7,7 +7,28 @@
 - Frontend local URL: `http://localhost:5173`
 - Backend local URL: `http://localhost:8080/api`
 
-## Current Payout Calendar Upgrade (V27)
+## Current Email Login and Summary Upgrade (V28)
+
+1. Replace the complete Apps Script Code.gs with google-apps-script/Code.gs.
+2. Save, then Manage deployments > Edit the existing Web App > New version > Deploy.
+3. Retain the current URL. Verify `?action=deploymentTest` returns
+   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_30_EMAIL_LOGIN_DASHBOARD_FORMULAS_V28`.
+4. Publish the frontend through the existing GitHub/Vercel project. PWA cache
+   version v24 loads the updated shared admin financial cards.
+5. Check Present Investment and Monthly Payout on both admin Dashboard and Reports
+   against complete DASHBOARD client rows. Missing cells must not become zero.
+6. Using a legitimate activated account, verify that Client ID and its unique
+   CLIENTS email authenticate the same account with the same password and role.
+7. Verify any authorized new registration retains its Client ID under the existing
+   CLIENTS header and receives formula-backed DASHBOARD financial cells. Do not
+   create fake clients in production for a smoke test.
+
+Email matching requires a populated unique CLIENTS email and Client ID link. Do
+not change roles, passwords or activation status to work around a data problem.
+V28 does not silently migrate existing financial/profile records. Any historical
+blank-cell repair requires an owner-approved exact range.
+
+## Payout Calendar Upgrade (V27)
 
 V27 includes the previous V26/V25 fixes and separates current-month ledger balances
 from next-month payout estimates. It adds no sheet, database or API route.

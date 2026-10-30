@@ -1,5 +1,33 @@
 # Google Apps Script Integration
 
+## Email Login and Registration Totals (V28)
+
+Latest expected marker:
+`KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_30_EMAIL_LOGIN_DASHBOARD_FORMULAS_V28`.
+
+Replace the complete Code.gs and deploy a New version of the existing Web App.
+Keep its URL. Publishing GitHub/Vercel does not deploy Apps Script automatically.
+
+The verified credential sheet has ClientId (Login ID), ClientName, Password,
+Role, Status and LastPasswordChange, but no Email column. V28 resolves a unique
+CLIENTS email to its Client ID, then verifies that account's existing credential
+password and role. Email matching is case-insensitive. Client-ID login, JWT,
+inactive/pending status checks and role authorization are unchanged. Duplicate
+identities fail closed; names are never used to guess a login. An email without a
+Client ID link needs an owner-approved source-data repair. Blank emails cannot
+be used for login.
+
+Registration writes now match existing headers by normalized name, preserving a
+ClientId even when the header contains trailing whitespace. New DASHBOARD rows
+initialize all seven financial fields, including Present Investment and Monthly
+Payout, and inherit existing financial formulas in native R1C1 form. Only the new
+row is written; existing client rows and financial records are not rewritten.
+Where no existing formula template is available, a new unfunded account starts
+with explicit zero values, matching the existing registration convention.
+
+The admin Dashboard and Reports keep both source-backed cards visible. Missing
+or invalid amounts remain unavailable, never a partial sum or an invented zero.
+
 ## Payout Estimate Clients (V27)
 
 The existing admin dashboard response separates current-calendar-month balances
@@ -16,7 +44,7 @@ include all eligible clients, not only new deposits, and assume no future source
 changes. Missing terms/dates make the calendar unavailable, not zero. Generated
 Approved ledger rows are not independent proof of bank settlement.
 
-Latest expected marker:
+V27 marker:
 `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_29_PENDING_PAYOUT_CLIENTS_V27`.
 Replace the complete Code.gs, save and deploy a New version of the existing Web
 App, retaining the URL. Publish the frontend through the existing GitHub/Vercel

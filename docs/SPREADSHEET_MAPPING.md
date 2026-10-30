@@ -6,6 +6,40 @@
 - Apps Script URL in local env: `https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec`
 - Backend remains the only browser-facing integration layer.
 
+## Email Identity and Registration Formula Mapping (V28)
+
+The 30 October 2026 read-only inspection verified CLIENTS headers including
+`ClientId ` (trailing space), `ClientName`, `Email`, `Mobile` and `Status`.
+CLIENT_CREDENTIALS has ClientId (Login ID), ClientName, Password, Role, Status,
+LastPasswordChange, with no Email column. Credential passwords were not read.
+
+Email login joins a unique CLIENTS Email to its Client ID and then to the existing
+credential row. Duplicate email/ID matches are rejected, never selected by name.
+The credential row remains the password and role authority. A profile with no
+Client ID cannot be linked automatically. Blank emails remain unsupported until
+the owner supplies that client's email. Client-ID authentication is unchanged.
+
+The old append writer did not normalize existing headers, so a trailing space
+could omit a newly registered Client ID. Appends now use the existing `first`
+header matcher, which preserves zero/false and matches trim/case/underscore/camel
+variations. No sheet is renamed and no credential/profile migration is automatic.
+The owner separately approved restoring the missing CLIENTS!A127 identifier after
+its profile name was checked against the corresponding existing credential row.
+Only that identifier cell changed; passwords, roles and account statuses did not.
+
+Two newly registered DASHBOARD rows had explicit zero legacy totals but blank
+Present Investment and Monthly Payout. The owner approved restoring only
+G1001:H1002 using the existing G2:H2 formula pattern, without changing ledger or
+investment records. Native formula-copy preserved absolute source ranges and
+adjusted relative client-row references. Both fields then contained valid zero
+values for those unfunded clients, making the admin aggregates complete again.
+
+Future registrations initialize all existing financial columns and inherit
+financial formula templates from a populated client row, using native R1C1
+references rather than a second implementation of workbook financial rules.
+Template copying affects the newly appended row only. Where no template exists,
+the new unfunded account has explicit zero opening values.
+
 ## Verified Approved Ledger Mapping (V26)
 
 After the owner granted access on 28 October 2026, a read-only audit verified the

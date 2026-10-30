@@ -24,6 +24,7 @@ describe("admin dashboard and report chart wiring", () => {
         clients: [], investments: [], transactions: [], withdrawals: [], documents: [], referrals: [], notifications: [],
         dashboard: {
           totalInvestedAmount: 0, currentPortfolioValue: 0, totalReturns: 0, monthlyReturn: 0,
+          presentInvestment: 125000, monthlyPayout: 3125,
           walletBalance: 0, activeInvestments: 0, pendingWithdrawals: 0, referralEarnings: 0,
           recentTransactions: [], investments: [], documents: [], notifications: [],
           adminAnalytics: {
@@ -38,11 +39,19 @@ describe("admin dashboard and report chart wiring", () => {
       }, isPending: false, isFetching: false, error: null, refetch: vi.fn()
     } as unknown as ReturnType<typeof useAdminOverview>);
     const view = render(<MemoryRouter><AdminDashboard /></MemoryRouter>);
+    expect(screen.getByText("Present Investment")).toBeInTheDocument();
+    expect(screen.getByText("Monthly Payout")).toBeInTheDocument();
+    expect(screen.getByText("\u20b91,25,000")).toBeInTheDocument();
+    expect(screen.getByText("\u20b93,125")).toBeInTheDocument();
     const dashboardWithdrawal = screen.getByRole("heading", { name: "Monthly Withdrawals" }).closest("section")!;
     const dashboardSeries = within(dashboardWithdrawal).getByTestId("chart-data").textContent;
     expect(within(dashboardWithdrawal).getByText("\u20b92,500")).toBeInTheDocument();
     view.unmount();
     render(<MemoryRouter><AdminReports /></MemoryRouter>);
+    expect(screen.getByText("Present Investment")).toBeInTheDocument();
+    expect(screen.getByText("Monthly Payout")).toBeInTheDocument();
+    expect(screen.getByText("\u20b91,25,000")).toBeInTheDocument();
+    expect(screen.getByText("\u20b93,125")).toBeInTheDocument();
     const withdrawal = screen.getByRole("heading", { name: "Monthly Withdrawals" }).closest("section")!;
     expect(within(withdrawal).getByTestId("chart-data").textContent).toBe(dashboardSeries);
     const payout = screen.getByRole("heading", { name: "Monthly Payout Report" }).closest("section")!;

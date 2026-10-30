@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_29_PENDING_PAYOUT_CLIENTS_V27";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_30_EMAIL_LOGIN_DASHBOARD_FORMULAS_V28";
 var DASHBOARD_READ_CONTEXT = null;
 
 var REQUIRED_SHEETS = [
@@ -193,17 +193,10 @@ function login(payload) {
   var loginId = normalizeLogin(payload.identifier);
   var loginPassword = normalizePassword(payload.password);
   var expectedRole = normalizeRole(payload.expectedRole);
-  var matches = findLoginMatches(rows, loginId);
-  if (expectedRole) {
-    var roleMatches = matches.filter(function(row) {
-      return credentialRole(row) === expectedRole;
-    });
-    if (matches.length && !roleMatches.length) {
-      throw coded("WRONG_PORTAL_ROLE", expectedRole === "admin" ? "This credential is not marked as admin in CLIENT_CREDENTIALS" : "This credential is not marked as client in CLIENT_CREDENTIALS");
-    }
-    matches = roleMatches;
+  var match = uniqueLoginRow(findLoginMatches(rows, loginId, clientRows));
+  if (expectedRole && match && credentialRole(match) !== expectedRole) {
+    throw coded("WRONG_PORTAL_ROLE", expectedRole === "admin" ? "This credential is not marked as admin in CLIENT_CREDENTIALS" : "This credential is not marked as client in CLIENT_CREDENTIALS");
   }
-  var match = matches[0];
   var clientRow = findClientLoginRow(clientRows, loginId, match);
   var credentialMissing = false;
   if (!match && (!expectedRole || expectedRole === "client")) {
@@ -217,7 +210,7 @@ function login(payload) {
   if (!stored) throw coded("PASSWORD_NOT_CONFIGURED", "Password is not configured for this login");
   if (normalizePassword(stored) !== loginPassword) throw coded("PASSWORD_MISMATCH", "Password does not match the CLIENT_CREDENTIALS row");
   var status = effectiveLoginStatus(match, clientRow);
-  var role = credentialRole(match);
+  var role = credentialMissing ? "client" : credentialRole(match);
   if (credentialMissing && role === "client") {
     upsertCredentialFromClient(payload, clientRow || match, stored);
   }
@@ -336,17 +329,47 @@ function registerClient(payload) {
     UPI: ""
   });
 
-  appendIfSheetExists(payload, ["DASHBOARD", "Dashboard"], {
-    ClientId: clientId,
-    "Total Invested": 0,
-    "Total Payout": 0,
-    "Total Withdrawal": 0,
-    "Total Referral": 0,
-    "Net Portfolio": 0
-  });
+  appendRegistrationDashboard(payload, clientId);
 
   audit({ actorId: clientId, role: "client", requestId: payload.requestId }, "register", "CLIENTS", clientId);
   return { clientId: clientId, status: "pending" };
+}
+
+function appendRegistrationDashboard(payload, clientId) {
+  var sheet = findSheet(getSpreadsheet(payload), ["DASHBOARD", "Dashboard"]);
+  if (!sheet) return null;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    var financialHeaders = ["Total Invested", "Total Payout", "Total Withdrawal", "Total Referral", "Net Portfolio", "Present Investment", "Monthly Payout"];
+    var record = { ClientId: clientId };
+    financialHeaders.forEach(function(header) { record[header] = 0; });
+    ensureHeaders(sheet, Object.keys(record));
+    var range = sheet.getDataRange();
+    var values = range.getValues();
+    var formulas = range.getFormulasR1C1();
+    var headers = values[0].map(String);
+    var clientIndex = findHeaderIndex(headers, ["ClientId", "Client ID", "CLIENT_ID"]);
+    if (values.slice(1).some(function(row) { return normalizeLogin(row[clientIndex]) === normalizeLogin(clientId); })) {
+      throw coded("DUPLICATE_RECORD", "A dashboard record already exists for this client");
+    }
+    var nextRow = sheet.getLastRow() + 1;
+    sheet.appendRow(headers.map(function(header) { return first(record, [header]); }));
+    // Native R1C1 templates preserve the workbook's formulas without guessing financial rules.
+    headers.forEach(function(header, column) {
+      if (findHeaderIndex(financialHeaders, [header]) < 0) return;
+      for (var row = 1; row < values.length; row++) {
+        if (cleanString(values[row][clientIndex]) && formulas[row] && formulas[row][column]) {
+          sheet.getRange(nextRow, column + 1).setFormulaR1C1(formulas[row][column]);
+          break;
+        }
+      }
+    });
+    audit(payload, "append", sheet.getName(), clientId);
+    return record;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function dashboard(payload) {
@@ -1839,7 +1862,7 @@ function appendRecord(payload, sheetNames, values, duplicateHeaders) {
     ensureHeaders(sheet, Object.keys(values));
     var headers = getHeaders(sheet);
     if (duplicateHeaders) preventDuplicate(sheet, duplicateHeaders, values);
-    var row = headers.map(function(header) { return values[header] !== undefined ? values[header] : values[camel(header)]; });
+    var row = headers.map(function(header) { return first(values, [header]); });
     sheet.appendRow(row);
     audit(payload, "append", sheet.getName(), String(values.id || values["ID"] || values["Client ID"] || ""));
     return values;
@@ -2102,32 +2125,41 @@ function mapSupportRequest(row) {
   };
 }
 
-function findLoginMatches(rows, loginId) {
-  return rows.filter(function(row) {
+function findLoginMatches(rows, loginId, clientRows) {
+  var exact = rows.filter(function(row) {
     return normalizeLogin(credentialLoginId(row)) === loginId;
-  }).concat(rows.filter(function(row) {
-    return normalizeLogin(credentialLoginId(row)) !== loginId && normalizeLogin(first(row, ["Email", "email"])) === loginId;
-  })).concat(rows.filter(function(row) {
-    return normalizeLogin(credentialLoginId(row)) !== loginId && normalizeLogin(first(row, ["Mobile", "Phone", "Contact", "Mobile Number"])) === loginId;
+  });
+  if (exact.length) return exact;
+  var client = uniqueLoginRow((clientRows || []).filter(function(row) {
+    return normalizeLogin(first(row, ["Email", "email"])) === loginId
+      || normalizeLogin(first(row, ["Mobile", "Phone", "Contact", "Mobile Number"])) === loginId;
   }));
+  var linkedId = client ? normalizeLogin(credentialLoginId(client)) : "";
+  if (client && !linkedId) throw coded("CLIENT_LINK_MISSING", "Your email is missing its Client ID link. Please contact support or sign in with your Client ID.");
+  return rows.filter(function(row) {
+    return normalizeLogin(first(row, ["Email", "email"])) === loginId
+      || normalizeLogin(first(row, ["Mobile", "Phone", "Contact", "Mobile Number"])) === loginId
+      || (linkedId && normalizeLogin(credentialLoginId(row)) === linkedId);
+  });
 }
 
 function findClientLoginRow(rows, loginId, credentialRow) {
   if (!rows || !rows.length) return null;
   var credentialClientId = credentialRow ? normalizeLogin(credentialLoginId(credentialRow)) : "";
-  for (var i = 0; i < rows.length; i++) {
-    if (credentialClientId && normalizeLogin(credentialLoginId(rows[i])) === credentialClientId) return rows[i];
-  }
-  for (var j = 0; j < rows.length; j++) {
-    if (normalizeLogin(credentialLoginId(rows[j])) === loginId) return rows[j];
-  }
-  for (var k = 0; k < rows.length; k++) {
-    if (normalizeLogin(first(rows[k], ["Email", "email"])) === loginId) return rows[k];
-  }
-  for (var m = 0; m < rows.length; m++) {
-    if (normalizeLogin(first(rows[m], ["Mobile", "Phone", "Contact", "Mobile Number"])) === loginId) return rows[m];
-  }
-  return null;
+  if (credentialClientId) return uniqueLoginRow(rows.filter(function(row) {
+    return normalizeLogin(credentialLoginId(row)) === credentialClientId;
+  }));
+  var exact = rows.filter(function(row) { return normalizeLogin(credentialLoginId(row)) === loginId; });
+  if (exact.length) return uniqueLoginRow(exact);
+  return uniqueLoginRow(rows.filter(function(row) {
+    return normalizeLogin(first(row, ["Email", "email"])) === loginId
+      || normalizeLogin(first(row, ["Mobile", "Phone", "Contact", "Mobile Number"])) === loginId;
+  }));
+}
+
+function uniqueLoginRow(rows) {
+  if (rows.length > 1) throw coded("AMBIGUOUS_LOGIN", "More than one account matches this login. Please use your Client ID and contact support.");
+  return rows[0] || null;
 }
 
 function effectiveLoginStatus(credentialRow, clientRow) {

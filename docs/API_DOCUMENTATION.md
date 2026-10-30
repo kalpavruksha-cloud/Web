@@ -10,6 +10,15 @@ All protected endpoints require the secure `session` HTTP-only cookie issued by 
 - `POST /api/auth/logout`
 - `GET /api/auth/session`
 
+V28 retains the same login request and session response. `identifier` may be the
+Client ID or a unique registered email. Where credentials contain only a Client
+ID, Apps Script joins CLIENTS Email to that ID before checking the existing
+credential password, role and status. No email is sent directly to Google by the
+browser. Duplicate identities return AMBIGUOUS_LOGIN; an email profile missing
+its Client ID returns CLIENT_LINK_MISSING. Neither case guesses a client or role.
+Blank/unregistered emails cannot authenticate. Existing Client-ID matching and
+inactive/pending-account enforcement remain unchanged.
+
 ## Client and Admin Data
 
 - `GET /api/dashboard`

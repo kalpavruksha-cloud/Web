@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v23-registration-form";
+const CACHE_VERSION = "kalpavruksha-pwa-v24-admin-summary-email-login";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
