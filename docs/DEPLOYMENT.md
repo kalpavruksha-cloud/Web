@@ -7,7 +7,32 @@
 - Frontend local URL: `http://localhost:5173`
 - Backend local URL: `http://localhost:8080/api`
 
-## Current KYC Review Upgrade (V29)
+## Current Password Persistence Upgrade (V30)
+
+1. Publish the tested frontend/backend to the existing GitHub/Vercel project.
+   PWA cache version: `kalpavruksha-pwa-v26-password-confirmation`.
+2. Replace the complete Apps Script Code.gs using `google-apps-script/Code.gs`.
+3. Save and deploy **Manage deployments > Edit > New version > Deploy** on the
+   existing Web App. Keep the URL and execute as the owner.
+4. Verify `?action=deploymentTest` returns
+   `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_31_PASSWORD_AUTHORITY_V30`.
+5. No new password-change environment/property setup is required. Preserve the
+   existing JWT secret and V29 KYC signing property; login cookies are unchanged.
+6. With a legitimate account whose owner consents to changing its password, open
+   Client > Settings > Change Password. The success message requires fresh
+   spreadsheet readback, not just an upstream HTTP 200 response.
+7. As an authorized spreadsheet editor, confirm only that account's existing
+   CLIENT_CREDENTIALS Password and LastPasswordChange cells reflect the change.
+   Do not send either password in chat, logs, screenshots or support exports.
+8. Sign out, then verify the old password fails and the new one works using Client
+   ID and registered email. An already-open session is not a fresh password test.
+
+No customer passwords are changed automatically by deployment. Automated tests
+use synthetic records only. Do not create a fake production account or reset a
+real customer's password merely to test the software. The matching Apps Script
+deployment is required; older unconfirmed responses are not reported as success.
+
+## KYC Review Upgrade (V29, Included)
 
 1. Publish the tested repository changes to the existing GitHub/Vercel project.
    The PWA cache version is `kalpavruksha-pwa-v25-admin-kyc-review`.

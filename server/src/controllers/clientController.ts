@@ -31,8 +31,7 @@ type ClientAction =
   | "getSupportRequests"
   | "createSupportRequest"
   | "getClientPreferences"
-  | "updateClientPreferences"
-  | "changeClientPassword";
+  | "updateClientPreferences";
 
 export function clientRead(action: ClientAction) {
   return async (req: Request, res: Response) => {

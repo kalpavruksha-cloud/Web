@@ -1,5 +1,27 @@
 # Testing Checklist
 
+## Password Persistence (V30)
+
+- Client Settings sends current/new/confirmation values only through the backend.
+- Only a client session may change its own password; admin/other-client/body role
+  overrides are rejected in Express and Vercel.
+- Confirmed save updates the existing CLIENT_CREDENTIALS Password and
+  LastPasswordChange cells. New password works through Client ID and email; the
+  old password fails after logout. Another client's credential stays unchanged.
+- Incorrect current password, mismatched confirmation, unchanged password,
+  leading/trailing-space passwords, and invalid lengths do not write anything.
+- Canonical Password and legacy aliases use the same policy for login/change.
+  Duplicate credentials fail closed; a blank canonical credential never falls
+  back to an old CLIENTS password. No bulk reset or profile password column added.
+- Leading zeros/special characters remain literal text, not spreadsheet formulas.
+- Password mutations use POST, no URL secrets, no-store and no automatic retries.
+- Failed persistence or old unconfirmed deployment response does not show success.
+  UI displays the error and does not clear the fields as if the save succeeded.
+- Passwords are absent from API response/audit/log payloads. No real customer
+  password is read, changed or shared merely to run automated tests.
+- Existing JWT sessions remain unchanged. Live owner-approved password testing
+  requires deploying V30; unit/API/UI synthetic tests do not prove a live save.
+
 ## KYC Review (V29)
 
 Automated regression tests use synthetic in-memory records only. Complete the

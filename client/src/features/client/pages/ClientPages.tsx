@@ -370,7 +370,7 @@ export function HelpSupportPage() {
 export function ClientSettingsPage() {
   const prefs = useResource<ClientPreferences>("client-preferences", "/client/settings");
   const mutation = useAction<ClientPreferences>(["client-preferences"]);
-  const passwordMutation = useAction<{ updated: boolean }>([]);
+  const passwordMutation = useAction<{ updated: boolean; verified: boolean }>([]);
   const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
@@ -383,9 +383,12 @@ export function ClientSettingsPage() {
   async function changePassword(event: FormEvent) {
     event.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) { toast({ title: "Passwords do not match", type: "error" }); return; }
-    await passwordMutation.mutateAsync({ method: "put", url: "/client/password", body: passwordForm });
-    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    toast({ title: "Password changed", message: "Use the new password for your next login.", type: "success" });
+    try {
+      const result = await passwordMutation.mutateAsync({ method: "put", url: "/client/password", body: passwordForm });
+      if (result.updated !== true || result.verified !== true) throw new Error("The password change was not confirmed. Check your latest login before trying again.");
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      toast({ title: "Password changed", message: "Your new password is saved. The old password no longer works for a new login.", type: "success" });
+    } catch (error) { toast({ title: "Password change failed", message: error instanceof Error ? error.message : "Password could not be changed. Please contact support.", type: "error" }); }
   }
   return <ClientPage title="Settings"><div className="grid gap-6 xl:grid-cols-2"><ClientCard><SectionTitle title="Visual Preferences" /><Info label="Theme" value={theme} /><ClientButton onClick={toggleTheme}>Toggle Theme</ClientButton></ClientCard><ClientCard><SectionTitle title="Notification Preferences" /><Toggle label="Email Notifications" checked={!!current.emailNotifications} onChange={(value) => setForm({ ...form, emailNotifications: value })} /><Toggle label="SMS Notifications" checked={!!current.smsNotifications} onChange={(value) => setForm({ ...form, smsNotifications: value })} /><Toggle label="WhatsApp Notifications" checked={!!current.whatsappNotifications} onChange={(value) => setForm({ ...form, whatsappNotifications: value })} /><ClientField label="Preferred Language"><ClientInput value={current.preferredLanguage ?? "English"} onChange={(e) => setForm({ ...form, preferredLanguage: e.target.value })} /></ClientField><div className="mt-4 flex flex-wrap gap-2"><ClientButton onClick={save} disabled={mutation.isPending}>Save Preferences</ClientButton><ClientButton tone="danger" onClick={() => void logout()}>Logout Current Session</ClientButton></div></ClientCard><ClientCard className="xl:col-span-2"><SectionTitle title="Change Password" subtitle="Updates your spreadsheet login password" /><form onSubmit={changePassword} className="grid gap-3 md:grid-cols-3"><ClientField label="Current Password"><ClientInput required type="password" autoComplete="current-password" value={passwordForm.currentPassword} onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })} /></ClientField><ClientField label="New Password"><ClientInput required type="password" minLength={6} autoComplete="new-password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} /></ClientField><ClientField label="Confirm New Password"><ClientInput required type="password" minLength={6} autoComplete="new-password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} /></ClientField><div className="md:col-span-3"><ClientButton type="submit" disabled={passwordMutation.isPending}>{passwordMutation.isPending ? "Updating..." : "Update Password"}</ClientButton></div></form></ClientCard></div></ClientPage>;
 }

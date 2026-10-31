@@ -21,6 +21,32 @@ inactive/pending-account enforcement remain unchanged.
 
 ## Client and Admin Data
 
+### Password Change (V30)
+
+`PUT /api/client/password` uses the existing client session and role middleware.
+Body: `{currentPassword, newPassword, confirmPassword}`. Client ID/actor/role come
+only from the JWT; unknown body keys and scope overrides are rejected. New
+passwords must be 6-100 characters, without leading/trailing spaces, different
+from the normalized current password and identical to confirmation.
+
+Express and Vercel send the action `changeClientPassword` only as a POST body to
+Apps Script. Neither the passwords nor proof of identity are URL parameters.
+Writes are not retried. A success response contains only
+`{updated:true, verified:true, clientId, changedAt}`. `verified` means fresh
+spreadsheet password readback, not a government identity or KYC verification.
+Responses use no-store. Older/missing/mismatched success payloads fail with
+PASSWORD_CHANGE_UNCONFIRMED; an incorrect current password returns 400
+PASSWORD_MISMATCH. Ambiguous credentials return 409. Internal errors are sanitized.
+
+Apps Script locks the change, resolves the same credential row/password authority
+as login, verifies the current password, writes literal text, flushes, reads back,
+then records LastPasswordChange and an audit action without password values.
+Canonical Password is authoritative; legacy password mirrors do not provide
+alternative valid passwords. Existing credential rows never authenticate through
+an old CLIENTS password. GET password-change actions are rejected. Existing JWT
+sessions are not revoked by this narrowly scoped change; test passwords after
+logout rather than checking whether a previously authenticated screen stays open.
+
 ### KYC Review (V29)
 
 The existing login cookie and role middleware protect these endpoints in Express

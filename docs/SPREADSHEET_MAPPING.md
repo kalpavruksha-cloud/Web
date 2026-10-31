@@ -6,6 +6,28 @@
 - Apps Script URL in local env: `https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec`
 - Backend remains the only browser-facing integration layer.
 
+## Password Authority (V30)
+
+Read-only header inspection on 31 October 2026 confirmed CLIENT_CREDENTIALS has
+ClientId (Login ID), ClientName, Password, Role, Status and LastPasswordChange.
+CLIENTS has no password column. No customer password values were read or changed
+during this inspection or implementation.
+
+The affected account's existing CLIENT_CREDENTIALS Password cell is the sole
+credential authority. Password changes resolve the same normalized client ID and
+canonical/legacy password header policy as login. The script does not append a
+shadow Login ID or Password column when a supported alias already exists.
+Multiple matching credential rows fail closed instead of updating the last one.
+A canonical Password header takes priority over any differently named legacy
+password columns. Conflicting duplicate canonical fields are rejected.
+
+Only the account being changed is written. Existing alternative credential/profile
+password columns for that account are synchronized if present, without creating
+new password columns on CLIENTS. No fallback to CLIENTS occurs when a credential
+row exists. LastPasswordChange is recorded after credential readback succeeds;
+the existing ACTIVITY_LOG receives only action/client/request metadata, never
+passwords. Roles, activation state, financial records and formulas are untouched.
+
 ## KYC Authority and Manual Review (V29)
 
 Read-only header inspection on 30 October 2026 confirmed the existing KYC tab has

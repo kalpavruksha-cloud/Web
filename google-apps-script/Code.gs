@@ -1,5 +1,5 @@
 var DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_30_ADMIN_KYC_REVIEW_V29";
+var DEPLOYMENT_MARKER = "KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_31_PASSWORD_AUTHORITY_V30";
 var DASHBOARD_READ_CONTEXT = null;
 
 var REQUIRED_SHEETS = [
@@ -121,11 +121,9 @@ function driveAuthorizationTest(payload) {
 function doGet(e) {
   try {
     var params = e && e.parameter ? e.parameter : {};
-    if (params.payload) {
-      var body = JSON.parse(params.payload);
-      return route(body);
-    }
-    return route(params);
+    var body = params.payload ? JSON.parse(params.payload) : params;
+    if (String(body.action || "").trim() === "changeClientPassword") throw coded("METHOD_NOT_ALLOWED", "Password changes require a secure POST request.");
+    return route(body);
   } catch (error) {
     return jsonResponse(false, "Operation failed", null, { code: error.code || "DO_GET_ERROR", details: error.message || String(error) }, safeRequestId());
   }
@@ -208,8 +206,7 @@ function login(payload) {
     credentialMissing = !!match;
   }
   if (!match) throw coded("LOGIN_ID_NOT_FOUND", "Login ID was not found in CLIENT_CREDENTIALS or CLIENTS");
-  var stored = String(first(match, passwordHeaders()) || "");
-  if (!stored && clientRow) stored = String(first(clientRow, passwordHeaders()) || "");
+  var stored = credentialPassword(match);
   if (!stored && credentialMissing) throw coded("CLIENT_CREDENTIALS_MISSING", "Client exists in CLIENTS, but no password was found. Add a matching row in CLIENT_CREDENTIALS with ClientId, Password, Role=client, Status=active, or add a Portal Password column to the client row once and login again.");
   if (!stored) throw coded("PASSWORD_NOT_CONFIGURED", "Password is not configured for this login");
   if (normalizePassword(stored) !== loginPassword) throw coded("PASSWORD_MISMATCH", "Password does not match the CLIENT_CREDENTIALS row");
@@ -1917,29 +1914,45 @@ function removeProfilePhoto(payload) {
 }
 
 function changeClientPassword(payload) {
-  requireFields(payload, ["clientId", "currentPassword", "newPassword"]);
-  if (cleanString(payload.newPassword).length < 6) throw coded("WEAK_PASSWORD", "New password must be at least 6 characters");
-  var spreadsheet = getSpreadsheet(payload);
-  var sheet = requireSheet(spreadsheet, ["CLIENT_CREDENTIALS", "Credentials", "Users"]);
-  ensureHeaders(sheet, ["ClientId (Login ID)", "Password", "LastPasswordChange"]);
-  var values = sheet.getDataRange().getValues();
-  var headers = values[0].map(String);
-  var loginIndex = findHeaderIndex(headers, ["ClientId (Login ID)", "Login ID", "LoginId", "User ID", "UserId", "ClientId", "Client ID", "CLIENT_ID"]);
-  var passwordIndex = findHeaderIndex(headers, passwordHeaders());
-  var changedIndex = findHeaderIndex(headers, ["LastPasswordChange", "Last Password Change", "Password Updated At"]);
-  if (loginIndex < 0 || passwordIndex < 0) throw coded("MISSING_COLUMN", "CLIENT_CREDENTIALS requires login ID and Password columns");
-  var targetRow = -1;
-  for (var i = 1; i < values.length; i++) {
-    if (normalizeLogin(values[i][loginIndex]) === normalizeLogin(payload.clientId)) targetRow = i + 1;
-  }
-  if (targetRow < 0) throw coded("CREDENTIAL_NOT_FOUND", "No CLIENT_CREDENTIALS row was found for this client");
-  var storedPassword = values[targetRow - 1][passwordIndex];
-  if (normalizePassword(storedPassword) !== normalizePassword(payload.currentPassword)) throw coded("PASSWORD_MISMATCH", "Current password is incorrect");
-  sheet.getRange(targetRow, passwordIndex + 1).setValue(cleanString(payload.newPassword));
-  if (changedIndex >= 0) sheet.getRange(targetRow, changedIndex + 1).setValue(new Date());
-  syncClientPasswordColumn(payload, cleanString(payload.newPassword));
-  audit(payload, "changeClientPassword", "CLIENT_CREDENTIALS", payload.clientId);
-  return { updated: true, clientId: payload.clientId };
+  requireFields(payload, ["clientId", "currentPassword", "newPassword", "confirmPassword"]);
+  if (payload.role !== "client") throw coded("FORBIDDEN", "Use the client account settings to change your password.");
+  if (typeof payload.currentPassword !== "string" || typeof payload.newPassword !== "string" || typeof payload.confirmPassword !== "string") throw coded("VALIDATION_ERROR", "Enter valid password fields.");
+  var password = payload.newPassword;
+  if (password.length < 6 || password.length > 100) throw coded("WEAK_PASSWORD", "New password must be between 6 and 100 characters.");
+  if (password !== password.trim()) throw coded("VALIDATION_ERROR", "New password must not start or end with spaces.");
+  if (password !== payload.confirmPassword) throw coded("VALIDATION_ERROR", "New password and confirm password do not match.");
+  if (normalizePassword(payload.currentPassword) === password) throw coded("PASSWORD_UNCHANGED", "New password must be different from current password.");
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    var spreadsheet = getSpreadsheet(payload);
+    var sheet = requireSheet(spreadsheet, ["CLIENT_CREDENTIALS", "Credentials", "Users"]);
+    var target = passwordCredentialTarget(sheet, payload.clientId);
+    if (credentialRole(target.record) !== "client") throw coded("FORBIDDEN", "This account cannot be changed from client settings.");
+    var clientSheet = findSheet(spreadsheet, ["CLIENTS", "Client", "Clients", "Profile"]);
+    var clientRow = clientSheet ? findClientLoginRow(readRows(clientSheet), normalizeLogin(payload.clientId), target.record) : null;
+    if (["active", "enabled", "approved"].indexOf(effectiveLoginStatus(target.record, clientRow)) < 0) throw coded("ACCOUNT_INACTIVE", "This account is not active. Please contact support.");
+    var previous = credentialPassword(target.record);
+    if (!previous || normalizePassword(previous) !== normalizePassword(payload.currentPassword)) throw coded("PASSWORD_MISMATCH", "Current password is incorrect.");
+
+    // Legacy password columns are mirrors, never alternative login credentials.
+    syncClientPasswordColumn(payload, password);
+    var passwordColumns = passwordColumnIndexes(target.headers);
+    if (!passwordColumns.length) throw coded("PASSWORD_NOT_CONFIGURED", "Password is not configured for this account.");
+    passwordColumns.forEach(function(index) { writeLiteralPassword(sheet.getRange(target.row, index + 1), password); });
+    SpreadsheetApp.flush();
+    var persisted = passwordCredentialTarget(sheet, payload.clientId);
+    if (credentialPassword(persisted.record) !== password || passwordColumnIndexes(persisted.headers).some(function(index) { return String(persisted.values[index]) !== password; })) {
+      throw coded("PASSWORD_CHANGE_UNCONFIRMED", "The saved password could not be confirmed. Check your latest login before submitting again.");
+    }
+    var changedIndex = findHeaderIndex(target.headers, ["LastPasswordChange", "Last Password Change", "Password Updated At"]);
+    if (changedIndex < 0) { changedIndex = target.headers.length; sheet.getRange(1, changedIndex + 1).setValue("LastPasswordChange"); }
+    var changedAt = new Date();
+    sheet.getRange(target.row, changedIndex + 1).setValue(changedAt);
+    SpreadsheetApp.flush();
+    audit(payload, "changeClientPassword", "CLIENT_CREDENTIALS", payload.clientId);
+    return { updated: true, verified: true, clientId: payload.clientId, changedAt: changedAt.toISOString() };
+  } finally { lock.releaseLock(); }
 }
 
 function syncClientPasswordColumn(payload, password) {
@@ -1949,14 +1962,49 @@ function syncClientPasswordColumn(payload, password) {
   if (!values.length) return;
   var headers = values[0].map(String);
   var clientIdIndex = findHeaderIndex(headers, ["ClientId", "Client ID", "CLIENT_ID", "ClientId (Login ID)"]);
-  var passwordIndex = findHeaderIndex(headers, passwordHeaders());
-  if (clientIdIndex < 0 || passwordIndex < 0) return;
+  var passwordColumns = passwordColumnIndexes(headers);
+  if (clientIdIndex < 0 || !passwordColumns.length) return;
   for (var i = 1; i < values.length; i++) {
     if (normalizeLogin(values[i][clientIdIndex]) === normalizeLogin(payload.clientId)) {
-      sheet.getRange(i + 1, passwordIndex + 1).setValue(password);
-      return;
+      passwordColumns.forEach(function(index) { writeLiteralPassword(sheet.getRange(i + 1, index + 1), password); });
     }
   }
+}
+
+function passwordColumnIndexes(headers) {
+  var aliases = passwordHeaders().map(normalizeKey);
+  return headers.map(function(header, index) { return aliases.indexOf(normalizeKey(header)) >= 0 ? index : -1; }).filter(function(index) { return index >= 0; });
+}
+
+function credentialPassword(record) {
+  var keys = Object.keys(record);
+  var canonical = keys.filter(function(key) { return normalizeKey(key) === "password"; });
+  var candidates = canonical.length ? canonical : keys.filter(function(key) { return passwordColumnIndexes([key]).length > 0; });
+  var values = [];
+  candidates.forEach(function(key) {
+    var value = normalizePassword(record[key]);
+    if (values.indexOf(value) < 0) values.push(value);
+  });
+  if (values.length > 1) throw coded("AMBIGUOUS_CREDENTIAL_PASSWORD", "The account has conflicting password fields. Please contact support.");
+  return values[0] || "";
+}
+
+function passwordCredentialTarget(sheet, clientId) {
+  var values = sheet.getDataRange().getValues();
+  var headers = values.length ? values[0].map(String) : [];
+  var matches = [];
+  for (var i = 1; i < values.length; i++) {
+    var record = rowsToObjects(headers, [values[i]])[0] || {};
+    if (normalizeLogin(credentialLoginId(record)) === normalizeLogin(clientId)) matches.push({ row: i + 1, record: record, headers: headers, values: values[i] });
+  }
+  if (matches.length > 1) throw coded("AMBIGUOUS_LOGIN", "More than one credential row matches this client. Please contact support.");
+  if (!matches.length) throw coded("CREDENTIAL_NOT_FOUND", "No matching credential record was found. Please contact support.");
+  return matches[0];
+}
+
+function writeLiteralPassword(cell, password) {
+  cell.setNumberFormat("@");
+  cell.setValue(password.charAt(0) === "=" ? "'" + password : password);
 }
 function getFaqs(payload) {
   var sheet = findSheet(getSpreadsheet(payload), ["FAQ", "FAQs"]);

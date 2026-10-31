@@ -3,9 +3,15 @@ const { z } = require("zod");
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4IMhPb_XqCFPBorxEBTgKsREaFOQaEmoKgBgedtIsfUHiXe4BbU91Yl6dy1P5oSMr/exec";
 const DEFAULT_SPREADSHEET_ID = "19q6x5HPTrgcbH18wg2I1VoCrUdKLW98MFiQPO0ErPbI";
-const DEPLOYMENT_MARKER = "vercel-native-api-2026-10-30-admin-kyc-v8";
+const DEPLOYMENT_MARKER = "vercel-native-api-2026-10-31-password-confirmation-v9";
 
 let jwtModulePromise;
+
+const passwordPolicy = z.object({
+  currentPassword: z.string().min(1, "Current password is required").max(1000),
+  newPassword: z.string().min(6, "New password must be at least 6 characters").max(100).refine((value) => value === value.trim(), "New password must not start or end with spaces"),
+  confirmPassword: z.string().min(6).max(100)
+}).strict().refine((value) => value.newPassword === value.confirmPassword, "New password and confirm password do not match").refine((value) => value.currentPassword.trim() !== value.newPassword, "New password must be different from current password");
 
 const kycNumbersPolicy = z.object({
   expectedRevision: z.string().min(1).max(128),
@@ -35,7 +41,7 @@ module.exports = async function handler(req, res) {
 
     const env = getEnv();
     const path = getApiPath(req.url || "/");
-    if (path === "/client/kyc" || /^\/clients\/[^/]+\/kyc(?:\/review)?$/.test(path)) res.setHeader("Cache-Control", "no-store");
+    if (["/client/kyc", "/client/password"].includes(path) || /^\/clients\/[^/]+\/kyc(?:\/review)?$/.test(path)) res.setHeader("Cache-Control", "no-store");
 
     if (path === "/system/health" && req.method === "GET") {
       const data = await health(env, requestId);
@@ -153,6 +159,21 @@ async function proxyRoute(req, path, user, env, requestId) {
   const query = Object.fromEntries(new URL(req.url || "/", "https://portal.local").searchParams.entries());
   const method = req.method === "GET" ? "GET" : "POST";
 
+  if (path === "/client/password") {
+    if (user.role !== "client") return { status: 403, body: fail("FORBIDDEN", "Use a client account for this page", "Permission denied", requestId) };
+    if (req.method !== "PUT") return { status: 405, body: fail("METHOD_NOT_ALLOWED", "Use the password change form", "Invalid request", requestId) };
+    if ((body.clientId && body.clientId !== user.clientId) || (query.clientId && query.clientId !== user.clientId)) return { status: 403, body: fail("CLIENT_SCOPE_VIOLATION", "Client ID comes from your secure session", "Permission denied", requestId) };
+    const parsed = passwordPolicy.safeParse(body);
+    if (!parsed.success) return { status: 400, body: fail("VALIDATION_ERROR", parsed.error.issues.map((issue) => issue.message).join("; "), "Invalid password request", requestId) };
+    const upstream = await callAppsScript(env, "changeClientPassword", clientPayload(user, parsed.data), requestId, "POST");
+    if (upstream.success && (upstream.data?.updated !== true || upstream.data?.verified !== true || String(upstream.data?.clientId).toLowerCase() !== String(user.clientId).toLowerCase())) return { status: 502, body: fail("PASSWORD_CHANGE_UNCONFIRMED", "The password change could not be confirmed. Check your latest login before submitting again, or contact support.", "Password change not confirmed", requestId) };
+    if (upstream.success) upstream.data = { updated: true, verified: true, clientId: upstream.data.clientId, changedAt: upstream.data.changedAt };
+    const code = upstream.error?.code || "";
+    const permitted = ["PASSWORD_MISMATCH", "PASSWORD_UNCHANGED", "WEAK_PASSWORD", "PASSWORD_CHANGE_UNCONFIRMED", "ACCOUNT_INACTIVE", "CREDENTIAL_NOT_FOUND", "AMBIGUOUS_LOGIN", "AMBIGUOUS_CREDENTIAL_PASSWORD", "FORBIDDEN", "VALIDATION_ERROR", "APPS_SCRIPT_TIMEOUT", "APPS_SCRIPT_UNAVAILABLE", "APPS_SCRIPT_DEPLOYMENT_UNAVAILABLE", "APPS_SCRIPT_HTTP_ERROR", "INVALID_APPS_SCRIPT_RESPONSE"];
+    if (!upstream.success && !permitted.includes(code)) return { status: 502, body: fail("PASSWORD_CHANGE_FAILED", "Password change could not be completed. Please contact support.", "Password change failed", requestId) };
+    return { status: upstream.success ? 200 : code === "PASSWORD_MISMATCH" ? 400 : code === "FORBIDDEN" ? 403 : ["AMBIGUOUS_LOGIN", "AMBIGUOUS_CREDENTIAL_PASSWORD"].includes(code) ? 409 : 502, body: upstream };
+  }
+
   const clientKyc = path === "/client/kyc";
   const adminKyc = path.match(/^\/clients\/([^/]+)\/kyc(\/review)?$/);
   if (clientKyc || adminKyc) {
@@ -207,8 +228,7 @@ async function proxyRoute(req, path, user, env, requestId) {
     ["GET", /^\/client\/support\/([^/]+)$/, "getSupportRequests"],
     ["POST", /^\/client\/support$/, "createSupportRequest"],
     ["GET", /^\/client\/settings$/, "getClientPreferences"],
-    ["PUT", /^\/client\/settings$/, "updateClientPreferences"],
-    ["PUT", /^\/client\/password$/, "changeClientPassword"]
+    ["PUT", /^\/client\/settings$/, "updateClientPreferences"]
   ];
 
   for (const [verb, pattern, action] of clientRoutes) {

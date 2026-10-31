@@ -14,6 +14,7 @@ import {
 } from "../controllers/dataController.js";
 import { clientRead, clientUpload, clientWrite, rejectClientIdOverride } from "../controllers/clientController.js";
 import { kycHandler } from "../controllers/kycController.js";
+import { changePassword } from "../controllers/passwordController.js";
 import { health, spreadsheetSchema, startup } from "../controllers/systemController.js";
 import { authenticate, clientScope, requireRole } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
@@ -78,7 +79,7 @@ apiRouter.post("/client/support", validate(supportRequestSchema), asyncHandler(c
 apiRouter.get("/client/support/:id", validate(idParamSchema), asyncHandler(clientRead("getSupportRequests")));
 apiRouter.get("/client/settings", asyncHandler(clientRead("getClientPreferences")));
 apiRouter.put("/client/settings", validate(clientPreferencesSchema), asyncHandler(clientWrite("updateClientPreferences")));
-apiRouter.put("/client/password", validate(clientPasswordSchema), asyncHandler(clientWrite("changeClientPassword")));
+apiRouter.put("/client/password", validate(clientPasswordSchema), asyncHandler(changePassword));
 
 apiRouter.get("/dashboard", asyncHandler(dashboard));
 apiRouter.get("/profile", asyncHandler(getProfile));

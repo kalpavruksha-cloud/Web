@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v25-admin-kyc-review";
+const CACHE_VERSION = "kalpavruksha-pwa-v26-password-confirmation";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 

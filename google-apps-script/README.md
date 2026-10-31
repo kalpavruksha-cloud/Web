@@ -1,8 +1,46 @@
 # Google Apps Script Integration
 
+## Password Persistence (V30)
+
+Latest marker: `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_31_PASSWORD_AUTHORITY_V30`.
+V30 includes the full V29 KYC implementation and all earlier fixes.
+
+Replace the complete Code.gs, save, and deploy a **New version** of the existing
+Web App, keeping the same URL and executing as the owner. Publish the matching
+frontend/backend changes through the existing GitHub/Vercel project. No additional
+environment variable or Script Property is required for password changes. The
+V29 signing property remains required for KYC only.
+
+The existing CLIENT_CREDENTIALS Password cell is the password authority. Client
+Settings > Change Password writes that same row and records LastPasswordChange
+only after the password is read back successfully. No actual customer password
+is changed merely by deployment. Existing sessions are not new password logins;
+sign out before checking that the old password is rejected.
+
+Login no longer falls back to a stale CLIENTS password when a credential row
+already exists. The existing explicit CLIENTS-only migration remains available
+only for accounts without a credential row, after their password is checked.
+Login and password change share canonical Password/legacy-header resolution.
+Existing alternative password columns on the affected account are synchronized,
+not used as additional valid passwords. Duplicate accounts/conflicting canonical
+fields fail closed; the script never bulk-resets passwords or guesses a row.
+
+Changes use a lock, POST body, current-password verification, confirmation, literal
+text storage and fresh readback. GET password changes are rejected. New passwords
+must be 6-100 characters, different from the current password, and have no leading
+or trailing spaces. Special characters and leading zeros are preserved. Unsafe
+writes are never automatically retried. An unconfirmed save shows an error, not
+a success notification. No password is echoed in API responses or audit records.
+
+The existing workbook architecture stores Password as plaintext, visible to its
+authorized spreadsheet editors; this release does not introduce hashing or add
+passwords to client profiles, admin dashboard exports or public diagnostics.
+Restrict spreadsheet access. Support should prefer resetting a password rather
+than transmitting a client's stored password.
+
 ## Admin KYC Review (V29)
 
-Latest marker: `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_30_ADMIN_KYC_REVIEW_V29`.
+Historical V29 marker (included in V30): `KALPAVRUKSHA_PORTAL_CODE_GS_2026_10_30_ADMIN_KYC_REVIEW_V29`.
 V29 includes V28 and all earlier fixes. Replace the complete Code.gs; do not paste
 only the new functions. Keep the existing spreadsheet and Web App deployment URL.
 

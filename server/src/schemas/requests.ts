@@ -193,13 +193,13 @@ export const clientPreferencesSchema = z.object({
 
 export const clientPasswordSchema = z.object({
   body: z.object({
-    currentPassword: z.string().min(1, "Current password is required"),
-    newPassword: z.string().min(6, "New password must be at least 6 characters").max(100),
+    currentPassword: z.string().min(1, "Current password is required").max(1000),
+    newPassword: z.string().min(6, "New password must be at least 6 characters").max(100).refine((value) => value === value.trim(), "New password must not start or end with spaces"),
     confirmPassword: z.string().min(6, "Confirm password must be at least 6 characters").max(100)
-  }).refine((data) => data.newPassword === data.confirmPassword, {
+  }).strict().refine((data) => data.newPassword === data.confirmPassword, {
     message: "New password and confirm password do not match",
     path: ["confirmPassword"]
-  }).refine((data) => data.currentPassword !== data.newPassword, {
+  }).refine((data) => data.currentPassword.trim() !== data.newPassword, {
     message: "New password must be different from current password",
     path: ["newPassword"]
   })
