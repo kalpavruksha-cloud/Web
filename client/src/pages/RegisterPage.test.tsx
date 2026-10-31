@@ -63,7 +63,7 @@ describe("RegisterPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create portal registration" }));
 
     const heading = await screen.findByRole("heading", { name: "Registration successful" });
-    expect(heading).toHaveFocus();
+    await waitFor(() => expect(heading).toHaveFocus());
     expect(api.post).toHaveBeenCalledExactlyOnceWith("/auth/register", expect.objectContaining({ ...registration, gender: "Female", riskProfile: "Medium" }));
     expect(screen.getByRole("status")).toHaveTextContent("TEST001");
     expect(screen.getByRole("status")).toHaveTextContent("once your account is activated");

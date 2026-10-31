@@ -25,6 +25,7 @@ import { downloadBase64File, exportCsv, maskLastFour, profileCompletion, statusT
 import { fallbackFaqs } from "../config/faqs";
 import { ClientPortfolioChart } from "../ClientPortfolioChart";
 import { KycPanel } from "../../kyc/KycPanel";
+import statementLogo from "../../../assets/group-kalpavruksha-wealth.png";
 
 const documentCategories = ["Aadhaar Card", "PAN Card", "Agreement", "Cancelled Cheque", "Address Proof", "Bank Proof", "Investment Receipt", "Tax Document", "Nominee Proof", "Other"];
 
@@ -164,6 +165,7 @@ export function ClientTransactionsPage() {
 
 function printTransactions(rows: Transaction[]) {
   const printedAt = formatDate(new Date().toISOString());
+  const logoUrl = new URL(statementLogo, window.location.href).href;
   const tableRows = rows.map((row) => `
     <tr>
       <td>${escapePrintValue(row.id)}</td>
@@ -183,20 +185,49 @@ function printTransactions(rows: Transaction[]) {
     return;
   }
   printWindow.document.open();
+  // The vector backplate stays visible even when print background graphics are off.
   printWindow.document.write(`<!doctype html><html><head><title>Kalpavruksha Transactions</title><style>
     @page { size: A4 landscape; margin: 12mm; }
     * { box-sizing: border-box; }
     body { margin: 0; color: #17211d; font-family: Arial, sans-serif; }
+    .statement-header { display: flex; align-items: center; gap: 20px; margin-bottom: 18px; break-inside: avoid; }
+    .statement-brand { position: relative; flex: 0 0 168px; width: 168px; height: 112px; padding: 8px; }
+    .statement-brand svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .statement-logo { position: relative; display: block; width: 100%; height: 100%; object-fit: contain; }
+    .statement-header p { margin-bottom: 0; }
     h1 { margin: 0; color: #0b2f25; font-size: 22px; }
     p { margin: 6px 0 18px; color: #5a625d; font-size: 12px; }
     table { width: 100%; border-collapse: collapse; font-size: 11px; }
     th { background: #0b2f25; color: #fffaf0; padding: 9px 7px; text-align: left; text-transform: uppercase; }
     td { border-bottom: 1px solid #dfe8e2; padding: 8px 7px; vertical-align: top; }
     .money { text-align: right; white-space: nowrap; }
-  </style></head><body><h1>Kalpavruksha Wealth - Transaction Statement</h1><p>Printed ${escapePrintValue(printedAt)}. Showing ${rows.length} filtered transaction records.</p><table><thead><tr><th>Transaction ID</th><th>Date</th><th>Scheduled Payout Date</th><th>Type</th><th>Description</th><th>Credit</th><th>Debit</th><th>Balance</th><th>Reference</th><th>Status</th></tr></thead><tbody>${tableRows || '<tr><td colspan="10">No transactions available for this filter.</td></tr>'}</tbody></table></body></html>`);
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } #statement-print-error { display: none; } }
+  </style></head><body><header class="statement-header"><div class="statement-brand"><svg viewBox="0 0 168 112" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><rect width="168" height="112" rx="6" fill="#0b1525" /></svg><img class="statement-logo" src="${escapePrintValue(logoUrl)}" alt="Kalpavruksha Wealth" width="152" height="96" /></div><div><h1>Kalpavruksha Wealth - Transaction Statement</h1><p>Printed ${escapePrintValue(printedAt)}. Showing ${rows.length} filtered transaction records.</p></div></header><p id="statement-print-error" role="alert" hidden>The statement logo could not be loaded. Close this window and try printing the statement again.</p><table><thead><tr><th>Transaction ID</th><th>Date</th><th>Scheduled Payout Date</th><th>Type</th><th>Description</th><th>Credit</th><th>Debit</th><th>Balance</th><th>Reference</th><th>Status</th></tr></thead><tbody>${tableRows || '<tr><td colspan="10">No transactions available for this filter.</td></tr>'}</tbody></table></body></html>`);
   printWindow.document.close();
-  printWindow.focus();
-  window.setTimeout(() => printWindow.print(), 250);
+  const logo = printWindow.document.querySelector<HTMLImageElement>(".statement-logo");
+  if (!logo) return;
+  let printed = false;
+  const showLogoError = () => {
+    if (printWindow.closed) return;
+    const error = printWindow.document.getElementById("statement-print-error");
+    if (error) error.hidden = false;
+    printWindow.focus();
+  };
+  const timeout = window.setTimeout(showLogoError, 15_000);
+  const printWithLogo = () => {
+    if (printed || printWindow.closed || !logo.naturalWidth) return;
+    printed = true;
+    window.clearTimeout(timeout);
+    const error = printWindow.document.getElementById("statement-print-error");
+    if (error) error.hidden = true;
+    printWindow.focus();
+    printWindow.print();
+  };
+  logo.addEventListener("load", printWithLogo, { once: true });
+  logo.addEventListener("error", () => { window.clearTimeout(timeout); showLogoError(); }, { once: true });
+  if (logo.complete && logo.naturalWidth) printWithLogo();
 }
 
 function escapePrintValue(value: unknown) {

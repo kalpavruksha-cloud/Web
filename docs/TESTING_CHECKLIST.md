@@ -66,6 +66,11 @@ never approve a real client simply to smoke-test software.
 - Profile update submits only allowed editable fields.
 - Investment list, details, filters, and statement print view.
 - Transaction list sorted newest first with search and print/download flow.
+- Client transaction Print / Save as PDF includes the complete official logo in
+  the statement header, including with print backgrounds disabled. Printing waits
+  for the logo; slow/failed image loads show an error, not a logo-less auto-print.
+  Filters, dates, currency and escaped descriptions stay unchanged. CSV remains
+  data-only; the printable PDF contains the branding.
 - Withdrawal creation blocks invalid amounts and writes to spreadsheet.
 - Admin withdrawal approve, reject, and paid actions update spreadsheet.
 - Document display opens Google Drive URLs.
