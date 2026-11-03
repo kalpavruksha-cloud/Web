@@ -151,7 +151,7 @@ export function AboutUsPage() {
                       key={`${company.name}-${logoIndex}`}
                       src={logo}
                       alt={logoIndex === 0 ? `${company.name} logo` : `${company.name} alternate logo`}
-                      className="mx-auto block max-h-24 w-full max-w-[19rem] object-contain drop-shadow-[0_12px_24px_rgba(215,171,61,0.18)]"
+                      className="mx-auto block max-h-24 w-full max-w-[19rem] object-contain [filter:drop-shadow(0_0_1px_rgba(255,255,255,0.95))_drop-shadow(0_0_4px_rgba(255,255,255,0.65))]"
                     />
                   ))}
                 </div>

@@ -36,6 +36,10 @@ describe("client payout date in the transaction statement", () => {
     expect(logo.alt).toBe("Kalpavruksha Wealth");
     expect(new URL(logo.src).pathname).toContain("group-kalpavruksha-wealth");
     expect(logo.closest("header")).not.toBeNull();
+    expect(logo.closest(".statement-brand")!.querySelector("svg, canvas")).toBeNull();
+    expect(logo.closest(".statement-brand")!.children).toHaveLength(1);
+    expect(write.mock.calls[0][0]).not.toContain("#0b1525");
+    expect(write.mock.calls[0][0]).not.toContain(".statement-brand svg");
     expect(print).not.toHaveBeenCalled();
     Object.defineProperty(logo, "naturalWidth", { value: 468 });
     logo.dispatchEvent(new Event("load"));
