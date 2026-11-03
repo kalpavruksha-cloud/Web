@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Bell, Copy, Download, ExternalLink, IndianRupee, Printer, UserCircle, WalletCards } from "lucide-react";
+import { Bell, Copy, Download, ExternalLink, Eye, EyeOff, IndianRupee, Printer, UserCircle, WalletCards } from "lucide-react";
 import { api } from "../../../api/client";
 import { useAction, useResource } from "../../../api/queries";
 import { ErrorState } from "../../../components/State";
@@ -407,6 +407,7 @@ export function ClientSettingsPage() {
   const { toast } = useToast();
   const [form, setForm] = useState<ClientPreferences>({});
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [visiblePasswords, setVisiblePasswords] = useState({ currentPassword: false, newPassword: false, confirmPassword: false });
   if (prefs.isLoading) return <ClientLoading label="Loading preferences" />;
   if (prefs.error) return <ErrorState title="Settings unavailable" message={prefs.error instanceof Error ? prefs.error.message : undefined} />;
   const current = { ...prefs.data, ...form };
@@ -415,13 +416,37 @@ export function ClientSettingsPage() {
     event.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) { toast({ title: "Passwords do not match", type: "error" }); return; }
     try {
+      setVisiblePasswords({ currentPassword: false, newPassword: false, confirmPassword: false });
       const result = await passwordMutation.mutateAsync({ method: "put", url: "/client/password", body: passwordForm });
       if (result.updated !== true || result.verified !== true) throw new Error("The password change was not confirmed. Check your latest login before trying again.");
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       toast({ title: "Password changed", message: "Your new password is saved. The old password no longer works for a new login.", type: "success" });
     } catch (error) { toast({ title: "Password change failed", message: error instanceof Error ? error.message : "Password could not be changed. Please contact support.", type: "error" }); }
   }
-  return <ClientPage title="Settings"><div className="grid gap-6 xl:grid-cols-2"><ClientCard><SectionTitle title="Visual Preferences" /><Info label="Theme" value={theme} /><ClientButton onClick={toggleTheme}>Toggle Theme</ClientButton></ClientCard><ClientCard><SectionTitle title="Notification Preferences" /><Toggle label="Email Notifications" checked={!!current.emailNotifications} onChange={(value) => setForm({ ...form, emailNotifications: value })} /><Toggle label="SMS Notifications" checked={!!current.smsNotifications} onChange={(value) => setForm({ ...form, smsNotifications: value })} /><Toggle label="WhatsApp Notifications" checked={!!current.whatsappNotifications} onChange={(value) => setForm({ ...form, whatsappNotifications: value })} /><ClientField label="Preferred Language"><ClientInput value={current.preferredLanguage ?? "English"} onChange={(e) => setForm({ ...form, preferredLanguage: e.target.value })} /></ClientField><div className="mt-4 flex flex-wrap gap-2"><ClientButton onClick={save} disabled={mutation.isPending}>Save Preferences</ClientButton><ClientButton tone="danger" onClick={() => void logout()}>Logout Current Session</ClientButton></div></ClientCard><ClientCard className="xl:col-span-2"><SectionTitle title="Change Password" subtitle="Updates your spreadsheet login password" /><form onSubmit={changePassword} className="grid gap-3 md:grid-cols-3"><ClientField label="Current Password"><ClientInput required type="password" autoComplete="current-password" value={passwordForm.currentPassword} onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })} /></ClientField><ClientField label="New Password"><ClientInput required type="password" minLength={6} autoComplete="new-password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} /></ClientField><ClientField label="Confirm New Password"><ClientInput required type="password" minLength={6} autoComplete="new-password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} /></ClientField><div className="md:col-span-3"><ClientButton type="submit" disabled={passwordMutation.isPending}>{passwordMutation.isPending ? "Updating..." : "Update Password"}</ClientButton></div></form></ClientCard></div></ClientPage>;
+  return <ClientPage title="Settings"><div className="grid gap-6 xl:grid-cols-2"><ClientCard><SectionTitle title="Visual Preferences" /><Info label="Theme" value={theme} /><ClientButton onClick={toggleTheme}>Toggle Theme</ClientButton></ClientCard><ClientCard><SectionTitle title="Notification Preferences" /><Toggle label="Email Notifications" checked={!!current.emailNotifications} onChange={(value) => setForm({ ...form, emailNotifications: value })} /><Toggle label="SMS Notifications" checked={!!current.smsNotifications} onChange={(value) => setForm({ ...form, smsNotifications: value })} /><Toggle label="WhatsApp Notifications" checked={!!current.whatsappNotifications} onChange={(value) => setForm({ ...form, whatsappNotifications: value })} /><ClientField label="Preferred Language"><ClientInput value={current.preferredLanguage ?? "English"} onChange={(e) => setForm({ ...form, preferredLanguage: e.target.value })} /></ClientField><div className="mt-4 flex flex-wrap gap-2"><ClientButton onClick={save} disabled={mutation.isPending}>Save Preferences</ClientButton><ClientButton tone="danger" onClick={() => void logout()}>Logout Current Session</ClientButton></div></ClientCard>
+    <ClientCard className="xl:col-span-2"><SectionTitle title="Change Password" subtitle="Updates your spreadsheet login password" />
+      <form onSubmit={changePassword} className="grid gap-3 md:grid-cols-3">
+        {([
+          ["currentPassword", "Current Password", "current-password"],
+          ["newPassword", "New Password", "new-password"],
+          ["confirmPassword", "Confirm New Password", "new-password"]
+        ] as const).map(([field, label, autoComplete]) => {
+          const id = `settings-${field}`;
+          const toggleLabel = `${visiblePasswords[field] ? "Hide" : "Show"} ${label.toLowerCase()}`;
+          return <div key={field} className="grid min-w-0 gap-2">
+            <label htmlFor={id} className="text-sm font-bold text-charcoal/76 dark:text-white/76">{label}</label>
+            <div className="relative min-w-0">
+              <ClientInput id={id} required type={visiblePasswords[field] ? "text" : "password"} minLength={field === "currentPassword" ? undefined : 6} autoComplete={autoComplete} autoCapitalize="none" spellCheck={false} value={passwordForm[field]} onChange={(event) => { const value = event.target.value; setPasswordForm((previous) => ({ ...previous, [field]: value })); }} className="w-full min-w-0 pr-14" />
+              <button type="button" aria-label={toggleLabel} aria-controls={id} aria-pressed={visiblePasswords[field]} title={toggleLabel} disabled={passwordMutation.isPending} onClick={() => setVisiblePasswords((previous) => ({ ...previous, [field]: !previous[field] }))} className="absolute inset-y-0 right-1 my-auto flex h-11 w-11 items-center justify-center rounded-lg text-navy-700 hover:bg-navy-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 disabled:opacity-50 dark:text-gold-100 dark:hover:bg-white/10">
+                {visiblePasswords[field] ? <EyeOff className="h-5 w-5" aria-hidden="true" /> : <Eye className="h-5 w-5" aria-hidden="true" />}
+              </button>
+            </div>
+          </div>;
+        })}
+        <div className="md:col-span-3"><ClientButton type="submit" disabled={passwordMutation.isPending}>{passwordMutation.isPending ? "Updating..." : "Update Password"}</ClientButton></div>
+      </form>
+    </ClientCard>
+  </div></ClientPage>;
 }
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {

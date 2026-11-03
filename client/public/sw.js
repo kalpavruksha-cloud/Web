@@ -1,4 +1,4 @@
-const CACHE_VERSION = "kalpavruksha-pwa-v27-statement-logo";
+const CACHE_VERSION = "kalpavruksha-pwa-v28-password-visibility";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
