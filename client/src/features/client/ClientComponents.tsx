@@ -170,17 +170,18 @@ export function ClientStatus({ value }: { value?: string | boolean }) {
   return <span className={cn("inline-flex rounded-full border px-3 py-1.5 text-xs font-extrabold shadow-sm", cls)}>{text}</span>;
 }
 
-export function ClientTable<T>({ rows, columns, searchPlaceholder = "Search records", pageSize = 10 }: { rows: T[]; columns: ClientColumn<T>[]; searchPlaceholder?: string; pageSize?: number }) {
-  const [search, setSearch] = useState("");
+export function ClientTable<T>({ rows, columns, searchPlaceholder = "Search records", pageSize = 10, searchValue, onSearchChange }: { rows: T[]; columns: ClientColumn<T>[]; searchPlaceholder?: string; pageSize?: number; searchValue?: string; onSearchChange?: (value: string) => void }) {
+  const [localSearch, setSearch] = useState("");
+  const search = searchValue ?? localSearch;
   const [page, setPage] = useState(1);
-  const filtered = useMemo(() => rows.filter((row) => !search || JSON.stringify(row).toLowerCase().includes(search.toLowerCase())), [rows, search]);
+  const filtered = useMemo(() => searchValue !== undefined ? rows : rows.filter((row) => !search || JSON.stringify(row).toLowerCase().includes(search.toLowerCase())), [rows, search, searchValue]);
   const pageCount = Math.max(Math.ceil(filtered.length / pageSize), 1);
   const visible = filtered.slice((Math.min(page, pageCount) - 1) * pageSize, Math.min(page, pageCount) * pageSize);
   return (
     <div>
       <label className="mb-4 flex max-w-xl items-center gap-2 rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5">
         <Search className="h-4 w-4 text-charcoal/45 dark:text-white/45" /><span className="sr-only">Search</span>
-        <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder={searchPlaceholder} className="w-full bg-transparent" />
+        <input value={search} onChange={(event) => { setSearch(event.target.value); onSearchChange?.(event.target.value); setPage(1); }} placeholder={searchPlaceholder} className="w-full bg-transparent" />
       </label>
       <div className="overflow-x-auto rounded-[18px] border border-white/60 bg-white/80 shadow-glass backdrop-blur dark:border-white/10 dark:bg-white/7">
         <table className="min-w-full text-left text-sm">

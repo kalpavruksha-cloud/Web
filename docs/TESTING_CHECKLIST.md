@@ -69,8 +69,20 @@ never approve a real client simply to smoke-test software.
 - Client transaction Print / Save as PDF includes the complete transparent
   official logo in the statement header, without a coloured box or backplate. Printing waits
   for the logo; slow/failed image loads show an error, not a logo-less auto-print.
-  Filters, dates, currency and escaped descriptions stay unchanged. CSV remains
-  data-only; the printable PDF contains the branding.
+  Client Name, Client ID, overall Total Invested and Total Payout match the existing
+  dashboard API. From Date and To Date show the selected inclusive statement period.
+  CSV includes the same identity, totals and period; printable PDF contains the branding.
+- Client transaction date/type/status/search filters apply identically to the table,
+  CSV and Print / Save PDF, including all matching pages (20 rows per screen).
+  Single-day and ISO timestamp boundaries use India calendar dates. Undated records
+  are excluded only when a date range is selected. Invalid ranges disable exports.
+- Client statements show only Transaction ID, Date, Scheduled Payout Date, Type,
+  Credit, Debit and Status. Balance, Reference and Description are absent from both
+  the page and exports. One-sided investments appear in Debit, payouts in Credit;
+  signed corrections, two-sided adjustments and the source ledger remain unchanged.
+- Loading/failed/missing summary data blocks incomplete statement exports, rather
+  than inventing zero totals. Valid zero totals and empty selected periods work.
+  Spreadsheet text stays escaped in print and formula-safe in CSV.
 - Client and admin About Us retain their dark company-logo panels. All six
   original logos have a white edge/shadow for contrast, without recolouring,
   cropping, replacing or duplicating the artwork.

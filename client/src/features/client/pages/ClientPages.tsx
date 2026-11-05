@@ -21,7 +21,8 @@ import {
   FileUpload
 } from "../ClientComponents";
 import type { AccountOverview, Agreement, BankDetails, ClientDashboardData, ClientPreferences, InvestmentPlan, InvestmentRequest, SupportTicket } from "../clientTypes";
-import { downloadBase64File, exportCsv, maskLastFour, profileCompletion, statusText } from "../clientUtils";
+import { downloadBase64File, maskLastFour, profileCompletion, statusText } from "../clientUtils";
+import { clientStatementTransaction, downloadStatementCsv, statementDate, type ClientStatementDetails } from "../clientStatement";
 import { fallbackFaqs } from "../config/faqs";
 import { ClientPortfolioChart } from "../ClientPortfolioChart";
 import { KycPanel } from "../../kyc/KycPanel";
@@ -127,56 +128,79 @@ export function BankDetailsPage() {
 }
 
 export function ClientTransactionsPage() {
+  const { user } = useAuth();
   const transactions = useResource<Transaction[]>("client-transactions", "/client/transactions");
+  const dashboard = useResource<ClientDashboardData>("client-dashboard", "/client/dashboard");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [search, setSearch] = useState("");
   if (transactions.isLoading) return <ClientLoading label="Loading passbook" />;
   if (transactions.error) return <ErrorState title="Transactions unavailable" message={transactions.error instanceof Error ? transactions.error.message : undefined} />;
-  const allRows = (transactions.data ?? []).slice().sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
+  const allRows = (transactions.data ?? []).map(clientStatementTransaction).sort((a, b) => statementDate(b.date).localeCompare(statementDate(a.date)));
   const types = Array.from(new Set(allRows.map((row) => row.type).filter(Boolean))).sort();
   const statuses = Array.from(new Set(allRows.map((row) => row.status).filter(Boolean))).sort();
+  const invalidRange = Boolean(fromDate && toDate && fromDate > toDate);
   const rows = allRows.filter((row) => {
-    const date = String(row.date ?? "");
+    const date = statementDate(row.date);
+    if (invalidRange) return false;
     if (typeFilter && row.type !== typeFilter) return false;
     if (statusFilter && row.status !== statusFilter) return false;
-    if (fromDate && date && date < fromDate) return false;
-    if (toDate && date && date > toDate) return false;
+    if ((fromDate || toDate) && !date) return false;
+    if (fromDate && date < fromDate) return false;
+    if (toDate && date > toDate) return false;
+    if (search && ![row.id, statusText(row.type), statusText(row.status), formatDate(date || row.date), formatPayoutDate(row.scheduledPayoutDate), row.credit, row.debit].join(" ").toLowerCase().includes(search.trim().toLowerCase())) return false;
     return true;
   });
+  const dates = rows.map((row) => statementDate(row.date)).filter(Boolean).sort();
+  const details = {
+    clientName: dashboard.data?.client?.fullName || user?.name || "",
+    clientId: user?.clientId || dashboard.data?.client?.clientId || "",
+    totalInvested: dashboard.data?.totalInvestedAmount,
+    totalPayout: dashboard.data?.totalPayouts,
+    fromDate: fromDate || dates[0] || "",
+    toDate: toDate || dates.at(-1) || "",
+    type: typeFilter, status: statusFilter, search
+  };
+  const summaryReady = Boolean(details.clientName && details.clientId && Number.isFinite(details.totalInvested) && Number.isFinite(details.totalPayout) && !dashboard.error && !dashboard.isLoading);
+  const exportDetails = summaryReady ? details as ClientStatementDetails : null;
   const selectClass = "rounded-lg border border-forest-100 bg-white px-3 py-2 text-sm font-semibold dark:border-white/10 dark:bg-white/5";
-  return <ClientPage title="Transactions" actions={<><ClientButton tone="secondary" onClick={() => exportCsv("client-transactions.csv", rows as unknown as Array<Record<string, unknown>>)}><Download className="h-4 w-4" /> CSV</ClientButton><ClientButton tone="secondary" onClick={() => printTransactions(rows)}><Printer className="h-4 w-4" /> Print</ClientButton></>}>
-    <ClientCard className="mb-5"><SectionTitle title="Filters" subtitle="Filter by type, status, and transaction date" /><div className="grid gap-3 md:grid-cols-4"><ClientField label="Type"><select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className={selectClass}><option value="">All types</option>{types.map((type) => <option key={type} value={type}>{statusText(type)}</option>)}</select></ClientField><ClientField label="Status"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={selectClass}><option value="">All statuses</option>{statuses.map((status) => <option key={status} value={status}>{statusText(status)}</option>)}</select></ClientField><ClientField label="From Date"><ClientInput type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></ClientField><ClientField label="To Date"><ClientInput type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></ClientField></div><div className="mt-4"><ClientButton tone="secondary" onClick={() => { setTypeFilter(""); setStatusFilter(""); setFromDate(""); setToDate(""); }}>Clear Filters</ClientButton></div></ClientCard>
-    <ClientCard><ClientTable rows={rows} pageSize={20} columns={[
+  return <ClientPage title="Transactions" actions={<><ClientButton tone="secondary" disabled={!exportDetails || invalidRange} onClick={() => { if (exportDetails) downloadStatementCsv(rows, exportDetails); }}><Download className="h-4 w-4" /> CSV</ClientButton><ClientButton tone="secondary" disabled={!exportDetails || invalidRange} onClick={() => { if (exportDetails) printTransactions(rows, exportDetails); }}><Printer className="h-4 w-4" /> Print / Save PDF</ClientButton></>}>
+    <ClientCard className="mb-5">
+      <SectionTitle title="Dashboard Review" subtitle="Overall account totals" />
+      <dl className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div><dt className="text-sm text-charcoal/60 dark:text-white/60">Client Name</dt><dd className="mt-1 break-words font-bold">{details.clientName || "Not available"}</dd></div>
+        <div><dt className="text-sm text-charcoal/60 dark:text-white/60">Client ID</dt><dd className="mt-1 break-words font-bold">{details.clientId || "Not available"}</dd></div>
+        <div><dt className="text-sm text-charcoal/60 dark:text-white/60">Total Invested</dt><dd className="mt-1 font-bold">{dashboard.isLoading ? "Loading..." : Number.isFinite(details.totalInvested) && !dashboard.error ? formatCurrency(details.totalInvested) : "Not available"}</dd></div>
+        <div><dt className="text-sm text-charcoal/60 dark:text-white/60">Total Payout</dt><dd className="mt-1 font-bold">{dashboard.isLoading ? "Loading..." : Number.isFinite(details.totalPayout) && !dashboard.error ? formatCurrency(details.totalPayout) : "Not available"}</dd></div>
+      </dl>
+      {!dashboard.isLoading && !summaryReady && <div className="mt-4" role="alert"><p className="mb-2 text-sm text-red-700 dark:text-red-200">{dashboard.error instanceof Error ? dashboard.error.message : "Statement summary unavailable. Reload the account totals before exporting."}</p><ClientButton tone="secondary" disabled={dashboard.isFetching} onClick={() => { void dashboard.refetch(); }}>Reload Summary</ClientButton></div>}
+    </ClientCard>
+    <ClientCard className="mb-5"><SectionTitle title="Filters" /><div className="grid gap-3 md:grid-cols-4"><ClientField label="Type"><select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className={selectClass}><option value="">All types</option>{types.map((type) => <option key={type} value={type}>{statusText(type)}</option>)}</select></ClientField><ClientField label="Status"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={selectClass}><option value="">All statuses</option>{statuses.map((status) => <option key={status} value={status}>{statusText(status)}</option>)}</select></ClientField><ClientField label="From Date"><ClientInput type="date" value={fromDate} max={toDate || undefined} aria-invalid={invalidRange} onChange={(event) => setFromDate(event.target.value)} /></ClientField><ClientField label="To Date"><ClientInput type="date" value={toDate} min={fromDate || undefined} aria-invalid={invalidRange} onChange={(event) => setToDate(event.target.value)} /></ClientField></div>{invalidRange && <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-200">To Date must be on or after From Date.</p>}<div className="mt-4 flex flex-wrap items-center gap-3"><ClientButton tone="secondary" onClick={() => { setTypeFilter(""); setStatusFilter(""); setFromDate(""); setToDate(""); setSearch(""); }}>Clear Filters</ClientButton><p className="text-sm text-charcoal/65 dark:text-white/65">From Date: {formatDate(details.fromDate)} <span className="mx-2">|</span> To Date: {formatDate(details.toDate)}</p></div></ClientCard>
+    <ClientCard><ClientTable key={`${typeFilter}|${statusFilter}|${fromDate}|${toDate}`} rows={rows} pageSize={20} searchValue={search} onSearchChange={setSearch} columns={[
       { key: "id", header: "Transaction ID", render: (row) => row.id },
-      { key: "date", header: "Date", render: (row) => formatDate(row.date) },
+      { key: "date", header: "Date", render: (row) => formatDate(statementDate(row.date) || row.date) },
       { key: "payoutDate", header: "Scheduled Payout Date", render: (row) => formatPayoutDate(row.scheduledPayoutDate) },
       { key: "type", header: "Type", render: (row) => statusText(row.type) },
-      { key: "description", header: "Description", render: (row) => row.description },
       { key: "credit", header: "Credit", render: (row) => formatCurrency(row.credit) },
       { key: "debit", header: "Debit", render: (row) => formatCurrency(row.debit) },
-      { key: "balance", header: "Balance", render: (row) => formatCurrency(row.balance) },
-      { key: "reference", header: "Reference", render: (row) => row.reference },
       { key: "status", header: "Status", render: (row) => <ClientStatus value={row.status} /> }
     ]} /></ClientCard>
   </ClientPage>;
 }
 
-function printTransactions(rows: Transaction[]) {
+function printTransactions(rows: Transaction[], details: ClientStatementDetails) {
   const printedAt = formatDate(new Date().toISOString());
   const logoUrl = new URL(statementLogo, window.location.href).href;
   const tableRows = rows.map((row) => `
     <tr>
       <td>${escapePrintValue(row.id)}</td>
-      <td>${escapePrintValue(formatDate(row.date))}</td>
+      <td>${escapePrintValue(formatDate(statementDate(row.date) || row.date))}</td>
       <td>${escapePrintValue(formatPayoutDate(row.scheduledPayoutDate))}</td>
       <td>${escapePrintValue(statusText(row.type))}</td>
-      <td>${escapePrintValue(row.description)}</td>
       <td class="money">${escapePrintValue(formatCurrency(row.credit))}</td>
       <td class="money">${escapePrintValue(formatCurrency(row.debit))}</td>
-      <td class="money">${escapePrintValue(formatCurrency(row.balance))}</td>
-      <td>${escapePrintValue(row.reference)}</td>
       <td>${escapePrintValue(statusText(row.status))}</td>
     </tr>`).join("");
   const printWindow = window.open("", "_blank", "width=1100,height=800");
@@ -185,7 +209,7 @@ function printTransactions(rows: Transaction[]) {
     return;
   }
   printWindow.document.open();
-  printWindow.document.write(`<!doctype html><html><head><title>Kalpavruksha Transactions</title><style>
+  printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Kalpavruksha Transactions</title><style>
     @page { size: A4 landscape; margin: 12mm; }
     * { box-sizing: border-box; }
     body { margin: 0; color: #17211d; font-family: Arial, sans-serif; }
@@ -193,6 +217,11 @@ function printTransactions(rows: Transaction[]) {
     .statement-brand { flex: 0 0 168px; width: 168px; height: 112px; padding: 8px; }
     .statement-logo { display: block; width: 100%; height: 100%; object-fit: contain; }
     .statement-header p { margin-bottom: 0; }
+    .statement-summary { margin-bottom: 20px; break-inside: avoid; }
+    h2 { font-size: 15px; margin: 0 0 12px; }
+    dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0 0 16px; }
+    dt { font-size: 11px; color: #5a625d; }
+    dd { margin: 4px 0 0; font-size: 13px; font-weight: bold; overflow-wrap: anywhere; }
     h1 { margin: 0; color: #0b2f25; font-size: 22px; }
     p { margin: 6px 0 18px; color: #5a625d; font-size: 12px; }
     table { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -201,8 +230,9 @@ function printTransactions(rows: Transaction[]) {
     .money { text-align: right; white-space: nowrap; }
     thead { display: table-header-group; }
     tr { break-inside: avoid; }
+    @media screen and (max-width: 600px) { body { padding: 12px; } .statement-header { flex-direction: column; align-items: flex-start; gap: 8px; } .statement-brand { flex-basis: auto; } dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } #statement-print-error { display: none; } }
-  </style></head><body><header class="statement-header"><div class="statement-brand"><img class="statement-logo" src="${escapePrintValue(logoUrl)}" alt="Kalpavruksha Wealth" width="152" height="96" /></div><div><h1>Kalpavruksha Wealth - Transaction Statement</h1><p>Printed ${escapePrintValue(printedAt)}. Showing ${rows.length} filtered transaction records.</p></div></header><p id="statement-print-error" role="alert" hidden>The statement logo could not be loaded. Close this window and try printing the statement again.</p><table><thead><tr><th>Transaction ID</th><th>Date</th><th>Scheduled Payout Date</th><th>Type</th><th>Description</th><th>Credit</th><th>Debit</th><th>Balance</th><th>Reference</th><th>Status</th></tr></thead><tbody>${tableRows || '<tr><td colspan="10">No transactions available for this filter.</td></tr>'}</tbody></table></body></html>`);
+  </style></head><body><header class="statement-header"><div class="statement-brand"><img class="statement-logo" src="${escapePrintValue(logoUrl)}" alt="Kalpavruksha Wealth" width="152" height="96" /></div><div><h1>Kalpavruksha Wealth - Transaction Statement</h1><p>Printed ${escapePrintValue(printedAt)}. Showing ${rows.length} filtered transaction records.</p></div></header><section class="statement-summary"><h2>Dashboard Review (overall account totals)</h2><dl><div><dt>Client Name</dt><dd>${escapePrintValue(details.clientName)}</dd></div><div><dt>Client ID</dt><dd>${escapePrintValue(details.clientId)}</dd></div><div><dt>Total Invested</dt><dd>${escapePrintValue(formatCurrency(details.totalInvested))}</dd></div><div><dt>Total Payout</dt><dd>${escapePrintValue(formatCurrency(details.totalPayout))}</dd></div><div><dt>From Date</dt><dd>${escapePrintValue(formatDate(details.fromDate))}</dd></div><div><dt>To Date</dt><dd>${escapePrintValue(formatDate(details.toDate))}</dd></div></dl><p>Type: ${escapePrintValue(details.type ? statusText(details.type) : "All types")} | Status: ${escapePrintValue(details.status ? statusText(details.status) : "All statuses")} | Search: ${escapePrintValue(details.search || "All records")}</p></section><p id="statement-print-error" role="alert" hidden>The statement logo could not be loaded. Close this window and try printing the statement again.</p><table><thead><tr><th>Transaction ID</th><th>Date</th><th>Scheduled Payout Date</th><th>Type</th><th class="money">Credit</th><th class="money">Debit</th><th>Status</th></tr></thead><tbody>${tableRows || '<tr><td colspan="7">No transactions available for this filter.</td></tr>'}</tbody></table></body></html>`);
   printWindow.document.close();
   const logo = printWindow.document.querySelector<HTMLImageElement>(".statement-logo");
   if (!logo) return;
